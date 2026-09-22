@@ -89,12 +89,41 @@ design decisions and the physics behind each step.
 ## Repository layout
 
 ```
-configs/    training and environment parameters
-src/        the package: dynamics, environment, rewards, baselines, live view
-scripts/    train, evaluate, play
-tests/      unit tests, including the dynamics against the analytical solution
-notebooks/  exploration and figures only, no logic
+Orbital_Rendezvous/
+├── pyproject.toml          # metadata, dependencies, ruff and pytest config
+├── README.md               # physics, agent GIF, results, how to reproduce them
+├── ROADMAP.md              # the steps, and the reasoning behind each one
+├── LICENSE                 # MIT
+├── .gitignore
+├── configs/
+│   └── ppo_default.yaml    # environment parameters and PPO hyperparameters
+├── src/
+│   └── orbital_rendezvous/
+│       ├── __init__.py
+│       ├── dynamics.py     # Clohessy-Wiltshire propagation (pure physics, no RL)
+│       ├── env.py          # RendezvousEnv (Gymnasium API)
+│       ├── rewards.py      # reward function, kept apart so it can be tuned alone
+│       ├── baselines.py    # LQR controller, the honest yardstick for the agent
+│       ├── live_view.py    # the training window: trajectory + progress curves
+│       ├── callbacks.py    # SB3 callback feeding the window during training
+│       └── utils.py        # config loading, seeding, delta-v accounting
+├── scripts/
+│   ├── train.py            # train PPO and save the model
+│   ├── evaluate.py         # metrics: success rate, total delta-v, time to dock
+│   └── play.py             # game mode: watch the agent, or fly it yourself
+├── notebooks/              # exploration and figures only, no logic
+├── tests/
+│   ├── test_dynamics.py    # analytical solution, closed orbits, limit cases
+│   ├── test_env.py         # Gymnasium check_env, spaces, reset/step
+│   └── test_rewards.py     # term signs, breakdown consistency
+├── models/                 # checkpoints (git-ignored, except the final one)
+└── assets/                 # GIFs and plots for the README
 ```
+
+Two departures from the plan sketched at the start: the renderer is split into
+`live_view.py` (the figure) and `callbacks.py` (the Stable-Baselines3 hook that
+drives it during training), because drawing and training have to be decoupled;
+and `ROADMAP.md` records the design decisions so each step stays reviewable.
 
 ## Tests
 
