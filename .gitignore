@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.ipynb_checkpoints/
+
+# Training artifacts: keep the directory, ignore the checkpoints.
+models/*
+!models/.gitkeep
+logs/
+runs/
+tensorboard/
+
+.DS_Store
+.idea/
+.vscode/
