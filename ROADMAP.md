@@ -24,6 +24,12 @@ Design decisions taken here:
 - **Physics separated from the RL code**: `dynamics.py` knows nothing about
   agents, so it can be tested against the analytical solution on its own.
 
+The README follows a fixed section order, the same one used across the other
+repositories, so that it grows by filling sections in rather than by being
+rearranged: title and physics, Install, Usage, Layout, Tests, what the code
+computes, the honest part, Roadmap, References, License. Display formulas go in
+` ```math ` blocks and inline ones in `$...$`.
+
 ---
 
 ## Step 1 — Clohessy-Wiltshire dynamics *(next)*
