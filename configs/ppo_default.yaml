@@ -4,8 +4,8 @@
 environment:
   # Target orbit: circular, low Earth orbit at 400 km altitude.
   # The mean motion is n = sqrt(mu / a^3).
-  semi_major_axis: 6778.0e3
-  mu: 3.986004418e14
+  semi_major_axis: 6.778e+6        # m; YAML needs the explicit sign to read a float
+  mu: 3.986004418e+14         # m^3/s^2
 
   # Chaser spacecraft.
   mass: 500.0

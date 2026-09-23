@@ -90,7 +90,7 @@ Orbital_Rendezvous/
 │   ├── baselines.py        # LQR controller: the honest yardstick for the agent
 │   ├── live_view.py        # the training window: trajectory and progress curves
 │   ├── callbacks.py        # SB3 callback feeding that window during training
-│   └── utils.py            # config loading, seeding, delta-v accounting
+│   └── utils.py            # YAML config into the dataclasses, with checks
 ├── scripts/
 │   ├── train.py            # trains PPO and saves the model
 │   ├── evaluate.py         # metrics: success rate, total delta-v, time to dock
@@ -100,6 +100,7 @@ Orbital_Rendezvous/
 │   ├── test_env.py         # Gymnasium check_env, spaces, reset and step
 │   ├── test_rewards.py     # term signs, consistency of the breakdown
 │   ├── test_live_view.py   # callback bookkeeping, headless drawing, short PPO run
+│   ├── test_config.py      # YAML and code defaults agree; typos rejected
 │   └── conftest.py         # draws off-screen, so tests never open a window
 ├── notebooks/              # exploration and figures only, no logic
 ├── models/                 # checkpoints, git-ignored except the final one

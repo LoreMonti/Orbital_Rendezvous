@@ -1,21 +1,48 @@
-"""Small shared helpers: configuration loading and reproducible seeding."""
+"""Configuration loading: from the YAML file to the dataclasses the code uses."""
 
 from __future__ import annotations
 
+from dataclasses import fields
 from pathlib import Path
 from typing import Any
+
+import yaml
+
+from .env import EnvConfig
+from .rewards import RewardConfig
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
     """Read a YAML configuration file into a plain dictionary."""
-    raise NotImplementedError
+    with open(path) as handle:
+        return yaml.safe_load(handle)
 
 
-def set_global_seed(seed: int) -> None:
-    """Seed ``random``, NumPy and PyTorch so a run can be reproduced."""
-    raise NotImplementedError
+def _build(cls, values: dict[str, Any], section: str):
+    known = {f.name for f in fields(cls)}
+    unknown = set(values) - known
+    if unknown:
+        # A typo in the YAML would otherwise be silently replaced by a default.
+        raise ValueError(f"unknown keys in '{section}': {sorted(unknown)}")
+    return cls(**values)
 
 
-def delta_v(thrust_history: Any, mass: float, dt: float) -> float:
-    """Total velocity increment spent over a trajectory, in m/s."""
-    raise NotImplementedError
+def build_configs(config: dict[str, Any]) -> tuple[EnvConfig, RewardConfig]:
+    """Environment and reward configurations from the ``environment`` and ``rewards`` sections.
+
+    The shaping discount must equal the discount of the learning algorithm, or
+    the shaping is no longer guaranteed to leave the optimal policy unchanged,
+    so a mismatch is an error rather than a silent choice between the two.
+    """
+    env_values = dict(config["environment"])
+    if "initial_radius_range" in env_values:
+        env_values["initial_radius_range"] = tuple(env_values["initial_radius_range"])
+    env_config = _build(EnvConfig, env_values, "environment")
+    reward_config = _build(RewardConfig, dict(config["rewards"]), "rewards")
+
+    training_gamma = config.get("training", {}).get("gamma")
+    if training_gamma is not None and training_gamma != reward_config.gamma:
+        raise ValueError(
+            f"rewards.gamma ({reward_config.gamma}) must equal training.gamma ({training_gamma})"
+        )
+    return env_config, reward_config
