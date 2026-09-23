@@ -104,8 +104,66 @@ holds for the median, and the replay shows it as it is.
 
 ## Possible extensions
 
-- [ ] Out-of-plane motion, the full three-dimensional problem
-- [ ] Perturbations: differential drag and $`J_2`$
-- [ ] Navigation noise on the observations
-- [ ] An approach corridor or a keep-out zone around the target
-- [ ] A policy trained to minimise $`\Delta v`$ without the time pressure, to compare with the two-impulse bound
+In order of priority. Each would be a step of its own, with the same rules:
+tests first, the README updated, a commit.
+
+A note on the target's motion: the target *already* moves in this model. The
+LVLH frame travels with it along its circular orbit, at about
+$`7.7\ \text{km/s}`$ with respect to the Earth, and that motion is what produces
+the $`-3n^2x`$ and $`\pm 2n\dot{y}`$ terms, the secular drift and the Coriolis
+coupling. The target sits still at the centre of the view only because the view
+is the target's own. What the real ISS adds is below: an oriented docking port,
+perturbations, and, negligibly, a slightly eccentric orbit.
+
+### 1. A Markovian episode
+
+- [ ] Add the time remaining, $`t/T_\mathrm{max}`$, to the observation. Episodes are
+  truncated at $`3000\ \text{s}`$, but the agent cannot see the clock, so strictly
+  the problem it faces is not Markovian. A small change that fixes a real flaw,
+  to be done before anything else.
+
+### 2. Fuel against the two-impulse bound
+
+- [ ] Train without the time pressure (a slower glide slope, longer episodes) and
+  measure how close the agent gets to the ideal two-impulse transfer,
+  $`0.26\ \text{m/s}`$ against its current $`0.98\ \text{m/s}`$. Today the agent is
+  quick but not frugal; this asks whether it can be frugal.
+- [ ] Place the result on the $`\Delta v`$–time plot of the README, next to the
+  LQR front.
+
+### 3. An oriented target: approach corridor and keep-out zone
+
+- [ ] Give the target a docking port along a fixed direction, typically the
+  along-track axis (a V-bar approach), and require the chaser to arrive inside a
+  cone around it.
+- [ ] Add a keep-out sphere around the station that the chaser must not enter
+  outside the cone.
+- [ ] Compare with the LQR, which cannot express either constraint. This is where
+  a learned policy should matter most.
+
+### 4. Three dimensions
+
+- [ ] Add the out-of-plane axis, $`\ddot{z} + n^2 z = u_z/m`$. On its own it is a
+  decoupled oscillator and adds little; together with an oriented docking port
+  it couples the three axes, so it follows item 3.
+
+### 5. Robustness
+
+- [ ] Navigation noise on the observed state, and thrust errors in magnitude and
+  direction.
+- [ ] Measure how the agent and the LQR degrade as the noise grows.
+
+### 6. Perturbations
+
+- [ ] Differential atmospheric drag and the $`J_2`$ term of the Earth's
+  oblateness, which make the relative motion depart from the Clohessy-Wiltshire
+  model. The exact propagation would give way to numerical integration, and the
+  closed form would become the test reference for the unperturbed limit.
+- [ ] An eccentric target orbit (Tschauner-Hempel equations). For the ISS,
+  $`e \approx 0.0003`$, so this comes last.
+
+### 7. A sounder comparison
+
+- [ ] Several training seeds, to put error bars on every number in the README
+  instead of quoting a single run.
+- [ ] SAC as a second algorithm, on the same environment and budget.
