@@ -23,9 +23,10 @@ The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
-> **Status: early work in progress.** The Clohessy-Wiltshire dynamics and the
-> Gymnasium environment are implemented and tested; the reward shaping and the
-> training loop come next, one reviewable step at a time. See [ROADMAP.md](ROADMAP.md).
+> **Status: early work in progress.** The Clohessy-Wiltshire dynamics, the
+> Gymnasium environment and the reward are implemented and tested; the live
+> window and the training loop come next, one reviewable step at a time. See
+> [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -132,13 +133,18 @@ lead to a given outcome in one step, so a mislabelled ending or a wrong
 case, a chaser fast enough to cross the docking sphere between two steps with
 neither endpoint inside it, and `check_env` with warnings treated as errors.
 
+For the reward, besides the sign of every term, the suite checks the property
+that makes the shaping safe: over a random trajectory the discounted sum of the
+shaping terms equals $\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)$ to
+$10^{-12}$, so a closed loop earns nothing and the shaping cannot be farmed.
+
 ## The learning problem
 
 | | |
 | --- | --- |
 | observation | the relative state $[x, y, \dot{x}, \dot{y}]$, normalised |
 | action | continuous thrust $[u_x, u_y]$, saturated at $u_\mathrm{max}$ |
-| reward | closing on the target, minus fuel spent, plus a docking bonus and a failure penalty |
+| reward | potential-based shaping towards the target under a glide slope, minus the $\Delta v$ spent, plus $\pm 100$ at the end |
 | success | inside the docking radius **and** below the docking speed |
 | algorithm | PPO, on vectorised environments |
 
@@ -158,6 +164,18 @@ evaluated once when the environment is built, so it costs nothing during
 training. The $\Phi$ it returns must agree with the analytical matrix to machine
 precision, which is the strongest available check on the implementation.
 
+The reward is shaped with a potential (Ng, Harada & Russell, 1999),
+
+```math
+F = \gamma\,\Phi(\mathbf{s}') - \Phi(\mathbf{s}), \qquad
+\Phi(\mathbf{s}) = -\,w_r\,\frac{r}{r_\mathrm{max}} - w_v\,\frac{\max\left(0,\ |\mathbf{v}| - v_\mathrm{dock} - r/\tau\right)}{v_\mathrm{ref}}
+```
+
+which pulls the chaser in under a speed limit that tightens to the docking
+speed at the target. Because $F$ telescopes, it speeds learning up without
+changing which policy is optimal. Fuel, instead, is a real cost:
+$-w_f\,|\mathbf{u}|\,\Delta t/m$ per step.
+
 ## The live training window
 
 ```
@@ -172,9 +190,11 @@ precision, which is the strongest available check on the implementation.
 A note on reading those curves. In reinforcement learning the losses do **not**
 fall the way they do in supervised learning, because the policy changes the very
 data it collects: the PPO policy loss oscillates around zero, and the value loss
-often *grows* once the agent starts reaching the docking bonus. Mean episode
-reward and success rate are the curves that show learning, which is why they are
-the prominent ones and the losses are drawn small.
+often *grows* once the agent starts reaching the docking bonus. The curves that
+show learning are the success rate and the mean episode return *without* the
+shaping term: with $\gamma < 1$ and a negative potential, a step spent standing
+still earns $(\gamma - 1)\,\Phi > 0$, so the shaped undiscounted return
+rewards wandering for a long time and would make a poor agent look good.
 
 ## The honest part
 
@@ -205,6 +225,8 @@ The steps, and the reasoning and formulas behind each one, live in
   IEEE Trans. Automat. Contr. **23**, 395 (1978)
 - H. Schaub & J. L. Junkins, *Analytical Mechanics of Space Systems*,
   AIAA Education Series, 4th ed. (2018)
+- A. Y. Ng, D. Harada & S. Russell, *Policy invariance under reward
+  transformations: theory and application to reward shaping*, Proc. ICML (1999)
 - J. Schulman, F. Wolski, P. Dhariwal, A. Radford & O. Klimov,
   *Proximal Policy Optimization Algorithms*, arXiv:1707.06347 (2017)
 - A. Raffin et al., *Stable-Baselines3: Reliable Reinforcement Learning

@@ -28,7 +28,7 @@ import gymnasium as gym
 import numpy as np
 
 from .dynamics import discretize, mean_motion, propagate
-from .rewards import Outcome, RewardConfig, terminal_reward
+from .rewards import Outcome, RewardConfig, Scales, step_reward, terminal_reward
 
 
 @dataclass(frozen=True)
@@ -98,6 +98,13 @@ class RendezvousEnv(gym.Env):
                 self.config.velocity_scale,
             ]
         )
+        self.scales = Scales(
+            max_distance=self.config.max_distance,
+            velocity_scale=self.config.velocity_scale,
+            docking_speed=self.config.docking_speed,
+            mass=self.config.mass,
+            time_step=self.config.time_step,
+        )
         self.state = np.zeros(4)
         self.steps = 0
 
@@ -155,13 +162,21 @@ class RendezvousEnv(gym.Env):
         self, action: np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         thrust = self.config.max_thrust * np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
-        previous_position = self.state[:2].copy()
+        previous_state = self.state.copy()
 
         self.state = propagate(self.state, thrust, self.phi, self.gamma)
         self.steps += 1
 
-        outcome = self._outcome(previous_position)
-        reward = terminal_reward(outcome, self.reward_config)
+        outcome = self._outcome(previous_state[:2])
         terminated = outcome in (Outcome.DOCKED, Outcome.CRASHED, Outcome.ESCAPED)
         truncated = outcome is Outcome.TIMEOUT
-        return self._observation(), reward, terminated, truncated, self._info(outcome, thrust)
+
+        terms = step_reward(
+            previous_state, self.state, thrust, terminated, self.reward_config, self.scales
+        )
+        terms["terminal"] = terminal_reward(outcome, self.reward_config)
+        reward = float(sum(terms.values()))
+
+        info = self._info(outcome, thrust)
+        info["reward_terms"] = terms
+        return self._observation(), reward, terminated, truncated, info

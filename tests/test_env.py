@@ -71,20 +71,28 @@ def test_thrust_saturates(env):
     np.testing.assert_array_equal(info_clipped["thrust"], info_max["thrust"])
 
 
-def test_running_step_gives_no_reward(env):
+def test_running_step_carries_no_terminal_reward(env):
     place(env, [100.0, 0.0, 0.0, 0.0])
-    _, reward, terminated, truncated, info = env.step(np.zeros(2))
-    assert reward == 0.0
+    _, _, terminated, truncated, info = env.step(np.zeros(2))
+    assert info["reward_terms"]["terminal"] == 0.0
     assert not terminated and not truncated
     assert info["outcome"] is None
     assert "is_success" not in info
+
+
+def test_reward_is_the_sum_of_its_terms(env):
+    place(env, [100.0, 20.0, -0.1, 0.05])
+    _, reward, _, _, info = env.step(np.array([0.3, -0.9]))
+    assert set(info["reward_terms"]) == {"shaping", "fuel", "terminal"}
+    assert reward == pytest.approx(sum(info["reward_terms"].values()))
 
 
 def test_docking(env):
     place(env, [0.5, 0.0, 0.0, 0.0])
     _, reward, terminated, truncated, info = env.step(np.zeros(2))
     assert info["outcome"] is Outcome.DOCKED
-    assert reward == RewardConfig().success_bonus
+    assert info["reward_terms"]["terminal"] == RewardConfig().success_bonus
+    assert reward > 0.9 * RewardConfig().success_bonus
     assert terminated and not truncated
     assert info["is_success"]
 
@@ -94,7 +102,8 @@ def test_crash_inside_the_sphere(env):
     place(env, [0.0, 1.5, 0.0, -2.0])
     _, reward, terminated, _, info = env.step(np.zeros(2))
     assert info["outcome"] is Outcome.CRASHED
-    assert reward == RewardConfig().failure_penalty
+    assert info["reward_terms"]["terminal"] == RewardConfig().failure_penalty
+    assert reward < 0.0
     assert terminated
     assert not info["is_success"]
 
@@ -113,7 +122,8 @@ def test_escape(env):
     place(env, [499.9, 0.0, 1.0, 0.0])
     _, reward, terminated, truncated, info = env.step(np.zeros(2))
     assert info["outcome"] is Outcome.ESCAPED
-    assert reward == RewardConfig().failure_penalty
+    assert info["reward_terms"]["terminal"] == RewardConfig().failure_penalty
+    assert reward < 0.0
     assert terminated and not truncated
 
 
@@ -127,7 +137,7 @@ def test_timeout_is_a_truncation_not_a_failure():
     _, reward, terminated, truncated, info = env.step(np.zeros(2))
     assert info["outcome"] is Outcome.TIMEOUT
     assert truncated and not terminated
-    assert reward == 0.0
+    assert info["reward_terms"]["terminal"] == 0.0
     assert not info["is_success"]
 
 

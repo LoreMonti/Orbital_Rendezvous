@@ -154,16 +154,76 @@ at about $3 \times 10^4$ steps per second on one core. A random policy over
 only a terminal reward, PPO would almost never see a positive signal: this is
 the concrete reason the shaping terms of Step 3 are needed.
 
-## Step 3 — Reward function *(next)*
+## Step 3 — Reward function *(done)*
 
-Distance shaping, fuel penalty, docking bonus and failure penalty, with each
-term returned separately for logging and tuning.
+The reward of a step is the sum of three terms, each returned separately in
+`info["reward_terms"]` for logging and tuning.
 
-## Step 4 — Live training window
+**Why not a naive "reward for getting closer".** Paying $+w$ whenever the
+distance shrinks can be farmed, by oscillating back and forth, and in general
+changes which policy is optimal. Potential-based shaping (Ng, Harada & Russell,
+1999) avoids both: with a potential $\Phi(\mathbf{s})$, each step adds
+
+$$F = \gamma\,\Phi(\mathbf{s}') - \Phi(\mathbf{s}),$$
+
+whose discounted sum over any trajectory telescopes to
+$\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)$. It depends only on the two
+ends, so nothing can be farmed, and the optimal policy is provably unchanged.
+$\gamma$ must be the discount factor of PPO, $0.99$. The potential of a
+terminated state is taken as zero, which is what keeps the equivalence exact
+on episodic tasks; a truncated state keeps its potential.
+
+**The potential** has two terms:
+
+$$\Phi(\mathbf{s}) = -\,w_r\,\frac{r}{r_\mathrm{max}} \;-\; w_v\,\frac{\max\!\left(0,\ |\mathbf{v}| - v_\mathrm{max}(r)\right)}{v_\mathrm{ref}}, \qquad v_\mathrm{max}(r) = v_\mathrm{dock} + \frac{r}{\tau}.$$
+
+The first pulls towards the target. The second is a speed limit that tightens
+on approach, a glide slope: with $\tau = 200\,\text{s}$ it allows
+$0.55\,\text{m/s}$ at $100\,\text{m}$, $0.10\,\text{m/s}$ at $10\,\text{m}$, and
+exactly the docking speed at the target. Without it the first term alone would
+teach the agent to rush in and crash.
+
+**Fuel** is a real cost, not shaping, and is meant to change the optimal policy:
+$r_\mathrm{fuel} = -\,w_f\,|\mathbf{u}|\,\Delta t/m$, the $\Delta v$ spent in the step.
+
+**Terminal**: $+100$ on docking, $-100$ on a crash or an escape, $0$ on a timeout.
+
+**Weights**: $w_r = w_v = w_f = 10$. Flying in from $200\,\text{m}$ is worth
+about $+4$ of shaping; burning the whole $4\,\text{m/s}$ budget costs $-40$; an
+efficient approach of about $0.5\,\text{m/s}$ costs $-5$. The docking bonus
+stays dominant, and wasting fuel hurts.
+
+### Tests
+
+Every sign: closing in rewarded, receding penalised, speeding near the target
+penalised, thrust never free. The glide slope ending at the docking speed.
+Zero potential at the target at rest and on terminated states. And the property
+that makes the shaping safe: over a random trajectory the discounted sum equals
+$\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)$ to $10^{-12}$, and a closed
+loop earns nothing. In the environment, the reward equals the sum of its terms.
+
+### Outcome: the shaped return is not the score to plot
+
+Over 200 episodes of a random policy the shaping term sums to $+65$ on average,
+and an agent that escapes can end with a total of $+59$. For a step with
+$\mathbf{s}' = \mathbf{s}$,
+
+$$F = (\gamma - 1)\,\Phi(\mathbf{s}) = -0.01\,\Phi(\mathbf{s}) > 0,$$
+
+because the potential is negative everywhere but at the target: at
+$300\,\text{m}$, $\Phi \approx -6$, so about $+0.06$ per step and $+84$ over 1400
+steps, which matches. This does not affect learning, since PPO maximises the
+*discounted* return, on which the telescoping is exact. It does make the
+*undiscounted* episode return meaningless as a progress measure, because a poor
+agent that wanders for a long time would look good. The live window therefore
+plots the unshaped return, fuel plus terminal, alongside the success rate:
+train on the shaped reward, measure on the true one.
+
+## Step 4 — Live training window *(next)*
 
 A single matplotlib figure: the LVLH plane with the chaser and its trail on the
-left, and the mean episode reward, success rate and delta-v on the right, with
-the PPO losses as secondary curves. The trajectory is redrawn once every
+left, and the mean unshaped episode return (fuel plus terminal, see Step 3),
+success rate and delta-v on the right, with the PPO losses as secondary curves. The trajectory is redrawn once every
 `episode_stride` episodes so training keeps running at full speed.
 
 Note on reading those curves: in reinforcement learning the losses do not fall

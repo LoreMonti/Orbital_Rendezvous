@@ -30,8 +30,14 @@ environment:
   velocity_scale: 0.5          # m/s
 
 rewards:
-  distance_weight: 1.0e-2      # shaping term on the closing distance
-  fuel_weight: 1.0e-3          # penalty on the commanded thrust
+  # Potential-based shaping, F = gamma Phi(s') - Phi(s), with
+  # Phi = -w_r r / r_max - w_v max(0, |v| - v_max(r)) / v_ref
+  # and the glide slope v_max(r) = docking_speed + r / approach_time.
+  distance_weight: 10.0
+  speed_weight: 10.0
+  approach_time: 200.0         # s
+  gamma: 0.99                  # must equal training.gamma
+  fuel_weight: 10.0            # per m/s of delta-v spent: a real cost, not shaping
   success_bonus: 100.0
   failure_penalty: -100.0
 
