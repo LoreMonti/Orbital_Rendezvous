@@ -20,9 +20,11 @@ class RecordingView:
         self.episodes = []
         self.curve_updates = 0
 
-    def show_episode(self, positions, velocities, thrusts, outcome, episode):
+    def show_episode(self, positions, velocities, thrusts, outcome, episode, capture=0):
         assert len(positions) == len(velocities) == len(thrusts)
         self.episodes.append((len(positions), outcome, episode))
+        # A stand-in clip: one frame per requested capture, tagged by episode.
+        return [np.full((2, 2, 3), episode, dtype=np.uint8)] * capture
 
     def update_curves(self, curves):
         self.curve_updates += 1
@@ -200,3 +202,54 @@ def test_two_game_views_can_share_one_scale():
         view.load(*run, Outcome.DOCKED, "", extent=extent)
     assert views[0].ax_plane.get_xlim() == views[1].ax_plane.get_xlim() == (-extent, extent)
     plt.close(fig)
+
+
+def test_recording_keeps_the_milestones_and_the_last_replay():
+    callback = LiveViewCallback(RecordingView(), episode_stride=2, record_at=(3, 5, 6),
+                                capture_frames=4)
+    for _ in range(11):
+        run_episode(callback, length=3, outcome=Outcome.TIMEOUT, terminal=0.0)
+    # Replays at episodes 2, 4, 6, 8, 10. Episode 4 is the first past 3, episode 6
+    # the first past both 5 and 6 (one clip for two thresholds), and 10 the last.
+    clips = callback.recorded_clips()
+    assert [int(clip[0][0, 0, 0]) for clip in clips] == [4, 6, 10]
+    assert all(len(clip) == 4 for clip in clips)
+
+
+def test_last_replay_is_not_duplicated_when_it_is_a_milestone():
+    callback = LiveViewCallback(RecordingView(), episode_stride=2, record_at=(4,),
+                                capture_frames=2)
+    for _ in range(4):
+        run_episode(callback, length=3, outcome=Outcome.DOCKED, terminal=100.0)
+    assert [int(clip[0][0, 0, 0]) for clip in callback.recorded_clips()] == [4]
+
+
+def test_no_capture_without_recording():
+    callback = LiveViewCallback(RecordingView(), episode_stride=1)
+    run_episode(callback, length=3, outcome=Outcome.DOCKED, terminal=100.0)
+    assert callback.recorded_clips() == []
+
+
+def test_headless_replay_captures_frames_and_writes_a_gif(tmp_path):
+    from PIL import Image
+
+    from orbital_rendezvous.live_view import save_gif
+
+    view = LiveView.from_env(RendezvousEnv())
+    clip = view.show_episode(*spiral_episode(n=60), Outcome.DOCKED, 1, capture=5)
+    view.close()
+    assert len(clip) == 5
+    assert clip[0].shape[1] == 960 and clip[0].shape[2] == 3
+    # The last frame is taken after the banner is up, so it differs from the one before.
+    assert not np.array_equal(clip[-1], clip[-2])
+
+    path = tmp_path / "training.gif"
+    save_gif([clip, clip], str(path), fps=10, hold=3)
+    # Pillow merges identical consecutive frames into longer ones, so the hold
+    # shows up in the total duration rather than in the number of frames.
+    with Image.open(path) as gif:
+        total = 0
+        for k in range(gif.n_frames):
+            gif.seek(k)
+            total += gif.info["duration"]
+    assert total == 2 * (5 + 3) * 100

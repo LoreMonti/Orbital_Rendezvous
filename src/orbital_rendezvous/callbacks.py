@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -19,6 +21,10 @@ class LiveViewCallback(BaseCallback):
     episode shown is a real training episode, exploration noise included.
 
     The curves are redrawn at the end of every rollout.
+
+    With ``record_at``, replays are also captured for the training GIF: the
+    first replay at or after each of those episode counts, plus the last replay
+    of the run, which shows what the agent finally learned.
     """
 
     def __init__(
@@ -26,6 +32,8 @@ class LiveViewCallback(BaseCallback):
         live_view: LiveView,
         episode_stride: int = 50,
         env_index: int = 0,
+        record_at: Sequence[int] = (),
+        capture_frames: int = 36,
         verbose: int = 0,
     ) -> None:
         super().__init__(verbose)
@@ -40,6 +48,12 @@ class LiveViewCallback(BaseCallback):
         self._velocities: list[np.ndarray] = []
         self._thrusts: list[np.ndarray] = []
         self._last_replay_at = 0
+        self.record_at = sorted(record_at)
+        self.capture_frames = capture_frames
+        self.milestone_clips: list[list[np.ndarray]] = []
+        self._last_clip: list[np.ndarray] = []
+        self._last_clip_is_milestone = False
+        self._next_milestone = 0
 
     def _reset_accumulators(self, n_envs: int) -> None:
         self._returns = np.zeros(n_envs)
@@ -79,9 +93,32 @@ class LiveViewCallback(BaseCallback):
         if self.curves.n_episodes - self._last_replay_at >= self.episode_stride:
             self._last_replay_at = self.curves.n_episodes
             self.replays += 1
-            self.live_view.show_episode(
-                positions, velocities, thrusts, outcome, self.curves.n_episodes
+            # Every replay is captured when recording, since any could be the last.
+            capture = self.capture_frames if self.record_at else 0
+            clip = self.live_view.show_episode(
+                positions, velocities, thrusts, outcome, self.curves.n_episodes, capture=capture
             )
+            if capture:
+                self._keep(clip)
+
+    def _keep(self, clip: list[np.ndarray]) -> None:
+        # Several thresholds crossed since the last replay still yield one clip.
+        milestone = False
+        while (self._next_milestone < len(self.record_at)
+               and self.curves.n_episodes >= self.record_at[self._next_milestone]):
+            self._next_milestone += 1
+            milestone = True
+        if milestone:
+            self.milestone_clips.append(clip)
+        self._last_clip = clip
+        self._last_clip_is_milestone = milestone
+
+    def recorded_clips(self) -> list[list[np.ndarray]]:
+        """The milestone clips in order, then the last replay if it is not one of them."""
+        clips = list(self.milestone_clips)
+        if self._last_clip and not self._last_clip_is_milestone:
+            clips.append(self._last_clip)
+        return clips
 
     def _on_rollout_end(self) -> None:
         self.live_view.update_curves(self.curves)

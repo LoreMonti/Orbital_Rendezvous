@@ -68,6 +68,7 @@ its options with `--help`.
 ```bash
 python scripts/train.py --config configs/ppo_default.yaml
 python scripts/train.py --no-render          # full speed, no window
+python scripts/train.py --record assets/training.gif   # and save the GIF above
 python scripts/evaluate.py --watch 5        # and replay 5 attempts
 python scripts/play.py                       # agent against the fastest LQR
 python scripts/play.py --lqr cheapest        # against the patient one
@@ -205,19 +206,13 @@ $`-w_f\,|\mathbf{u}|\,\Delta t/m`$ per step.
 
 ## The live training window
 
-```
-┌──────────────────────────────────────┬─────────────────────────────┐
-│          ATTEMPT 140 · docked!       │  how often it docks         │
-│ TIME  DISTANCE  SPEED  LIMIT    FUEL │                             │
-│ 11:07 34.7 m   0.16   0.22 ✓  ███░   ├─────────────────────────────┤
-├──────────────────────────────────────┤  score: fuel + docking      │
-│                    direction ──▶     │                             │
-│         ▭■▭ TARGET                   ├─────────────────────────────┤
-│              ╲ 50 m                  │  fuel spent per attempt     │
-│        ▲ chaser                      ├─────────────────────────────┤
-│  ▼ EARTH, 400 km below               │  legend                     │
-└──────────────────────────────────────┴─────────────────────────────┘
-```
+![Four moments of one training run](assets/training.gif)
+
+*Four replays from one training run, with the curves as they stood at that
+moment: after about 500 attempts the agent drifts off and is lost in space;
+around 1500 it has learned to close in but stops short of the target; around
+2500 it docks about half the time; by the end it docks cleanly almost every
+time, on a fraction of the fuel it burnt while learning.*
 
 The left panel is meant to read like a video game for someone with no
 background in orbits: the station at the centre, the Earth below, the orbit

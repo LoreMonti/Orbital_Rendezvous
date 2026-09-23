@@ -528,3 +528,22 @@ given the dynamics, the agent found much the same way in as the controller that
 was.
 
 A 2-start GIF at 72 dpi is 2.4 MB, small enough for the README.
+
+## Step 8 — Training GIF *(done)*
+
+The side-by-side GIF shows the result; nothing showed the learning, the part
+of the project that is reinforcement learning. `train.py --record PATH` saves
+a GIF of the training window at a few moments of the run: the first replay at
+or after each episode count in `live_view.record_at` (500, 1500 and 2500 by
+default: wandering, closing in, mostly docking) plus the last replay of the
+run. It works with `--no-render` as well, drawing the window off-screen.
+
+Every replay is captured while recording, because any of them could turn out
+to be the last; each frame is shrunk to 960 pixels as soon as it is taken,
+since on a high-density screen a full-size clip would take gigabytes. The GIF
+uses one palette for all frames, so the colours do not flicker. An automatic
+palette is dominated by the dark background and turned the red banners orange,
+so the exact colours of the theme are added to it by hand.
+
+Recording adds about two minutes to a training run, and the GIF weighs about
+0.5 MB.

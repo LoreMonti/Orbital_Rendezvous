@@ -28,18 +28,28 @@ import matplotlib.ticker
 import numpy as np
 
 from .game_view import (
+    AMBER,
     BACKGROUND,
     BLUE,
+    CHASER,
     GREEN,
     GRID,
     MUTED,
     ORANGE,
     PANEL,
+    RED,
+    SPACE,
     TEXT,
     GameView,
     add_legend,
 )
 from .rewards import Outcome
+
+# Every colour the views use, so that the training GIF keeps each one exactly.
+THEME_COLORS = (
+    BACKGROUND, SPACE, PANEL, TEXT, MUTED, GRID, GREEN, RED, AMBER, BLUE, ORANGE, CHASER,
+    "#1e3a8a", "#93c5fd", "#bfdbfe", "#475569",
+)
 
 NON_INTERACTIVE_BACKENDS = {"agg", "pdf", "ps", "svg", "cairo", "template"}
 
@@ -156,19 +166,54 @@ class LiveView:
         thrusts: np.ndarray,
         outcome: Outcome,
         episode: int,
-    ) -> None:
-        """Replay an attempt, sped up to about ``replay_frames`` frames, ending on a banner."""
+        capture: int = 0,
+    ) -> list[np.ndarray]:
+        """Replay an attempt, sped up to about ``replay_frames`` frames, ending on a banner.
+
+        With ``capture`` > 0, also returns about that many images of the whole
+        window, evenly spread over the replay and ending on the banner: the
+        raw material of the training GIF. Capturing works headless too.
+        """
         if len(positions) == 0:
-            return
+            return []
         self.game.load(positions, velocities, thrusts, outcome, f"ATTEMPT {episode}")
         last = self.game.n_steps - 1
-        frames = np.unique(np.linspace(0, last, self.replay_frames).astype(int))
-        if not self.interactive:
-            frames = frames[-1:]
-        for k in frames:
+        if self.interactive:
+            drawn = self.replay_frames
+        elif capture:
+            drawn = capture
+        else:
+            drawn = 1
+        # A single frame is the last step, the one with the banner.
+        frames = np.unique(np.linspace(0, last, drawn).astype(int)) if drawn > 1 else [last]
+        keep = set()
+        if capture:
+            keep = set(np.unique(np.linspace(0, len(frames) - 1, capture).astype(int)))
+
+        images = []
+        for i, k in enumerate(frames):
             self.game.draw(k)
             self.refresh(self.frame_interval)
+            if i in keep:
+                images.append(self.snapshot())
         self.refresh(0.8 if self.interactive else 0.0)
+        if capture:
+            # The banner is drawn by the refresh above, after the last step.
+            images[-1] = self.snapshot()
+        return images
+
+    def snapshot(self, width: int = 960) -> np.ndarray:
+        """The window as an RGB image ``width`` pixels wide.
+
+        Shrunk straight away: on a high-density screen the canvas has twice
+        the pixels, and a clip of full-size frames would take gigabytes.
+        """
+        from PIL import Image
+
+        self.fig.canvas.draw()
+        image = Image.fromarray(np.asarray(self.fig.canvas.buffer_rgba())[..., :3])
+        height = round(image.height * width / image.width)
+        return np.asarray(image.resize((width, height), Image.LANCZOS))
 
     # -- the curves ---------------------------------------------------------------
 
@@ -232,3 +277,31 @@ class LiveView:
 
     def close(self) -> None:
         self.plt.close(self.fig)
+
+
+def save_gif(clips: list[list[np.ndarray]], path: str, fps: int = 12, hold: int = 18) -> None:
+    """Join replay clips into one looping GIF, holding each clip's last frame for a moment."""
+    from PIL import Image
+
+    frames = []
+    for clip in clips:
+        frames += clip + [clip[-1]] * hold
+    images = [Image.fromarray(frame) for frame in frames]
+    # One shared palette keeps the colours steady from frame to frame. An
+    # automatic palette is dominated by the dark background and loses the
+    # accents, so the exact colours of the theme are added to it by hand: the
+    # banners, the flame and the curves come out in their true colours.
+    samples = [Image.fromarray(clip[i]) for clip in clips for i in (len(clip) // 2, -1)]
+    width, height = samples[0].size
+    mosaic = Image.new("RGB", (width * len(samples), height))
+    for i, sample in enumerate(samples):
+        mosaic.paste(sample, (i * width, 0))
+    automatic = mosaic.quantize(colors=256 - len(THEME_COLORS)).getpalette()
+    colours = automatic[: 3 * (256 - len(THEME_COLORS))]
+    for hex_colour in THEME_COLORS:
+        colours += [int(hex_colour[i : i + 2], 16) for i in (1, 3, 5)]
+    palette = Image.new("P", (1, 1))
+    palette.putpalette(colours)
+    images = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in images]
+    images[0].save(path, save_all=True, append_images=images[1:], duration=1000 // fps,
+                   loop=0, optimize=True)

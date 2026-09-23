@@ -64,3 +64,7 @@ live_view:
   enabled: true
   episode_stride: 500          # replay one attempt every N; ~40 over a full run
   trail_length: 300            # how many past positions to keep on screen
+  # With --record, the replays kept for the training GIF: the first at or after
+  # each of these episode counts (wandering, learning, mostly docking), plus the
+  # last one of the run.
+  record_at: [500, 1500, 2500]
