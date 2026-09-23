@@ -25,6 +25,10 @@ environment:
   docking_speed: 0.05          # m/s, and slow enough not to crash into it
   max_distance: 500.0          # m, beyond this the episode is a failure
 
+  # Observation normalisation: velocities are divided by this, positions by
+  # max_distance, so every component the agent sees is of order one.
+  velocity_scale: 0.5          # m/s
+
 rewards:
   distance_weight: 1.0e-2      # shaping term on the closing distance
   fuel_weight: 1.0e-3          # penalty on the commanded thrust

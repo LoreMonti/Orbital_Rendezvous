@@ -120,13 +120,41 @@ until a fixed wheel exists for Python 3.10.
 
 ---
 
-## Step 2 — Gymnasium environment *(next)*
+## Step 2 — Gymnasium environment *(done)*
 
-`RendezvousEnv` on top of the dynamics: normalised observations, thrust
-saturation, episode termination on docking, crash, runaway or timeout, and
-compliance with `gymnasium.utils.env_checker.check_env`.
+`RendezvousEnv` on top of the dynamics, with the terminal reward only.
 
-## Step 3 — Reward function
+- **Action** $a \in [-1, 1]^2$, thrust $\mathbf{u} = u_\mathrm{max}\,a$ saturated
+  per axis. With $u_\mathrm{max} = 1\,\text{N}$ and $m = 500\,\text{kg}$ the
+  acceleration is at most $2\,\text{mm/s}^2$, so an episode of $2000\,\text{s}$
+  can spend at most $\Delta v = 4\,\text{m/s}$.
+- **Observation** normalised so that every component is of order one:
+  $\mathbf{o} = [x/r_\mathrm{max},\ y/r_\mathrm{max},\ \dot{x}/v_\mathrm{ref},\ \dot{y}/v_\mathrm{ref}]$
+  with $r_\mathrm{max} = 500\,\text{m}$ and $v_\mathrm{ref} = 0.5\,\text{m/s}$.
+  Positions are hundreds of metres and velocities centimetres per second: fed
+  raw, the network would barely see the velocities. The bounds are finite,
+  twice the escape radius and $10\,\text{m/s}$, as `check_env` requires.
+- **Initial condition** at a random distance $r_0 \in [80, 200]\,\text{m}$ in a
+  random direction, with a small random velocity, so the agent has to learn a
+  strategy rather than memorise one trajectory.
+- **Four outcomes**: docked ($r < 1\,\text{m}$ and $|\mathbf{v}| < 0.05\,\text{m/s}$),
+  crashed (same sphere, too fast), escaped ($r > 500\,\text{m}$), and timeout.
+  The timeout is reported as `truncated`, not `terminated`, so PPO treats it as
+  an interrupted episode rather than a failure.
+- **Tunnelling.** At a few metres per second the chaser covers more than the
+  docking diameter in one step, so it could fly through the target with
+  neither endpoint inside the sphere. The outcome is decided on the closest
+  approach of the whole segment travelled during the step.
+
+### Outcome
+
+The environment passes `check_env` with warnings treated as errors, and runs
+at about $3 \times 10^4$ steps per second on one core. A random policy over
+200 episodes escapes 157 times, times out 43 times, and **never docks**. With
+only a terminal reward, PPO would almost never see a positive signal: this is
+the concrete reason the shaping terms of Step 3 are needed.
+
+## Step 3 — Reward function *(next)*
 
 Distance shaping, fuel penalty, docking bonus and failure penalty, with each
 term returned separately for logging and tuning.

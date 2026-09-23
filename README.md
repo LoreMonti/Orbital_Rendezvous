@@ -23,9 +23,9 @@ The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
-> **Status: early work in progress.** The Clohessy-Wiltshire dynamics are
-> implemented and tested; the environment and the training loop come next, one
-> reviewable step at a time. See [ROADMAP.md](ROADMAP.md).
+> **Status: early work in progress.** The Clohessy-Wiltshire dynamics and the
+> Gymnasium environment are implemented and tested; the reward shaping and the
+> training loop come next, one reviewable step at a time. See [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -125,6 +125,12 @@ periodic $2\!:\!1$ ellipse, two steps of $\Delta t$ agreeing with one of
 $2\Delta t$ under a constant thrust, and, for $n \to 0$, the input matrix
 reducing to a double integrator plus the first-order Coriolis coupling
 $\pm n\,\Delta t^3/3m$, which pins both the $1/m$ and the sign of the coupling.
+
+The environment is tested by placing the chaser by hand in a state that must
+lead to a given outcome in one step, so a mislabelled ending or a wrong
+`terminated`/`truncated` flag shows up directly. That includes the tunnelling
+case, a chaser fast enough to cross the docking sphere between two steps with
+neither endpoint inside it, and `check_env` with warnings treated as errors.
 
 ## The learning problem
 
