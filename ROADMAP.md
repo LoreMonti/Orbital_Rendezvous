@@ -219,20 +219,56 @@ agent that wanders for a long time would look good. The live window therefore
 plots the unshaped return, fuel plus terminal, alongside the success rate:
 train on the shaped reward, measure on the true one.
 
-## Step 4 — Live training window *(next)*
+## Step 4 — Live training window *(done)*
 
-A single matplotlib figure: the LVLH plane with the chaser and its trail on the
-left, and the mean unshaped episode return (fuel plus terminal, see Step 3),
-success rate and delta-v on the right, with the PPO losses as secondary curves. The trajectory is redrawn once every
-`episode_stride` episodes so training keeps running at full speed.
+A single matplotlib figure. On the left the LVLH plane, with the target, the
+chaser, its trail and its thrust arrow, and reference circles labelled with the
+glide-slope speed limit $v_\mathrm{max}(r)$ at that distance, so it is visible
+whether the agent respects it. The trail is coloured by how the episode ended:
+green docked, red crashed or escaped, grey timeout. On the right the success
+rate and the true return, fuel plus terminal (see Step 3), as the prominent
+curves, then the $\Delta v$ per episode, and the PPO policy and value losses
+small at the bottom.
 
-Note on reading those curves: in reinforcement learning the losses do not fall
-the way they do in supervised learning, because the policy changes the data it
-collects. The PPO policy loss oscillates around zero and the value loss often
-grows once the agent starts reaching the docking bonus. Mean episode reward and
-success rate are the curves that show learning.
+**How it fits in the training.** A Stable-Baselines3 callback is called at
+every step, at the end of each rollout, and before each update. At every step
+it accumulates the true return and the $\Delta v$ of each parallel environment
+and records the trajectory of environment 0. When an episode ends its numbers
+join the curves; once every $N = 50$ episodes the last finished episode of
+environment 0 is replayed. The curves are redrawn at the end of each rollout,
+and the losses are read at the start of the next one, after the update that
+produced them.
 
-## Step 5 — Training
+**Which episode is shown.** A real training episode, exploration noise
+included: it shows what the agent is doing while it learns. A separate
+deterministic rollout, showing what it has already learned, belongs to
+`evaluate.py`.
+
+**Replay sped up, not in real time.** An episode can last 2000 steps, which at
+60 frames per second would stop training for over half a minute. The replay
+takes about 130 frames whatever the length, 3 to 4 seconds. Training pauses
+meanwhile, since matplotlib on macOS must run on the main thread: about 28
+replays over 2 million steps cost about 2 minutes in total, and `--no-render`
+removes them.
+
+### Tests
+
+Run off-screen with the `Agg` backend, so they never open a window. The
+callback is fed episodes whose outcome, return and $\Delta v$ are known, and
+its bookkeeping is checked exactly: the true return excludes the shaping, the
+accumulators reset between episodes, and the replay happens once every $N$
+episodes and only for environment 0. The figure is drawn and saved headless,
+and a short real PPO run checks that the pieces fit inside Stable-Baselines3.
+
+### Outcome
+
+A 100 000-step run with 8 environments takes about 7 seconds, around
+$1.4 \times 10^4$ steps per second including PPO, so the full 2-million-step
+training should take a few minutes. After 70 episodes the agent has learned
+nothing yet, as expected: no docking, a true return around $-110$, and nearly
+the whole $4\,\text{m/s}$ budget burnt in every episode.
+
+## Step 5 — Training *(next)*
 
 PPO on vectorised environments, with a seeded and reproducible run, and
 checkpoints saved to `models/`.

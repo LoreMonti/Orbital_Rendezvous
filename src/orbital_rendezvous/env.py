@@ -115,6 +115,7 @@ class RendezvousEnv(gym.Env):
     def _info(self, outcome: Outcome | None, thrust: np.ndarray) -> dict[str, Any]:
         cfg = self.config
         info: dict[str, Any] = {
+            "position": self.state[:2].copy(),
             "distance": float(np.linalg.norm(self.state[:2])),
             "speed": float(np.linalg.norm(self.state[2:])),
             "thrust": thrust,

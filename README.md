@@ -24,9 +24,9 @@ fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
 > **Status: early work in progress.** The Clohessy-Wiltshire dynamics, the
-> Gymnasium environment and the reward are implemented and tested; the live
-> window and the training loop come next, one reviewable step at a time. See
-> [ROADMAP.md](ROADMAP.md).
+> Gymnasium environment, the reward and the live training window are
+> implemented and tested; the training script comes next, one reviewable step
+> at a time. See [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -98,7 +98,9 @@ Orbital_Rendezvous/
 ├── tests/
 │   ├── test_dynamics.py    # analytical solution, closed orbits, limit cases
 │   ├── test_env.py         # Gymnasium check_env, spaces, reset and step
-│   └── test_rewards.py     # term signs, consistency of the breakdown
+│   ├── test_rewards.py     # term signs, consistency of the breakdown
+│   ├── test_live_view.py   # callback bookkeeping, headless drawing, short PPO run
+│   └── conftest.py         # draws off-screen, so tests never open a window
 ├── notebooks/              # exploration and figures only, no logic
 ├── models/                 # checkpoints, git-ignored except the final one
 └── assets/                 # GIFs and plots used by this README
@@ -137,6 +139,11 @@ For the reward, besides the sign of every term, the suite checks the property
 that makes the shaping safe: over a random trajectory the discounted sum of the
 shaping terms equals $\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)$ to
 $10^{-12}$, so a closed loop earns nothing and the shaping cannot be farmed.
+
+The training window is tested off-screen: its callback is fed episodes whose
+outcome, return and $\Delta v$ are known in advance, so the bookkeeping behind
+every curve is checked exactly, and a short real PPO run checks that the pieces
+fit together inside Stable-Baselines3.
 
 ## The learning problem
 
@@ -179,13 +186,21 @@ $-w_f\,|\mathbf{u}|\,\Delta t/m$ per step.
 ## The live training window
 
 ```
-┌─────────────────────────┬──────────────────────────┐
-│  LVLH plane             │  mean episode reward     │
-│   target, chaser, trail │  success rate            │
-│   thrust vector         │  delta-v per episode     │
-│                         │  PPO losses (secondary)  │
-└─────────────────────────┴──────────────────────────┘
+┌──────────────────────────────┬─────────────────────────────┐
+│  LVLH plane                  │  success rate               │
+│   target, chaser, trail      ├─────────────────────────────┤
+│   thrust arrow               │  true return: fuel+terminal │
+│   glide-slope circles        ├─────────────────────────────┤
+│                              │  delta-v per episode        │
+│  episode · outcome · delta-v ├─────────────────────────────┤
+│                              │  PPO losses (secondary)     │
+└──────────────────────────────┴─────────────────────────────┘
 ```
+
+One real training episode, exploration noise included, is replayed sped up
+once every $N$ episodes, with its trail coloured by how it ended; the curves
+are refreshed after every rollout. Training pauses only during the replays,
+about two minutes over a full run.
 
 A note on reading those curves. In reinforcement learning the losses do **not**
 fall the way they do in supervised learning, because the policy changes the very
