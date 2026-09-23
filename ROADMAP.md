@@ -32,7 +32,7 @@ computes, the honest part, Roadmap, References, License. Display formulas go in
 
 ---
 
-## Step 1 — Clohessy-Wiltshire dynamics *(next)*
+## Step 1 — Clohessy-Wiltshire dynamics *(done)*
 
 The target flies a circular orbit of semi-major axis $a$ with mean motion
 $n = \sqrt{\mu/a^3}$. In the LVLH frame centred on the target, with $x$ radial
@@ -98,11 +98,29 @@ precision, which is the strongest available check on the implementation.
 - the secular along-track drift matches $-6 n x_0 t$ at first order;
 - the initial condition $\dot{y}_0 = -2 n x_0$ gives a closed orbit: the state
   returns to itself after one period $T = 2\pi/n$;
-- propagating twice over $\Delta t$ equals propagating once over $2\Delta t$.
+- propagating twice over $\Delta t$ equals propagating once over $2\Delta t$,
+  under a constant thrust, which checks $\Gamma$ as well as $\Phi$;
+- for $n \to 0$, $\Gamma$ reduces to the double integrator,
+  $\Delta x = u\,\Delta t^2/2m$ and $\Delta v = u\,\Delta t/m$, plus the
+  first-order Coriolis coupling, antisymmetric between the axes:
+  $\pm n\,\Delta t^3/3m$ on position and $\pm n\,\Delta t^2/m$ on velocity.
+  This pins both the $1/m$ in $B$ and the sign of the coupling.
+
+### Outcome
+
+`propagate` takes the matrices precomputed by `discretize`, so a step costs two
+small matrix products, and it accepts batches of states. The $\Phi$ from
+`expm` agrees with the analytical one to $10^{-9}$ relative at every step size
+tested, up to a full orbital period.
+
+One environment issue surfaced here: the scipy 1.15.x wheels for macOS arm64
+ship a Fortran extension that the macOS 27 loader refuses to open, so
+`import scipy.linalg` fails. scipy is pinned below 1.15 in `pyproject.toml`
+until a fixed wheel exists for Python 3.10.
 
 ---
 
-## Step 2 — Gymnasium environment
+## Step 2 — Gymnasium environment *(next)*
 
 `RendezvousEnv` on top of the dynamics: normalised observations, thrust
 saturation, episode termination on docking, crash, runaway or timeout, and

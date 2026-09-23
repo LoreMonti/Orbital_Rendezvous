@@ -23,8 +23,8 @@ The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
-> **Status: early work in progress.** The layout and the plan are in place; the
-> dynamics, the environment and the training loop are being implemented, one
+> **Status: early work in progress.** The Clohessy-Wiltshire dynamics are
+> implemented and tested; the environment and the training loop come next, one
 > reviewable step at a time. See [ROADMAP.md](ROADMAP.md).
 
 ## Install
@@ -38,8 +38,9 @@ pip install -e ".[dev,play]"
 
 That one command reads `pyproject.toml` and pulls in `numpy`, `scipy`,
 `matplotlib`, `gymnasium`, `stable-baselines3` and `torch`, plus `pytest` and
-`ruff` from the `dev` extra and `pygame` from `play`. Python 3.10 or newer; the
-environment used here is Python 3.10 with numpy 2.2.6, scipy 1.15.3,
+`ruff` from the `dev` extra and `pygame` from `play`. Python 3.10 or newer.
+scipy is pinned below 1.15, whose macOS arm64 wheels fail to load on macOS 27.
+The environment used here is Python 3.10 with numpy 2.2.6, scipy 1.14.1,
 gymnasium 1.3.0, stable-baselines3 2.9.0 and torch 2.14.0.
 
 ## Usage
@@ -120,8 +121,10 @@ $n$ produces plausible-looking trajectories. The suite pins the invariants that
 would catch that — the state-transition matrix from `expm` against the
 analytical one, a chaser at rest staying at rest, the secular drift matching
 $-6 n x_0 t$, the initial condition $\dot{y}_0 = -2 n x_0$ closing into a
-periodic $2\!:\!1$ ellipse, and two steps of $\Delta t$ agreeing with one of
-$2\Delta t$.
+periodic $2\!:\!1$ ellipse, two steps of $\Delta t$ agreeing with one of
+$2\Delta t$ under a constant thrust, and, for $n \to 0$, the input matrix
+reducing to a double integrator plus the first-order Coriolis coupling
+$\pm n\,\Delta t^3/3m$, which pins both the $1/m$ and the sign of the coupling.
 
 ## The learning problem
 

@@ -14,7 +14,9 @@ keywords = ["reinforcement-learning", "orbital-mechanics", "rendezvous", "gymnas
 
 dependencies = [
     "numpy>=1.26",
-    "scipy>=1.11",
+    # scipy 1.15.x wheels for macOS arm64 ship a Fortran extension (_spropack)
+    # that the macOS 27 loader refuses to open, so `import scipy.linalg` fails.
+    "scipy>=1.11,<1.15",
     "matplotlib>=3.8",
     "gymnasium>=0.29",
     "stable-baselines3>=2.3",
