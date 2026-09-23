@@ -39,8 +39,8 @@ class EnvConfig:
     mu: float = 3.986004418e14
     mass: float = 500.0
     max_thrust: float = 1.0
-    time_step: float = 1.0
-    max_episode_steps: int = 2000
+    time_step: float = 10.0
+    max_episode_steps: int = 300
     initial_radius_range: tuple[float, float] = (80.0, 200.0)
     initial_velocity_scale: float = 0.05
     docking_radius: float = 1.0

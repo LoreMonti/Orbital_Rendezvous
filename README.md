@@ -23,10 +23,10 @@ The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
-> **Status: early work in progress.** The Clohessy-Wiltshire dynamics, the
-> Gymnasium environment, the reward and the live training window are
-> implemented and tested; the training script comes next, one reviewable step
-> at a time. See [ROADMAP.md](ROADMAP.md).
+> **Status: work in progress.** The agent learns to dock: after 2 million
+> steps, about two minutes on a laptop, it docks from 200 out of 200 unseen
+> starting points, spending a median $\Delta v$ of $0.98\,\text{m/s}$. The LQR
+> comparison and the game mode come next. See [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -229,6 +229,14 @@ the classical controller in `baselines.py` should be very hard to beat on fuel.
 That comparison is the point of including it: the interesting number is how
 close a policy that was given no model of the dynamics gets to one that was
 handed the equations.
+
+The first training run learned nothing: with a decision every second and
+$\gamma = 0.99$, the agent looked 100 seconds ahead, while an approach takes
+about 1000, so the docking bonus was discounted to $100 \cdot 0.99^{1000}
+\approx 0.004$ and never seen. Deciding every 10 seconds instead, with the
+physics unchanged since the propagation is exact, took the docking rate from
+0 % to 200 out of 200. The timescale of the decisions mattered more than any
+hyperparameter; the full account is in the roadmap, Step 5.
 
 What the learned policy can do that LQR cannot is absorb the parts of the
 problem that break the linear-quadratic assumptions — thrust saturation, a

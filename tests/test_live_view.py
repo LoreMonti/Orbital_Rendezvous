@@ -131,7 +131,7 @@ def test_live_view_draws_headless(tmp_path):
 def test_hud_reports_the_true_final_state():
     env = RendezvousEnv()
     view = LiveView.from_env(env)
-    positions, velocities, thrusts = spiral_episode()
+    positions, velocities, thrusts = spiral_episode(n=150)
     positions[-1] = [3.0, 4.0]
     velocities[-1] = [0.3, -0.4]
     view.show_episode(positions, velocities, thrusts, Outcome.CRASHED, 7)
@@ -144,9 +144,10 @@ def test_hud_reports_the_true_final_state():
     # Glide slope at 5 m: 0.05 + 5 / 200 = 0.075 m/s, so 0.5 m/s is too fast.
     assert hud["limit"] == pytest.approx(0.075)
     assert hud["within_limit"] is False
-    # |u| = 0.5 sqrt(2) N for 400 s on 500 kg, out of a tank of
-    # sqrt(2) N for 2000 s: 10 % used.
-    assert hud["fuel_left"] == pytest.approx(0.9)
+    # Half the thrust on both axes, |u| = 0.5 sqrt(2) u_max, for 150 steps, out
+    # of a tank of sqrt(2) u_max for the whole episode: 0.5 * 150 / 300 used.
+    cfg = env.config
+    assert hud["fuel_left"] == pytest.approx(1.0 - 0.5 * 150 / cfg.max_episode_steps)
 
 
 def test_short_ppo_run_feeds_the_window():

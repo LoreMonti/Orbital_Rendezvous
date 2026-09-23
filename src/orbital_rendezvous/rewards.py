@@ -48,9 +48,9 @@ class RewardConfig:
     shaping is no longer guaranteed to leave the optimal policy unchanged.
     """
 
-    distance_weight: float = 10.0
+    distance_weight: float = 20.0
     speed_weight: float = 10.0
-    fuel_weight: float = 10.0
+    fuel_weight: float = 2.0
     approach_time: float = 200.0
     gamma: float = 0.99
     success_bonus: float = 100.0

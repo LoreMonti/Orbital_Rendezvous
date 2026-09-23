@@ -127,7 +127,8 @@ until a fixed wheel exists for Python 3.10.
 - **Action** $a \in [-1, 1]^2$, thrust $\mathbf{u} = u_\mathrm{max}\,a$ saturated
   per axis. With $u_\mathrm{max} = 1\,\text{N}$ and $m = 500\,\text{kg}$ the
   acceleration is at most $2\,\text{mm/s}^2$, so an episode of $2000\,\text{s}$
-  can spend at most $\Delta v = 4\,\text{m/s}$.
+  can spend at most $\Delta v = 4\,\text{m/s}$. *(Step 5 later changed the
+  step to $10\,\text{s}$ and the episode to $3000\,\text{s}$; see there.)*
 - **Observation** normalised so that every component is of order one:
   $\mathbf{o} = [x/r_\mathrm{max},\ y/r_\mathrm{max},\ \dot{x}/v_\mathrm{ref},\ \dot{y}/v_\mathrm{ref}]$
   with $r_\mathrm{max} = 500\,\text{m}$ and $v_\mathrm{ref} = 0.5\,\text{m/s}$.
@@ -192,6 +193,12 @@ $r_\mathrm{fuel} = -\,w_f\,|\mathbf{u}|\,\Delta t/m$, the $\Delta v$ spent in th
 about $+4$ of shaping; burning the whole $4\,\text{m/s}$ budget costs $-40$; an
 efficient approach of about $0.5\,\text{m/s}$ costs $-5$. The docking bonus
 stays dominant, and wasting fuel hurts.
+
+*This reasoning was wrong, and Step 5 shows why.* The docking bonus is only
+dominant if the agent can see it, and with these settings it could not; before
+the bonus is ever reached, $+4$ for approaching against $-5$ of fuel makes
+staying put the better choice. The weights were changed to $w_r = 20$ and
+$w_f = 2$ in Step 5.
 
 ### Tests
 
@@ -298,12 +305,70 @@ training should take a few minutes. After 70 episodes the agent has learned
 nothing yet, as expected: no docking, a true return around $-110$, and nearly
 the whole $4\,\text{m/s}$ budget burnt in every episode.
 
-## Step 5 — Training *(next)*
+## Step 5 — Training *(done)*
 
-PPO on vectorised environments, with a seeded and reproducible run, and
-checkpoints saved to `models/`.
+`scripts/train.py` reads every parameter from the YAML file, trains PPO on 8
+parallel environments, and writes the model to `models/` and a run directory
+under `runs/` with checkpoints, the Stable-Baselines3 log as CSV (losses
+included), one row per episode, and a copy of the configuration. Loading the
+configuration rejects unknown keys, since a typo would otherwise be silently
+replaced by a default, and a shaping discount different from the training one.
 
-## Step 6 — LQR baseline and evaluation
+A test that the YAML and the dataclass defaults agree caught a real bug on its
+first run: PyYAML follows YAML 1.1, where `6778.0e3` is a *string*, because a
+float needs an explicit exponent sign, `6.778e+6`.
+
+### First run: nothing learned
+
+With the settings of Steps 2 and 3 ($\Delta t = 1\,\text{s}$, 2000 steps,
+$w_r = w_f = 10$), 2 million steps gave **0 % docking**. The agent learned
+something, the reward rose and it stopped escaping as often, but the median
+closest approach over 100 attempts was $133\,\text{m}$: it never really moved
+towards the target. Two causes, both visible in the numbers.
+
+**The discount horizon did not cover the manoeuvre.** With $\gamma = 0.99$ the
+agent looks about $1/(1-\gamma) = 100$ steps ahead, which at
+$\Delta t = 1\,\text{s}$ is 100 seconds. An approach along the glide slope,
+$\dot r = -r/\tau$, takes
+
+$$t \approx \tau \ln\frac{r_0}{r_\mathrm{dock}} = 200 \ln 200 \approx 1060\,\text{s},$$
+
+so the docking bonus arrived about 1000 steps later, worth
+$100 \cdot 0.99^{1000} \approx 0.004$: invisible.
+
+**Fuel cost more than approaching earned.** Without the bonus in sight, $+4$ of
+shaping for flying in from $200\,\text{m}$ against about $-5$ of fuel made
+staying put the better choice. The agent did exactly what it was paid to do.
+
+### The fix
+
+- $\Delta t = 10\,\text{s}$, episodes of 300 steps ($3000\,\text{s}$). The
+  propagation is exact for any step, so the physics is unchanged; only the
+  decision rate is. The horizon of 100 steps now spans $1000\,\text{s}$.
+- $w_r = 20$, $w_f = 2$: approaching from $200\,\text{m}$ earns
+  $20 \cdot 200/500 = +8$, an efficient approach costs about $-2$.
+- PPO rollouts of 512 steps per environment, a bit under two episodes.
+- One replay every 500 episodes instead of 50: with shorter episodes a full run
+  has about 20 000 of them, and 400 replays would have paused training for
+  almost half an hour.
+
+### Outcome
+
+The same 2 million steps, the same 2 minutes:
+
+| | first run | after the fix |
+| --- | --- | --- |
+| docking, end of training | 0 % | about 98 % |
+| docking, 200 unseen starts, deterministic policy | 0 / 100 | **200 / 200** |
+| $\Delta v$ spent, median (5th–95th percentile) | $1.6\,\text{m/s}$, for nothing | $0.98\,\text{m/s}$ ($0.68$–$1.37$) |
+| time to dock, median | | $600\,\text{s}$ |
+| speed at docking, median | | $2.9\,\text{cm/s}$, limit $5$ |
+
+The learning curve: 5 % docking over the first 2000 episodes, 75 % over the
+next 2000, and 97–99 % from there on, so most of the learning happens in the
+first third of the run. Two runs with the same seed give identical numbers.
+
+## Step 6 — LQR baseline and evaluation *(next)*
 
 An infinite-horizon LQR on the discrete CW dynamics, and a comparison on
 success rate, total delta-v and time to dock over a fixed set of seeded initial
