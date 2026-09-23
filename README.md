@@ -186,28 +186,36 @@ $-w_f\,|\mathbf{u}|\,\Delta t/m$ per step.
 ## The live training window
 
 ```
-┌──────────────────────────────┬─────────────────────────────┐
-│  LVLH plane                  │  success rate               │
-│   target, chaser, trail      ├─────────────────────────────┤
-│   thrust arrow               │  true return: fuel+terminal │
-│   glide-slope circles        ├─────────────────────────────┤
-│                              │  delta-v per episode        │
-│  episode · outcome · delta-v ├─────────────────────────────┤
-│                              │  PPO losses (secondary)     │
-└──────────────────────────────┴─────────────────────────────┘
+┌──────────────────────────────────────┬─────────────────────────────┐
+│          ATTEMPT 140 · docked!       │  how often it docks         │
+│ TIME  DISTANCE  SPEED  LIMIT    FUEL │                             │
+│ 11:07 34.7 m   0.16   0.22 ✓  ███░   ├─────────────────────────────┤
+├──────────────────────────────────────┤  score: fuel + docking      │
+│                    direction ──▶     │                             │
+│         ▭■▭ TARGET                   ├─────────────────────────────┤
+│              ╲ 50 m                  │  fuel spent per attempt     │
+│        ▲ chaser                      ├─────────────────────────────┤
+│  ▼ EARTH, 400 km below               │  legend                     │
+└──────────────────────────────────────┴─────────────────────────────┘
 ```
 
-One real training episode, exploration noise included, is replayed sped up
-once every $N$ episodes, with its trail coloured by how it ended; the curves
-are refreshed after every rollout. Training pauses only during the replays,
-about two minutes over a full run.
+The left panel is meant to read like a video game for someone with no
+background in orbits: the station at the centre, the Earth below, the orbit
+running to the right, and the chaser as an arrow with its engine flame. A
+status bar above the scene shows the distance, the speed against the speed
+limit at that distance, and a fuel gauge; it and the legend are kept off the
+scene, so nothing ever hides the chaser. One real training attempt,
+exploration noise included, is replayed sped up once every $N$ attempts and
+ends on a banner (DOCKED!, CRASHED, LOST IN SPACE, OUT OF TIME); the curves are
+refreshed after every rollout. Training pauses only during the replays, about
+two minutes over a full run.
 
-A note on reading those curves. In reinforcement learning the losses do **not**
-fall the way they do in supervised learning, because the policy changes the very
-data it collects: the PPO policy loss oscillates around zero, and the value loss
-often *grows* once the agent starts reaching the docking bonus. The curves that
-show learning are the success rate and the mean episode return *without* the
-shaping term: with $\gamma < 1$ and a negative potential, a step spent standing
+A note on reading those curves. The network losses are deliberately not
+plotted: in reinforcement learning they do **not** fall the way they do in
+supervised learning, because the policy changes the very data it collects, so
+the PPO policy loss oscillates around zero and the value loss often *grows*
+once the agent starts reaching the docking bonus. The curves that show learning
+are the success rate and the mean episode return *without* the shaping term: with $\gamma < 1$ and a negative potential, a step spent standing
 still earns $(\gamma - 1)\,\Phi > 0$, so the shaped undiscounted return
 rewards wandering for a long time and would make a poor agent look good.
 

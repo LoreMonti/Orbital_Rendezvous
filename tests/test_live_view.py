@@ -5,8 +5,6 @@ are known in advance, so its bookkeeping is checked exactly. A short real PPO
 run then checks that the pieces fit together inside Stable-Baselines3.
 """
 
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 
@@ -22,8 +20,9 @@ class RecordingView:
         self.episodes = []
         self.curve_updates = 0
 
-    def show_episode(self, positions, thrusts, outcome, episode, delta_v):
-        self.episodes.append((len(positions), outcome, episode, delta_v))
+    def show_episode(self, positions, velocities, thrusts, outcome, episode):
+        assert len(positions) == len(velocities) == len(thrusts)
+        self.episodes.append((len(positions), outcome, episode))
 
     def update_curves(self, curves):
         self.curve_updates += 1
@@ -34,6 +33,7 @@ def step_info(outcome=None, shaping=5.0, fuel=-0.02, terminal=0.0, delta_v=0.002
         "reward_terms": {"shaping": shaping, "fuel": fuel, "terminal": terminal},
         "delta_v": delta_v,
         "position": np.array([10.0, -5.0]),
+        "velocity": np.array([-0.1, 0.02]),
         "thrust": np.array([0.1, 0.2]),
         "outcome": outcome,
     }
@@ -89,7 +89,7 @@ def test_replays_once_every_stride_and_only_env_index():
     # Nine episodes, alternating between env 0 and env 1. Replays can only
     # happen when env 0 finishes, once at least three episodes have passed.
     assert callback.curves.n_episodes == 9
-    assert [episode for _, _, episode, _ in view.episodes] == [3, 7]
+    assert [episode for _, _, episode in view.episodes] == [3, 7]
     assert callback.replays == 2
 
 
@@ -98,22 +98,18 @@ def test_replayed_trajectory_is_the_whole_episode():
     callback = LiveViewCallback(view, episode_stride=1)
     run_episode(callback, length=7, outcome=Outcome.CRASHED, terminal=-100.0)
     run_episode(callback, length=4, outcome=Outcome.DOCKED, terminal=100.0)
-    assert [(n, o) for n, o, _, _ in view.episodes] == [
+    assert [(n, o) for n, o, _ in view.episodes] == [
         (7, Outcome.CRASHED),
         (4, Outcome.DOCKED),
     ]
 
 
-def test_losses_are_read_from_the_logger():
-    callback = LiveViewCallback(RecordingView())
-    logger = SimpleNamespace(name_to_value={})
-    callback.model = SimpleNamespace(logger=logger)
-    callback._on_rollout_start()
-    assert callback.curves.policy_loss == []
-    logger.name_to_value.update({"train/policy_gradient_loss": -0.01, "train/value_loss": 3.0})
-    callback._on_rollout_start()
-    assert callback.curves.policy_loss == [-0.01]
-    assert callback.curves.value_loss == [3.0]
+def spiral_episode(n=400):
+    t = np.linspace(0.0, 1.0, n)
+    positions = np.column_stack([150.0 * (1 - t), 80.0 * np.sin(3 * t) * (1 - t)])
+    velocities = np.gradient(positions, axis=0)
+    thrusts = np.full((n, 2), 0.5)
+    return positions, velocities, thrusts
 
 
 def test_live_view_draws_headless(tmp_path):
@@ -122,17 +118,35 @@ def test_live_view_draws_headless(tmp_path):
     curves = TrainingCurves()
     for k in range(20):
         curves.record_episode(Outcome.DOCKED if k % 3 else Outcome.ESCAPED, -3.0 + k, 0.5)
-    curves.policy_loss.extend([0.01, -0.02])
-    curves.value_loss.extend([4.0, 2.0])
     view.update_curves(curves)
 
-    t = np.linspace(0.0, 1.0, 400)
-    positions = np.column_stack([150.0 * (1 - t), 80.0 * np.sin(3 * t) * (1 - t)])
-    view.show_episode(positions, np.ones((400, 2)), Outcome.DOCKED, 20, 0.61)
+    view.show_episode(*spiral_episode(), Outcome.DOCKED, 20)
+    assert view._banner.get_text() == "DOCKED!"
     path = tmp_path / "window.png"
     view.save(str(path))
     view.close()
     assert path.stat().st_size > 10_000
+
+
+def test_hud_reports_the_true_final_state():
+    env = RendezvousEnv()
+    view = LiveView.from_env(env)
+    positions, velocities, thrusts = spiral_episode()
+    positions[-1] = [3.0, 4.0]
+    velocities[-1] = [0.3, -0.4]
+    view.show_episode(positions, velocities, thrusts, Outcome.CRASHED, 7)
+    view.close()
+
+    hud = view.hud
+    assert hud["time"] == pytest.approx(len(positions) * env.config.time_step)
+    assert hud["distance"] == pytest.approx(5.0)
+    assert hud["speed"] == pytest.approx(0.5)
+    # Glide slope at 5 m: 0.05 + 5 / 200 = 0.075 m/s, so 0.5 m/s is too fast.
+    assert hud["limit"] == pytest.approx(0.075)
+    assert hud["within_limit"] is False
+    # |u| = 0.5 sqrt(2) N for 400 s on 500 kg, out of a tank of
+    # sqrt(2) N for 2000 s: 10 % used.
+    assert hud["fuel_left"] == pytest.approx(0.9)
 
 
 def test_short_ppo_run_feeds_the_window():
@@ -150,4 +164,3 @@ def test_short_ppo_run_feeds_the_window():
     assert callback.curves.n_episodes >= 512 // 50
     assert view.episodes, "no episode was replayed"
     assert view.curve_updates == 4
-    assert len(callback.curves.policy_loss) == 3

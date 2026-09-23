@@ -227,17 +227,14 @@ glide-slope speed limit $v_\mathrm{max}(r)$ at that distance, so it is visible
 whether the agent respects it. The trail is coloured by how the episode ended:
 green docked, red crashed or escaped, grey timeout. On the right the success
 rate and the true return, fuel plus terminal (see Step 3), as the prominent
-curves, then the $\Delta v$ per episode, and the PPO policy and value losses
-small at the bottom.
+curves, then the $\Delta v$ per episode.
 
 **How it fits in the training.** A Stable-Baselines3 callback is called at
 every step, at the end of each rollout, and before each update. At every step
 it accumulates the true return and the $\Delta v$ of each parallel environment
 and records the trajectory of environment 0. When an episode ends its numbers
 join the curves; once every $N = 50$ episodes the last finished episode of
-environment 0 is replayed. The curves are redrawn at the end of each rollout,
-and the losses are read at the start of the next one, after the update that
-produced them.
+environment 0 is replayed. The curves are redrawn at the end of each rollout.
 
 **Which episode is shown.** A real training episode, exploration noise
 included: it shows what the agent is doing while it learns. A separate
@@ -251,13 +248,46 @@ meanwhile, since matplotlib on macOS must run on the main thread: about 28
 replays over 2 million steps cost about 2 minutes in total, and `--no-render`
 removes them.
 
+### A game view, readable by anyone
+
+The first version of the left panel was correct but read like a plot: no
+legend, no sense of where the Earth is, and cryptic speed labels on the
+rings. It was redesigned to read like a video game, for someone with no
+background in orbits or in machine learning:
+
+- a dark space scene with stars, the Earth drawn below, and an arrow for the
+  direction of the orbit, which is what makes a rendezvous counter-intuitive;
+- the target as a station with solar panels, the chaser as an arrow pointing
+  where it is going, and the thrust as an engine flame out of the back;
+- rings labelled with distances in metres, down a diagonal so that the labels
+  never overlap;
+- a status bar above the scene with the time, the distance, the speed against the glide-slope limit
+  $v_\mathrm{max}(r)$ at the current distance, marked ✓ or ✗, and a fuel gauge
+  counting down from the most $\Delta v$ an attempt could spend,
+  $\sqrt{2}\,u_\mathrm{max}\,T/m$;
+- a closing banner: DOCKED!, CRASHED, LOST IN SPACE or OUT OF TIME;
+- plain-language titles on the right: "attempt" rather than "episode", and
+  "score" rather than "return".
+
+The status bar and the legend both started inside the scene, and both ended
+up covering the chaser whenever it flew into their corner. They were moved out:
+the status bar above the scene, the legend under the curves on the right, laid
+out wide on three columns. To make room, the PPO losses were dropped from the
+window: they say nothing to a newcomer, and even to an expert they do not say
+whether a PPO agent is improving. Stable-Baselines3 still logs them.
+
+The velocity is now passed through `info` as well as the position, so the status
+bar shows the exact speed rather than a finite difference.
+
 ### Tests
 
 Run off-screen with the `Agg` backend, so they never open a window. The
 callback is fed episodes whose outcome, return and $\Delta v$ are known, and
 its bookkeeping is checked exactly: the true return excludes the shaping, the
 accumulators reset between episodes, and the replay happens once every $N$
-episodes and only for environment 0. The figure is drawn and saved headless,
+episodes and only for environment 0. The status-bar values are checked against the
+true final state of an attempt: time, distance, speed, the glide-slope limit
+and the fuel left. The figure is drawn and saved headless,
 and a short real PPO run checks that the pieces fit inside Stable-Baselines3.
 
 ### Outcome
