@@ -121,7 +121,7 @@ def test_live_view_draws_headless(tmp_path):
     view.update_curves(curves)
 
     view.show_episode(*spiral_episode(), Outcome.DOCKED, 20)
-    assert view._banner.get_text() == "DOCKED!"
+    assert view.game.banner.get_text() == "DOCKED!"
     path = tmp_path / "window.png"
     view.save(str(path))
     view.close()
@@ -165,3 +165,38 @@ def test_short_ppo_run_feeds_the_window():
     assert callback.curves.n_episodes >= 512 // 50
     assert view.episodes, "no episode was replayed"
     assert view.curve_updates == 4
+
+
+def test_game_view_holds_the_last_step_with_the_banner():
+    import matplotlib.pyplot as plt
+
+    from orbital_rendezvous.game_view import GameView
+
+    fig = plt.figure()
+    view = GameView.from_env(fig, fig.add_gridspec(1, 1)[0], RendezvousEnv())
+    positions, velocities, thrusts = spiral_episode(n=50)
+    view.load(positions, velocities, thrusts, Outcome.ESCAPED, "LQR")
+    view.draw(10)
+    assert not view.banner.get_visible()
+    # Past the end, as the shorter of two side-by-side attempts would be.
+    view.draw(80)
+    assert view.banner.get_text() == "LOST IN SPACE"
+    assert view.hud["distance"] == pytest.approx(np.hypot(*positions[-1]))
+    plt.close(fig)
+
+
+def test_two_game_views_can_share_one_scale():
+    import matplotlib.pyplot as plt
+
+    from orbital_rendezvous.game_view import GameView, scene_extent
+
+    fig = plt.figure()
+    grid = fig.add_gridspec(1, 2)
+    near, far = spiral_episode(n=20), spiral_episode(n=20)
+    far = (3.0 * far[0], far[1], far[2])
+    extent = scene_extent(near[0], far[0])
+    views = [GameView.from_env(fig, grid[0, i], RendezvousEnv()) for i in range(2)]
+    for view, run in zip(views, (near, far), strict=True):
+        view.load(*run, Outcome.DOCKED, "", extent=extent)
+    assert views[0].ax_plane.get_xlim() == views[1].ax_plane.get_xlim() == (-extent, extent)
+    plt.close(fig)

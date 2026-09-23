@@ -15,6 +15,9 @@ import numpy as np
 from .env import RendezvousEnv
 from .rewards import Outcome
 
+# Starts never seen in training, which seeds its environments from 0 upwards.
+HELD_OUT_SEED = 10_000
+
 # A controller maps (environment, observation) to an action in [-1, 1]^2: the
 # learned policy reads the observation, a classical one the physical state.
 Controller = Callable[[RendezvousEnv, np.ndarray], np.ndarray]

@@ -30,9 +30,6 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
 ]
-play = [
-    "pygame>=2.5",
-]
 
 [project.urls]
 Homepage = "https://github.com/LoreMonti/Orbital_Rendezvous"

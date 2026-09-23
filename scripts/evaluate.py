@@ -24,11 +24,15 @@ from stable_baselines3 import PPO
 
 from orbital_rendezvous import RendezvousEnv
 from orbital_rendezvous.baselines import LQRController, best_two_impulse
-from orbital_rendezvous.evaluation import Summary, evaluate, pareto_front, summarise
+from orbital_rendezvous.evaluation import (
+    HELD_OUT_SEED,
+    Summary,
+    evaluate,
+    pareto_front,
+    summarise,
+)
 from orbital_rendezvous.utils import build_configs, load_config
 
-# Held-out starts: training seeds its environments from 0 upwards.
-FIRST_SEED = 10_000
 APPROACH_TIMES = (50.0, 75.0, 100.0, 150.0, 200.0, 300.0)
 FUEL_WEIGHTS = tuple(np.logspace(-4, 0, 9))
 
@@ -60,7 +64,7 @@ def main() -> None:
     args = parse_args()
     env_config, reward_config = build_configs(load_config(args.config))
     env = RendezvousEnv(env_config, reward_config)
-    seeds = range(FIRST_SEED, FIRST_SEED + args.episodes)
+    seeds = range(HELD_OUT_SEED, HELD_OUT_SEED + args.episodes)
 
     model = PPO.load(args.model)
     agent_runs = evaluate(env, lambda e, obs: model.predict(obs, deterministic=True)[0], seeds)
@@ -135,7 +139,7 @@ def main() -> None:
 def plot(path, agent, sweep, front, ideal_dv, episodes) -> None:
     import matplotlib.pyplot as plt
 
-    from orbital_rendezvous.live_view import BLUE, GREEN, GRID, MUTED, PANEL, TEXT
+    from orbital_rendezvous.game_view import BLUE, GREEN, GRID, MUTED, PANEL, TEXT
 
     fig, ax = plt.subplots(figsize=(8.0, 5.2), facecolor=PANEL)
     ax.set_facecolor(PANEL)

@@ -19,16 +19,23 @@ you further behind: the secular drift in the closed-form solution is
 $-6 n x_0 t$, proportional to the *radial* offset. The agent has to discover
 that it must go down to catch up.
 
+![The agent and an LQR controller flying the same approach](assets/side_by_side.gif)
+
+*The trained agent (left) and the fastest LQR controller that never crashes
+(right), from the same starting point never seen in training. The status bars
+compare them directly: time, distance, speed against the speed limit, and fuel
+used.*
+
 The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
-> **Status: work in progress.** The agent learns to dock: after 2 million
+> **Status: complete.** The agent learns to dock: after 2 million
 > steps, about two minutes on a laptop, it docks from 200 out of 200 unseen
 > starting points in a median $600\,\text{s}$, spending $0.98\,\text{m/s}$ of
 > $\Delta v$. That is faster *and* cheaper than the fastest LQR controller that
-> never crashes; a patient LQR spends half as much in four times the time. The
-> game mode comes next. See [ROADMAP.md](ROADMAP.md).
+> never crashes; a patient LQR spends half as much in four times the time. See
+> [ROADMAP.md](ROADMAP.md) for how each step was reached.
 
 ## Install
 
@@ -36,12 +43,12 @@ training cost without adding any coupling to learn.
 git clone https://github.com/LoreMonti/Orbital_Rendezvous.git
 cd Orbital_Rendezvous
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,play]"
+pip install -e ".[dev]"
 ```
 
 That one command reads `pyproject.toml` and pulls in `numpy`, `scipy`,
 `matplotlib`, `gymnasium`, `stable-baselines3` and `torch`, plus `pytest` and
-`ruff` from the `dev` extra and `pygame` from `play`. Python 3.10 or newer.
+`ruff` from the `dev` extra. Python 3.10 or newer.
 scipy is pinned below 1.15, whose macOS arm64 wheels fail to load on macOS 27.
 The environment used here is Python 3.10 with numpy 2.2.6, scipy 1.14.1,
 gymnasium 1.3.0, stable-baselines3 2.9.0 and torch 2.14.0.
@@ -56,13 +63,14 @@ its options with `--help`.
 | --- | --- |
 | `train.py` | trains PPO and saves the policy to `models/`, with the live window open |
 | `evaluate.py` | the agent against a sweep of LQR controllers and the ideal two-impulse transfer, on 200 unseen starts: a table, a plot and a JSON file |
-| `play.py` | watch the trained agent, or fly the chaser yourself and compare |
+| `play.py` | the agent and an LQR controller flying the same approach side by side, in a window or as a GIF |
 
 ```bash
 python scripts/train.py --config configs/ppo_default.yaml
 python scripts/train.py --no-render          # full speed, no window
 python scripts/evaluate.py --watch 5        # and replay 5 attempts
-python scripts/play.py --human
+python scripts/play.py                       # agent against the fastest LQR
+python scripts/play.py --lqr cheapest        # against the patient one
 ```
 
 As a library:
@@ -91,13 +99,14 @@ Orbital_Rendezvous/
 │   ├── rewards.py          # reward function, kept apart so it can be tuned alone
 │   ├── baselines.py        # LQR controller and two-impulse transfer
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
-│   ├── live_view.py        # the training window: trajectory and progress curves
+│   ├── game_view.py        # one attempt drawn like a video game, reusable
+│   ├── live_view.py        # the training window: a game view and the curves
 │   ├── callbacks.py        # SB3 callback feeding that window during training
 │   └── utils.py            # YAML config into the dataclasses, with checks
 ├── scripts/
 │   ├── train.py            # trains PPO and saves the model
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
-│   └── play.py             # game mode: watch the agent, or fly it yourself
+│   └── play.py             # agent against LQR, side by side, same start
 ├── tests/
 │   ├── test_dynamics.py    # analytical solution, closed orbits, limit cases
 │   ├── test_env.py         # Gymnasium check_env, spaces, reset and step

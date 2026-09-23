@@ -451,8 +451,53 @@ At the slow end the LQR wins clearly, and the ideal two-impulse transfer shows
 how much further there is to go on fuel. The whole evaluation runs in about
 40 seconds.
 
-## Step 7 — The game *(next)*
+## Step 7 — Side-by-side comparison *(done)*
 
-`play.py`: watch the trained agent, or fly the chaser with the keyboard and
-compare your delta-v with the agent's and the LQR's on the same initial
-condition. GIF recording for the README.
+### A change of plan
+
+The original Step 7 was a game mode: fly the chaser with the keyboard and
+compare your $\Delta v$ with the agent's. It was dropped. The content of the
+project is the comparison between the agent and the LQR, and a human pilot adds
+nothing measurable to it: one person's $\Delta v$ on one start is not a
+reproducible number. It was also the most fragile piece to build, real-time
+keyboard input in a second game loop, for a feature few readers of a repository
+would install and try. `pygame` left the dependencies with it.
+
+What the project still lacked was a way to *show* the comparison. The plot of
+Step 6 speaks to a physicist; a replay speaks to anyone.
+
+### What it does
+
+`play.py` flies the agent and an LQR from the same held-out start and draws
+them side by side, in two identical game views at the same scale and on the
+same clock, so the status bars compare them directly. The LQR tuning is read
+from the results of `evaluate.py`: by default the fastest one that always
+docks, the agent's closest rival, or with `--lqr cheapest` the patient one. It
+opens a window, or with `--gif` writes the animation shown at the top of the
+README.
+
+To make two views possible, the scene and its status bar were extracted from
+the training window into a reusable `GameView`; the training window now holds
+one and the comparison two, drawn identically by construction. Two details
+noticed during training were fixed on the way: the TARGET label now sits on a
+dark tab above the trail, so the final approach cannot hide it, and distance
+rings that reach the edge of the view go unlabelled instead of being cut. The
+status bar now shows the fuel used in m/s, the number the comparison is about.
+
+### Outcome
+
+On the first two held-out starts, the ones in the GIF:
+
+| start | agent | LQR, fastest that always docks |
+| --- | --- | --- |
+| 1 | $700\,\text{s}$, $1.18\,\text{m/s}$ | $780\,\text{s}$, $1.32\,\text{m/s}$ |
+| 2 | $820\,\text{s}$, $1.21\,\text{m/s}$ | $690\,\text{s}$, $1.21\,\text{m/s}$ |
+
+The second start is worth keeping in view: there the LQR docks first on the
+same fuel. The agent's advantage measured in Step 6 is a statement about the
+median over 200 starts, not about every single one, and the side-by-side
+replay shows it as it is. The paths are also strikingly similar: without being
+given the dynamics, the agent found much the same way in as the controller that
+was.
+
+A 2-start GIF at 72 dpi is 2.4 MB, small enough for the README.
