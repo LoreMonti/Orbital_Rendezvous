@@ -5,9 +5,9 @@ orbit, by trial and error, in the linearised relative dynamics of the
 **Clohessy-Wiltshire equations** — the same problem a Dragon capsule solves on
 its final approach to the ISS, reduced to its essential geometry.
 
-The target flies a circular orbit of semi-major axis $a$, with mean motion
-$n = \sqrt{\mu/a^3}$. In the LVLH frame centred on the target, with $x$ radial
-and $y$ along-track, a chaser of mass $m$ under a thrust $\mathbf{u}$ obeys
+The target flies a circular orbit of semi-major axis $`a`$, with mean motion
+$`n = \sqrt{\mu/a^3}`$. In the LVLH frame centred on the target, with $`x`$ radial
+and $`y`$ along-track, a chaser of mass $`m`$ under a thrust $`\mathbf{u}`$ obeys
 
 ```math
 \ddot{x} - 3n^2 x - 2n\dot{y} = \frac{u_x}{m}, \qquad \ddot{y} + 2n\dot{x} = \frac{u_y}{m}
@@ -16,7 +16,7 @@ and $y$ along-track, a chaser of mass $m$ under a thrust $\mathbf{u}$ obeys
 The coupling terms are what make a rendezvous counter-intuitive. Thrusting
 straight at a target ahead of you raises your orbit, slows you down, and leaves
 you further behind: the secular drift in the closed-form solution is
-$-6 n x_0 t$, proportional to the *radial* offset. The agent has to discover
+$`-6 n x_0 t`$, proportional to the *radial* offset. The agent has to discover
 that it must go down to catch up.
 
 ![The agent and an LQR controller flying the same approach](assets/side_by_side.gif)
@@ -26,14 +26,14 @@ that it must go down to catch up.
 compare them directly: time, distance, speed against the speed limit, and fuel
 used.*
 
-The out-of-plane motion, $\ddot{z} + n^2 z = u_z/m$, is a harmonic oscillator
+The out-of-plane motion, $`\ddot{z} + n^2 z = u_z/m`$, is a harmonic oscillator
 fully decoupled from the two in-plane axes. It is left out: it would double the
 training cost without adding any coupling to learn.
 
 > **Status: complete.** The agent learns to dock: after 2 million
 > steps, about two minutes on a laptop, it docks from 200 out of 200 unseen
-> starting points in a median $600\,\text{s}$, spending $0.98\,\text{m/s}$ of
-> $\Delta v$. That is faster *and* cheaper than the fastest LQR controller that
+> starting points in a median $`600\,\text{s}`$, spending $`0.98\,\text{m/s}`$ of
+> $`\Delta v`$. That is faster *and* cheaper than the fastest LQR controller that
 > never crashes; a patient LQR spends half as much in four times the time. See
 > [ROADMAP.md](ROADMAP.md) for how each step was reached.
 
@@ -123,7 +123,7 @@ Orbital_Rendezvous/
 The physics lives in `dynamics.py` and knows nothing about agents, so it can be
 tested against the closed-form solution on its own; the renderer is split into
 the figure (`live_view.py`) and the training hook that drives it
-(`callbacks.py`), which is what lets the window draw one rollout every $N$
+(`callbacks.py`), which is what lets the window draw one rollout every $`N`$
 episodes while training keeps running at full speed.
 
 ## Tests
@@ -134,14 +134,14 @@ ruff check .
 ```
 
 Errors in orbital mechanics rarely crash: a sign flip or a missing factor of
-$n$ produces plausible-looking trajectories. The suite pins the invariants that
+$`n`$ produces plausible-looking trajectories. The suite pins the invariants that
 would catch that — the state-transition matrix from `expm` against the
 analytical one, a chaser at rest staying at rest, the secular drift matching
-$-6 n x_0 t$, the initial condition $\dot{y}_0 = -2 n x_0$ closing into a
-periodic $2\!:\!1$ ellipse, two steps of $\Delta t$ agreeing with one of
-$2\Delta t$ under a constant thrust, and, for $n \to 0$, the input matrix
+$`-6 n x_0 t`$, the initial condition $`\dot{y}_0 = -2 n x_0`$ closing into a
+periodic $`2\!:\!1`$ ellipse, two steps of $`\Delta t`$ agreeing with one of
+$`2\Delta t`$ under a constant thrust, and, for $`n \to 0`$, the input matrix
 reducing to a double integrator plus the first-order Coriolis coupling
-$\pm n\,\Delta t^3/3m$, which pins both the $1/m$ and the sign of the coupling.
+$`\pm n\,\Delta t^3/3m`$, which pins both the $`1/m`$ and the sign of the coupling.
 
 The environment is tested by placing the chaser by hand in a state that must
 lead to a given outcome in one step, so a mislabelled ending or a wrong
@@ -151,27 +151,27 @@ neither endpoint inside it, and `check_env` with warnings treated as errors.
 
 For the reward, besides the sign of every term, the suite checks the property
 that makes the shaping safe: over a random trajectory the discounted sum of the
-shaping terms equals $\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)$ to
-$10^{-12}$, so a closed loop earns nothing and the shaping cannot be farmed.
+shaping terms equals $`\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)`$ to
+$`10^{-12}`$, so a closed loop earns nothing and the shaping cannot be farmed.
 
 The training window is tested off-screen: its callback is fed episodes whose
-outcome, return and $\Delta v$ are known in advance, so the bookkeeping behind
+outcome, return and $`\Delta v`$ are known in advance, so the bookkeeping behind
 every curve is checked exactly, and a short real PPO run checks that the pieces
 fit together inside Stable-Baselines3.
 
 The baselines are checked against what they claim to be: the LQR gain against
 the residual of the Riccati equation, its closed loop for stability, and, with
-free fuel, its slowest mode against $e^{-\Delta t/\tau}$. The two-impulse
-transfer is flown with the closed-form $\Phi$ and must land on the origin to
-$10^{-9}\,\text{m}$.
+free fuel, its slowest mode against $`e^{-\Delta t/\tau}`$. The two-impulse
+transfer is flown with the closed-form $`\Phi`$ and must land on the origin to
+$`10^{-9}\,\text{m}`$.
 
 ## The learning problem
 
 | | |
 | --- | --- |
-| observation | the relative state $[x, y, \dot{x}, \dot{y}]$, normalised |
-| action | continuous thrust $[u_x, u_y]$, saturated at $u_\mathrm{max}$ |
-| reward | potential-based shaping towards the target under a glide slope, minus the $\Delta v$ spent, plus $\pm 100$ at the end |
+| observation | the relative state $`[x, y, \dot{x}, \dot{y}]`$, normalised |
+| action | continuous thrust $`[u_x, u_y]`$, saturated at $`u_\mathrm{max}`$ |
+| reward | potential-based shaping towards the target under a glide slope, minus the $`\Delta v`$ spent, plus $`\pm 100`$ at the end |
 | success | inside the docking radius **and** below the docking speed |
 | algorithm | PPO, on vectorised environments |
 
@@ -188,7 +188,7 @@ single matrix exponential (Van Loan, 1978):
 ```
 
 evaluated once when the environment is built, so it costs nothing during
-training. The $\Phi$ it returns must agree with the analytical matrix to machine
+training. The $`\Phi`$ it returns must agree with the analytical matrix to machine
 precision, which is the strongest available check on the implementation.
 
 The reward is shaped with a potential (Ng, Harada & Russell, 1999),
@@ -199,9 +199,9 @@ F = \gamma\,\Phi(\mathbf{s}') - \Phi(\mathbf{s}), \qquad
 ```
 
 which pulls the chaser in under a speed limit that tightens to the docking
-speed at the target. Because $F$ telescopes, it speeds learning up without
+speed at the target. Because $`F`$ telescopes, it speeds learning up without
 changing which policy is optimal. Fuel, instead, is a real cost:
-$-w_f\,|\mathbf{u}|\,\Delta t/m$ per step.
+$`-w_f\,|\mathbf{u}|\,\Delta t/m`$ per step.
 
 ## The live training window
 
@@ -225,7 +225,7 @@ running to the right, and the chaser as an arrow with its engine flame. A
 status bar above the scene shows the distance, the speed against the speed
 limit at that distance, and a fuel gauge; it and the legend are kept off the
 scene, so nothing ever hides the chaser. One real training attempt,
-exploration noise included, is replayed sped up once every $N$ attempts and
+exploration noise included, is replayed sped up once every $`N`$ attempts and
 ends on a banner (DOCKED!, CRASHED, LOST IN SPACE, OUT OF TIME); the curves are
 refreshed after every rollout. Training pauses only during the replays, about
 two minutes over a full run.
@@ -235,8 +235,8 @@ plotted: in reinforcement learning they do **not** fall the way they do in
 supervised learning, because the policy changes the very data it collects, so
 the PPO policy loss oscillates around zero and the value loss often *grows*
 once the agent starts reaching the docking bonus. The curves that show learning
-are the success rate and the mean episode return *without* the shaping term: with $\gamma < 1$ and a negative potential, a step spent standing
-still earns $(\gamma - 1)\,\Phi > 0$, so the shaped undiscounted return
+are the success rate and the mean episode return *without* the shaping term: with $`\gamma \lt  1`$ and a negative potential, a step spent standing
+still earns $`(\gamma - 1)\,\Phi \gt  0`$, so the shaped undiscounted return
 rewards wandering for a long time and would make a poor agent look good.
 
 ## Results
@@ -246,19 +246,19 @@ rewards wandering for a long time and would make a poor agent look good.
 On 200 starting points never seen in training, each controller flown on the
 same ones:
 
-| | docked | $\Delta v$, median (5–95 %) | time, median | speed at docking |
+| | docked | $`\Delta v`$, median (5–95 %) | time, median | speed at docking |
 | --- | --- | --- | --- | --- |
-| PPO agent, deterministic | 200 / 200 | $0.98\,\text{m/s}$ ($0.68$–$1.37$) | $600\,\text{s}$ | $2.9\,\text{cm/s}$ |
-| LQR, fastest that always docks | 200 / 200 | $1.05\,\text{m/s}$ ($0.71$–$1.48$) | $650\,\text{s}$ | $1.3\,\text{cm/s}$ |
-| LQR, cheapest that always docks | 200 / 200 | $0.45\,\text{m/s}$ ($0.25$–$0.80$) | $2620\,\text{s}$ | $0.2\,\text{cm/s}$ |
-| ideal two-impulse transfer | not flyable | $0.26\,\text{m/s}$ ($0.08$–$0.51$) | $2880\,\text{s}$ | |
+| PPO agent, deterministic | 200 / 200 | $`0.98\,\text{m/s}`$ ($`0.68`$–$`1.37`$) | $`600\,\text{s}`$ | $`2.9\,\text{cm/s}`$ |
+| LQR, fastest that always docks | 200 / 200 | $`1.05\,\text{m/s}`$ ($`0.71`$–$`1.48`$) | $`650\,\text{s}`$ | $`1.3\,\text{cm/s}`$ |
+| LQR, cheapest that always docks | 200 / 200 | $`0.45\,\text{m/s}`$ ($`0.25`$–$`0.80`$) | $`2620\,\text{s}`$ | $`0.2\,\text{cm/s}`$ |
+| ideal two-impulse transfer | not flyable | $`0.26\,\text{m/s}`$ ($`0.08`$–$`0.51`$) | $`2880\,\text{s}`$ | |
 
-The LQR minimises $\sum \mathbf{s}^T Q\,\mathbf{s} + \mathbf{u}^T R\,\mathbf{u}$
-on the exact discrete dynamics, with $Q = \mathrm{diag}(1, 1, \tau^2, \tau^2)/r_\mathrm{ref}^2$:
-with free fuel the velocity weight acts as a glide slope $\dot r = -r/\tau$.
-Rather than picking one tuning, 54 of them are swept over $\tau$ and the fuel
+The LQR minimises $`\sum \mathbf{s}^T Q\,\mathbf{s} + \mathbf{u}^T R\,\mathbf{u}`$
+on the exact discrete dynamics, with $`Q = \mathrm{diag}(1, 1, \tau^2, \tau^2)/r_\mathrm{ref}^2`$:
+with free fuel the velocity weight acts as a glide slope $`\dot r = -r/\tau`$.
+Rather than picking one tuning, 54 of them are swept over $`\tau`$ and the fuel
 weight, and only those that dock every time compete. Their best trade-offs form
-the blue curve. The two-impulse transfer, $\mathbf{v}_0^+ = -\Phi_{rv}^{-1}\Phi_{rr}\,\mathbf{r}_0$
+the blue curve. The two-impulse transfer, $`\mathbf{v}_0^+ = -\Phi_{rv}^{-1}\Phi_{rr}\,\mathbf{r}_0`$
 followed by a braking impulse, is minimised over its duration; its impulses
 ignore the thrust limit, so it is a reference number and not a controller.
 
@@ -279,14 +279,14 @@ reward a quick approach, and it found one.
 
 An earlier version of this README claimed the LQR would be very hard to beat on
 fuel because the problem is "linear with a quadratic cost". That was wrong: the
-fuel paid here is $\sum|\mathbf{u}|$, not $\sum|\mathbf{u}|^2$. A quadratic
+fuel paid here is $`\sum|\mathbf{u}|`$, not $`\sum|\mathbf{u}|^2`$. A quadratic
 cost prefers to thrust a little all the time, while delta-v is minimised by a
 few decisive burns, which is why the two-impulse transfer undercuts both.
 
 The first training run learned nothing: with a decision every second and
-$\gamma = 0.99$, the agent looked 100 seconds ahead, while an approach takes
-about 1000, so the docking bonus was discounted to $100 \cdot 0.99^{1000}
-\approx 0.004$ and never seen. Deciding every 10 seconds instead, with the
+$`\gamma = 0.99`$, the agent looked 100 seconds ahead, while an approach takes
+about 1000, so the docking bonus was discounted to
+$`100 \cdot 0.99^{1000} \approx 0.004`$ and never seen. Deciding every 10 seconds instead, with the
 physics unchanged since the propagation is exact, took the docking rate from
 0 % to 200 out of 200. The timescale of the decisions mattered more than any
 hyperparameter; the full account is in the roadmap, Step 5.
