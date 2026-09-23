@@ -1,0 +1,917 @@
+{
+  "episodes": 200,
+  "agent": {
+    "success_rate": 1.0,
+    "delta_v_median": 0.9792226104815368,
+    "delta_v_p5": 0.6763262328221167,
+    "delta_v_p95": 1.3689616674095453,
+    "time_median": 600.0,
+    "docking_speed_median": 0.029334192089206172,
+    "outcomes": {
+      "docked": 200
+    }
+  },
+  "lqr_sweep": [
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 0.32,
+      "delta_v_median": 1.6859926993019516,
+      "delta_v_p5": 1.1574108080326504,
+      "delta_v_p95": 2.337471998125926,
+      "time_median": 755.0,
+      "docking_speed_median": 0.02532902382645036,
+      "outcomes": {
+        "docked": 64,
+        "crashed": 136
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 0.365,
+      "delta_v_median": 1.4500671636578848,
+      "delta_v_p5": 0.8931354302254071,
+      "delta_v_p95": 2.2210483805848718,
+      "time_median": 730.0,
+      "docking_speed_median": 0.025822891677132156,
+      "outcomes": {
+        "crashed": 127,
+        "docked": 73
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.001,
+      "success_rate": 0.58,
+      "delta_v_median": 1.185433932114927,
+      "delta_v_p5": 0.7673606584389421,
+      "delta_v_p95": 1.68035821077161,
+      "time_median": 775.0,
+      "docking_speed_median": 0.010181152626493068,
+      "outcomes": {
+        "docked": 116,
+        "crashed": 84
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 0.68,
+      "delta_v_median": 1.015565320755317,
+      "delta_v_p5": 0.6650843663039725,
+      "delta_v_p95": 1.4425741990526038,
+      "time_median": 925.0,
+      "docking_speed_median": 0.009204693664766433,
+      "outcomes": {
+        "docked": 136,
+        "crashed": 64
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.01,
+      "success_rate": 0.8,
+      "delta_v_median": 0.8246012744816509,
+      "delta_v_p5": 0.5413876734642645,
+      "delta_v_p95": 1.2615404348658856,
+      "time_median": 1140.0,
+      "docking_speed_median": 0.007939659361643252,
+      "outcomes": {
+        "docked": 160,
+        "crashed": 40
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 0.94,
+      "delta_v_median": 0.6681245749843753,
+      "delta_v_p5": 0.43868121202155075,
+      "delta_v_p95": 1.0369114157310917,
+      "time_median": 1470.0,
+      "docking_speed_median": 0.006294260661430998,
+      "outcomes": {
+        "docked": 188,
+        "crashed": 12
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.1,
+      "success_rate": 0.975,
+      "delta_v_median": 0.5428908907629683,
+      "delta_v_p5": 0.33653619389475004,
+      "delta_v_p95": 0.8724221573261525,
+      "time_median": 1940.0,
+      "docking_speed_median": 0.004805637398939764,
+      "outcomes": {
+        "docked": 195,
+        "crashed": 5
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.4532838549433298,
+      "delta_v_p5": 0.2412986139564426,
+      "delta_v_p95": 0.7966317219576303,
+      "time_median": 2590.0,
+      "docking_speed_median": 0.0035723751639540812,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 50.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.255,
+      "delta_v_median": 0.28425841698063575,
+      "delta_v_p5": 0.16520612898829606,
+      "delta_v_p95": 0.48365787943820304,
+      "time_median": 1830.0,
+      "docking_speed_median": 0.016699589762872075,
+      "outcomes": {
+        "timeout": 149,
+        "docked": 51
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 0.53,
+      "delta_v_median": 1.5702467429656548,
+      "delta_v_p5": 0.9378633601397746,
+      "delta_v_p95": 2.253692981963563,
+      "time_median": 825.0,
+      "docking_speed_median": 0.013822949397563889,
+      "outcomes": {
+        "crashed": 94,
+        "docked": 106
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 0.62,
+      "delta_v_median": 1.190813856795593,
+      "delta_v_p5": 0.8020641884794225,
+      "delta_v_p95": 1.8802275377307465,
+      "time_median": 620.0,
+      "docking_speed_median": 0.016858919307732784,
+      "outcomes": {
+        "docked": 124,
+        "crashed": 76
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.001,
+      "success_rate": 0.9,
+      "delta_v_median": 1.0698049538623169,
+      "delta_v_p5": 0.7271900919987557,
+      "delta_v_p95": 1.5935660671864669,
+      "time_median": 690.0,
+      "docking_speed_median": 0.010093240806844074,
+      "outcomes": {
+        "docked": 180,
+        "crashed": 20
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 0.92,
+      "delta_v_median": 0.9559041280997947,
+      "delta_v_p5": 0.6420354238284787,
+      "delta_v_p95": 1.4033537626631487,
+      "time_median": 900.0,
+      "docking_speed_median": 0.007438416920445592,
+      "outcomes": {
+        "docked": 184,
+        "crashed": 16
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.01,
+      "success_rate": 0.975,
+      "delta_v_median": 0.8132025866554579,
+      "delta_v_p5": 0.5465017845083712,
+      "delta_v_p95": 1.1973797316175179,
+      "time_median": 1150.0,
+      "docking_speed_median": 0.006906107489800144,
+      "outcomes": {
+        "docked": 195,
+        "crashed": 5
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 0.98,
+      "delta_v_median": 0.6636496318473684,
+      "delta_v_p5": 0.43648008656109555,
+      "delta_v_p95": 1.0198395973340073,
+      "time_median": 1480.0,
+      "docking_speed_median": 0.00576257755671585,
+      "outcomes": {
+        "docked": 196,
+        "crashed": 4
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.1,
+      "success_rate": 0.99,
+      "delta_v_median": 0.5457883929206261,
+      "delta_v_p5": 0.3350140294931579,
+      "delta_v_p95": 0.8686987165113534,
+      "time_median": 1950.0,
+      "docking_speed_median": 0.00455468887029628,
+      "outcomes": {
+        "docked": 198,
+        "crashed": 2
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.45307945550630313,
+      "delta_v_p5": 0.2406834531330742,
+      "delta_v_p95": 0.7963209623626877,
+      "time_median": 2590.0,
+      "docking_speed_median": 0.0034395620085596284,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.255,
+      "delta_v_median": 0.28215248137007887,
+      "delta_v_p5": 0.16472279314562843,
+      "delta_v_p95": 0.4847554497208203,
+      "time_median": 1840.0,
+      "docking_speed_median": 0.016532642091014373,
+      "outcomes": {
+        "timeout": 149,
+        "docked": 51
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 0.79,
+      "delta_v_median": 1.2144685221724982,
+      "delta_v_p5": 0.8250613277616041,
+      "delta_v_p95": 1.8899046913586914,
+      "time_median": 685.0,
+      "docking_speed_median": 0.009882305346570612,
+      "outcomes": {
+        "docked": 158,
+        "crashed": 42
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 0.925,
+      "delta_v_median": 1.1375361088514864,
+      "delta_v_p5": 0.7844937210047649,
+      "delta_v_p95": 1.6717417462927664,
+      "time_median": 660.0,
+      "docking_speed_median": 0.010586107714046127,
+      "outcomes": {
+        "docked": 185,
+        "crashed": 15
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.001,
+      "success_rate": 1.0,
+      "delta_v_median": 1.052196555346455,
+      "delta_v_p5": 0.7110000913489913,
+      "delta_v_p95": 1.4839222713700164,
+      "time_median": 650.0,
+      "docking_speed_median": 0.012690123950041344,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.9469790483212919,
+      "delta_v_p5": 0.6273135852542396,
+      "delta_v_p95": 1.3452794609712775,
+      "time_median": 880.0,
+      "docking_speed_median": 0.005072544558417902,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7991707308429035,
+      "delta_v_p5": 0.534822802628744,
+      "delta_v_p95": 1.1669536323850722,
+      "time_median": 1150.0,
+      "docking_speed_median": 0.005710795200758982,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.6584753545126145,
+      "delta_v_p5": 0.43535248171239666,
+      "delta_v_p95": 1.0046415773680544,
+      "time_median": 1480.0,
+      "docking_speed_median": 0.0051034991919023,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.1,
+      "success_rate": 0.995,
+      "delta_v_median": 0.5458116265670099,
+      "delta_v_p5": 0.33497963625778765,
+      "delta_v_p95": 0.865208028564651,
+      "time_median": 1960.0,
+      "docking_speed_median": 0.004213156850661453,
+      "outcomes": {
+        "docked": 199,
+        "crashed": 1
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.4528518824284619,
+      "delta_v_p5": 0.2475285424229129,
+      "delta_v_p95": 0.7960676414101847,
+      "time_median": 2600.0,
+      "docking_speed_median": 0.0032424900073143147,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.255,
+      "delta_v_median": 0.28599632279207865,
+      "delta_v_p5": 0.1641944453059207,
+      "delta_v_p95": 0.5282001783816312,
+      "time_median": 1860.0,
+      "docking_speed_median": 0.015719410606291607,
+      "outcomes": {
+        "timeout": 149,
+        "docked": 51
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 1.0,
+      "delta_v_median": 1.072091464976959,
+      "delta_v_p5": 0.731965219679788,
+      "delta_v_p95": 1.5184794501225747,
+      "time_median": 890.0,
+      "docking_speed_median": 0.006447293105227087,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 1.0307948758125103,
+      "delta_v_p5": 0.6969951398911565,
+      "delta_v_p95": 1.4570516795917958,
+      "time_median": 890.0,
+      "docking_speed_median": 0.00654205340619682,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.001,
+      "success_rate": 1.0,
+      "delta_v_median": 0.971502017317279,
+      "delta_v_p5": 0.6468025560711818,
+      "delta_v_p95": 1.3885974008541035,
+      "time_median": 885.0,
+      "docking_speed_median": 0.0067691801693697,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.8807419055570304,
+      "delta_v_p5": 0.5740510723375685,
+      "delta_v_p95": 1.2653469136113036,
+      "time_median": 880.0,
+      "docking_speed_median": 0.007110899054679615,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.761903583279301,
+      "delta_v_p5": 0.502074961450182,
+      "delta_v_p95": 1.1183025112998901,
+      "time_median": 1090.0,
+      "docking_speed_median": 0.004018591326591759,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.6416413341608311,
+      "delta_v_p5": 0.4184930769872665,
+      "delta_v_p95": 0.9806823701248926,
+      "time_median": 1480.0,
+      "docking_speed_median": 0.0038732839156715663,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.5399938195636231,
+      "delta_v_p5": 0.3379541761568426,
+      "delta_v_p95": 0.8567522133526174,
+      "time_median": 1970.0,
+      "docking_speed_median": 0.00348541603241557,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.4525545467464923,
+      "delta_v_p5": 0.25013681457198217,
+      "delta_v_p95": 0.7958703227518054,
+      "time_median": 2605.0,
+      "docking_speed_median": 0.002849202718256374,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.225,
+      "delta_v_median": 0.26834103523826697,
+      "delta_v_p5": 0.1625719482191173,
+      "delta_v_p95": 0.4846337647687699,
+      "time_median": 1880.0,
+      "docking_speed_median": 0.01403327315373215,
+      "outcomes": {
+        "timeout": 155,
+        "docked": 45
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 1.0,
+      "delta_v_median": 0.9625633610657378,
+      "delta_v_p5": 0.6379159682572348,
+      "delta_v_p95": 1.3665643896661424,
+      "time_median": 1120.0,
+      "docking_speed_median": 0.004879802895584633,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.936260067496451,
+      "delta_v_p5": 0.6188997982779166,
+      "delta_v_p95": 1.3376549630054324,
+      "time_median": 1120.0,
+      "docking_speed_median": 0.0049020121655147485,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.001,
+      "success_rate": 1.0,
+      "delta_v_median": 0.8912269819131056,
+      "delta_v_p5": 0.5793580676520612,
+      "delta_v_p95": 1.2786876842631123,
+      "time_median": 1120.0,
+      "docking_speed_median": 0.004929721553271623,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.8206964299176387,
+      "delta_v_p5": 0.5268285626065627,
+      "delta_v_p95": 1.1899232233361468,
+      "time_median": 1120.0,
+      "docking_speed_median": 0.0050415977440837504,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7256003921061682,
+      "delta_v_p5": 0.47072968412616,
+      "delta_v_p95": 1.0686108677556012,
+      "time_median": 1150.0,
+      "docking_speed_median": 0.0048457365397185604,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.6195602822983363,
+      "delta_v_p5": 0.4028198918044315,
+      "delta_v_p95": 0.956218763567038,
+      "time_median": 1460.0,
+      "docking_speed_median": 0.0032915979100976486,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.533351351383023,
+      "delta_v_p5": 0.3279686678918896,
+      "delta_v_p95": 0.847618257111515,
+      "time_median": 1980.0,
+      "docking_speed_median": 0.0028922448388390407,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.44974297579755534,
+      "delta_v_p5": 0.2510824456857957,
+      "delta_v_p95": 0.7963330279644528,
+      "time_median": 2620.0,
+      "docking_speed_median": 0.0024769540985597072,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.11,
+      "delta_v_median": 0.24902002401674514,
+      "delta_v_p5": 0.18411054283277614,
+      "delta_v_p95": 0.4012779244015667,
+      "time_median": 1910.0,
+      "docking_speed_median": 0.011536571359159104,
+      "outcomes": {
+        "timeout": 178,
+        "docked": 22
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.0001,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7907595056831209,
+      "delta_v_p5": 0.5040224464599409,
+      "delta_v_p95": 1.147045313789231,
+      "time_median": 1580.0,
+      "docking_speed_median": 0.0032800036940083465,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.00031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.777177083106865,
+      "delta_v_p5": 0.4925944847047996,
+      "delta_v_p95": 1.1323908398540565,
+      "time_median": 1580.0,
+      "docking_speed_median": 0.0032799125966752893,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.001,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7522632008266595,
+      "delta_v_p5": 0.47345436434797267,
+      "delta_v_p95": 1.104491945412942,
+      "time_median": 1580.0,
+      "docking_speed_median": 0.0032851047058561787,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7159164898738284,
+      "delta_v_p5": 0.44567521181215053,
+      "delta_v_p95": 1.0607692508153153,
+      "time_median": 1585.0,
+      "docking_speed_median": 0.003277539906531751,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.6581062964247432,
+      "delta_v_p5": 0.4123866587919733,
+      "delta_v_p95": 0.9974736631743157,
+      "time_median": 1610.0,
+      "docking_speed_median": 0.003290098118568,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.5766757383887622,
+      "delta_v_p5": 0.3575766323186259,
+      "delta_v_p95": 0.9159992241221744,
+      "time_median": 1700.0,
+      "docking_speed_median": 0.003148274485931078,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.513020597201737,
+      "delta_v_p5": 0.3075678327365154,
+      "delta_v_p95": 0.832524358060956,
+      "time_median": 2040.0,
+      "docking_speed_median": 0.002500603604608395,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 0.995,
+      "delta_v_median": 0.44299898238136365,
+      "delta_v_p5": 0.23928152158699012,
+      "delta_v_p95": 0.7980840882795424,
+      "time_median": 2650.0,
+      "docking_speed_median": 0.0019671122473334784,
+      "outcomes": {
+        "docked": 199,
+        "timeout": 1
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 1.0,
+      "success_rate": 0.02,
+      "delta_v_median": 0.20186627027071496,
+      "delta_v_p5": 0.18036998128399864,
+      "delta_v_p95": 0.23616148606939857,
+      "time_median": 2845.0,
+      "docking_speed_median": 0.0013752300027053484,
+      "outcomes": {
+        "timeout": 196,
+        "docked": 4
+      }
+    }
+  ],
+  "lqr_front": [
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.001,
+      "success_rate": 1.0,
+      "delta_v_median": 1.052196555346455,
+      "delta_v_p5": 0.7110000913489913,
+      "delta_v_p95": 1.4839222713700164,
+      "time_median": 650.0,
+      "docking_speed_median": 0.012690123950041344,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.0031622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.8807419055570304,
+      "delta_v_p5": 0.5740510723375685,
+      "delta_v_p95": 1.2653469136113036,
+      "time_median": 880.0,
+      "docking_speed_median": 0.007110899054679615,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.761903583279301,
+      "delta_v_p5": 0.502074961450182,
+      "delta_v_p95": 1.1183025112998901,
+      "time_median": 1090.0,
+      "docking_speed_median": 0.004018591326591759,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.01,
+      "success_rate": 1.0,
+      "delta_v_median": 0.7256003921061682,
+      "delta_v_p5": 0.47072968412616,
+      "delta_v_p95": 1.0686108677556012,
+      "time_median": 1150.0,
+      "docking_speed_median": 0.0048457365397185604,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.6195602822983363,
+      "delta_v_p5": 0.4028198918044315,
+      "delta_v_p95": 0.956218763567038,
+      "time_median": 1460.0,
+      "docking_speed_median": 0.0032915979100976486,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.03162277660168379,
+      "success_rate": 1.0,
+      "delta_v_median": 0.5766757383887622,
+      "delta_v_p5": 0.3575766323186259,
+      "delta_v_p95": 0.9159992241221744,
+      "time_median": 1700.0,
+      "docking_speed_median": 0.003148274485931078,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.5399938195636231,
+      "delta_v_p5": 0.3379541761568426,
+      "delta_v_p95": 0.8567522133526174,
+      "time_median": 1970.0,
+      "docking_speed_median": 0.00348541603241557,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.533351351383023,
+      "delta_v_p5": 0.3279686678918896,
+      "delta_v_p95": 0.847618257111515,
+      "time_median": 1980.0,
+      "docking_speed_median": 0.0028922448388390407,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 300.0,
+      "fuel_weight": 0.1,
+      "success_rate": 1.0,
+      "delta_v_median": 0.513020597201737,
+      "delta_v_p5": 0.3075678327365154,
+      "delta_v_p95": 0.832524358060956,
+      "time_median": 2040.0,
+      "docking_speed_median": 0.002500603604608395,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 75.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.45307945550630313,
+      "delta_v_p5": 0.2406834531330742,
+      "delta_v_p95": 0.7963209623626877,
+      "time_median": 2590.0,
+      "docking_speed_median": 0.0034395620085596284,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 100.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.4528518824284619,
+      "delta_v_p5": 0.2475285424229129,
+      "delta_v_p95": 0.7960676414101847,
+      "time_median": 2600.0,
+      "docking_speed_median": 0.0032424900073143147,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 150.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.4525545467464923,
+      "delta_v_p5": 0.25013681457198217,
+      "delta_v_p95": 0.7958703227518054,
+      "time_median": 2605.0,
+      "docking_speed_median": 0.002849202718256374,
+      "outcomes": {
+        "docked": 200
+      }
+    },
+    {
+      "approach_time": 200.0,
+      "fuel_weight": 0.31622776601683794,
+      "success_rate": 1.0,
+      "delta_v_median": 0.44974297579755534,
+      "delta_v_p5": 0.2510824456857957,
+      "delta_v_p95": 0.7963330279644528,
+      "time_median": 2620.0,
+      "docking_speed_median": 0.0024769540985597072,
+      "outcomes": {
+        "docked": 200
+      }
+    }
+  ],
+  "two_impulse": {
+    "delta_v_median": 0.26343048557416116,
+    "duration_median": 2880.0
+  }
+}

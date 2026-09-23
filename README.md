@@ -25,8 +25,10 @@ training cost without adding any coupling to learn.
 
 > **Status: work in progress.** The agent learns to dock: after 2 million
 > steps, about two minutes on a laptop, it docks from 200 out of 200 unseen
-> starting points, spending a median $\Delta v$ of $0.98\,\text{m/s}$. The LQR
-> comparison and the game mode come next. See [ROADMAP.md](ROADMAP.md).
+> starting points in a median $600\,\text{s}$, spending $0.98\,\text{m/s}$ of
+> $\Delta v$. That is faster *and* cheaper than the fastest LQR controller that
+> never crashes; a patient LQR spends half as much in four times the time. The
+> game mode comes next. See [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -53,13 +55,13 @@ its options with `--help`.
 | script | what it does |
 | --- | --- |
 | `train.py` | trains PPO and saves the policy to `models/`, with the live window open |
-| `evaluate.py` | success rate, total $\Delta v$ and time to dock over a fixed set of seeded initial conditions, against the LQR baseline |
+| `evaluate.py` | the agent against a sweep of LQR controllers and the ideal two-impulse transfer, on 200 unseen starts: a table, a plot and a JSON file |
 | `play.py` | watch the trained agent, or fly the chaser yourself and compare |
 
 ```bash
 python scripts/train.py --config configs/ppo_default.yaml
 python scripts/train.py --no-render          # full speed, no window
-python scripts/evaluate.py --model models/ppo_rendezvous.zip --baseline
+python scripts/evaluate.py --watch 5        # and replay 5 attempts
 python scripts/play.py --human
 ```
 
@@ -87,13 +89,14 @@ Orbital_Rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
 │   ├── rewards.py          # reward function, kept apart so it can be tuned alone
-│   ├── baselines.py        # LQR controller: the honest yardstick for the agent
+│   ├── baselines.py        # LQR controller and two-impulse transfer
+│   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── live_view.py        # the training window: trajectory and progress curves
 │   ├── callbacks.py        # SB3 callback feeding that window during training
 │   └── utils.py            # YAML config into the dataclasses, with checks
 ├── scripts/
 │   ├── train.py            # trains PPO and saves the model
-│   ├── evaluate.py         # metrics: success rate, total delta-v, time to dock
+│   ├── evaluate.py         # agent against LQR and two impulses: table and plot
 │   └── play.py             # game mode: watch the agent, or fly it yourself
 ├── tests/
 │   ├── test_dynamics.py    # analytical solution, closed orbits, limit cases
@@ -101,6 +104,7 @@ Orbital_Rendezvous/
 │   ├── test_rewards.py     # term signs, consistency of the breakdown
 │   ├── test_live_view.py   # callback bookkeeping, headless drawing, short PPO run
 │   ├── test_config.py      # YAML and code defaults agree; typos rejected
+│   ├── test_baselines.py   # Riccati residual, stability, two impulses land exactly
 │   └── conftest.py         # draws off-screen, so tests never open a window
 ├── notebooks/              # exploration and figures only, no logic
 ├── models/                 # checkpoints, git-ignored except the final one
@@ -145,6 +149,12 @@ The training window is tested off-screen: its callback is fed episodes whose
 outcome, return and $\Delta v$ are known in advance, so the bookkeeping behind
 every curve is checked exactly, and a short real PPO run checks that the pieces
 fit together inside Stable-Baselines3.
+
+The baselines are checked against what they claim to be: the LQR gain against
+the residual of the Riccati equation, its closed loop for stability, and, with
+free fuel, its slowest mode against $e^{-\Delta t/\tau}$. The two-impulse
+transfer is flown with the closed-form $\Phi$ and must land on the origin to
+$10^{-9}\,\text{m}$.
 
 ## The learning problem
 
@@ -220,15 +230,49 @@ are the success rate and the mean episode return *without* the shaping term: wit
 still earns $(\gamma - 1)\,\Phi > 0$, so the shaped undiscounted return
 rewards wandering for a long time and would make a poor agent look good.
 
+## Results
+
+![Fuel against time to dock: the agent and a sweep of LQR controllers](assets/delta_v_vs_time.png)
+
+On 200 starting points never seen in training, each controller flown on the
+same ones:
+
+| | docked | $\Delta v$, median (5–95 %) | time, median | speed at docking |
+| --- | --- | --- | --- | --- |
+| PPO agent, deterministic | 200 / 200 | $0.98\,\text{m/s}$ ($0.68$–$1.37$) | $600\,\text{s}$ | $2.9\,\text{cm/s}$ |
+| LQR, fastest that always docks | 200 / 200 | $1.05\,\text{m/s}$ ($0.71$–$1.48$) | $650\,\text{s}$ | $1.3\,\text{cm/s}$ |
+| LQR, cheapest that always docks | 200 / 200 | $0.45\,\text{m/s}$ ($0.25$–$0.80$) | $2620\,\text{s}$ | $0.2\,\text{cm/s}$ |
+| ideal two-impulse transfer | not flyable | $0.26\,\text{m/s}$ ($0.08$–$0.51$) | $2880\,\text{s}$ | |
+
+The LQR minimises $\sum \mathbf{s}^T Q\,\mathbf{s} + \mathbf{u}^T R\,\mathbf{u}$
+on the exact discrete dynamics, with $Q = \mathrm{diag}(1, 1, \tau^2, \tau^2)/r_\mathrm{ref}^2$:
+with free fuel the velocity weight acts as a glide slope $\dot r = -r/\tau$.
+Rather than picking one tuning, 54 of them are swept over $\tau$ and the fuel
+weight, and only those that dock every time compete. Their best trade-offs form
+the blue curve. The two-impulse transfer, $\mathbf{v}_0^+ = -\Phi_{rv}^{-1}\Phi_{rr}\,\mathbf{r}_0$
+followed by a braking impulse, is minimised over its duration; its impulses
+ignore the thrust limit, so it is a reference number and not a controller.
+
 ## The honest part
 
 A reinforcement learning agent on Clohessy-Wiltshire dynamics is not a new
-result, and it is not expected to win. The problem is linear with a quadratic
-cost, which is exactly the setting where an infinite-horizon LQR is optimal, so
-the classical controller in `baselines.py` should be very hard to beat on fuel.
-That comparison is the point of including it: the interesting number is how
-close a policy that was given no model of the dynamics gets to one that was
-handed the equations.
+result. What this project adds is a careful comparison, and it cuts both ways.
+
+The agent sits outside the LQR front at the fast end: it docks sooner *and*
+spends less than the fastest LQR that never crashes. The reason is the docking
+speed limit, a hard constraint that a quadratic cost cannot express. Tuned for
+speed, the LQR arrives too fast and crashes, in up to 68 % of the attempts;
+the agent learned the constraint from the crashes themselves. But nothing in
+the plot shows the agent is fuel-efficient in absolute terms: an LQR allowed
+four times longer spends half as much, and an ideal two-impulse transfer less
+than a third. The agent was trained with a time limit and a glide slope that
+reward a quick approach, and it found one.
+
+An earlier version of this README claimed the LQR would be very hard to beat on
+fuel because the problem is "linear with a quadratic cost". That was wrong: the
+fuel paid here is $\sum|\mathbf{u}|$, not $\sum|\mathbf{u}|^2$. A quadratic
+cost prefers to thrust a little all the time, while delta-v is minimised by a
+few decisive burns, which is why the two-impulse transfer undercuts both.
 
 The first training run learned nothing: with a decision every second and
 $\gamma = 0.99$, the agent looked 100 seconds ahead, while an approach takes
@@ -237,11 +281,6 @@ about 1000, so the docking bonus was discounted to $100 \cdot 0.99^{1000}
 physics unchanged since the propagation is exact, took the docking rate from
 0 % to 200 out of 200. The timescale of the decisions mattered more than any
 hyperparameter; the full account is in the roadmap, Step 5.
-
-What the learned policy can do that LQR cannot is absorb the parts of the
-problem that break the linear-quadratic assumptions — thrust saturation, a
-docking cone, a hard failure at a fixed distance — without any of them having to
-be linearised away.
 
 ## Roadmap
 

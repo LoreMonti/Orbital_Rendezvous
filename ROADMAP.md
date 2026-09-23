@@ -368,15 +368,90 @@ The learning curve: 5 % docking over the first 2000 episodes, 75 % over the
 next 2000, and 97–99 % from there on, so most of the learning happens in the
 first third of the run. Two runs with the same seed give identical numbers.
 
-## Step 6 — LQR baseline and evaluation *(next)*
+## Step 6 — LQR baseline and evaluation *(done)*
 
-An infinite-horizon LQR on the discrete CW dynamics, and a comparison on
-success rate, total delta-v and time to dock over a fixed set of seeded initial
-conditions. The honest expectation is that LQR is very hard to beat on fuel for
-this linear problem; the result of interest is how close the learned policy
-gets.
+### A correction first
 
-## Step 7 — The game
+Step 0 and the README expected the LQR to be "very hard to beat on fuel",
+because the problem is linear with a quadratic cost. That was wrong. The LQR
+minimises
+
+$$J = \sum_k \mathbf{s}_k^T Q\,\mathbf{s}_k + \mathbf{u}_k^T R\,\mathbf{u}_k,$$
+
+a cost on $|\mathbf{u}|^2$, while the fuel paid here is
+$\Delta v = \sum_k |\mathbf{u}_k|\,\Delta t/m$. A quadratic cost prefers to
+thrust a little all the time; $\Delta v$ is minimised by a few decisive burns
+and coasting in between. The LQR is a solid classical controller, not a bound.
+
+### Two references
+
+**LQR** on the exact discrete dynamics $\mathbf{s}_{k+1} = \Phi\,\mathbf{s}_k + \Gamma\,\mathbf{u}_k$,
+from the discrete algebraic Riccati equation,
+
+$$P = Q + \Phi^T P \Phi - \Phi^T P \Gamma \left(R + \Gamma^T P \Gamma\right)^{-1} \Gamma^T P \Phi, \qquad \mathbf{u}_k = -K\mathbf{s}_k, \quad K = \left(R + \Gamma^T P \Gamma\right)^{-1}\Gamma^T P \Phi,$$
+
+saturated at the same thrust limit as the agent.
+
+**Two-impulse transfer**, the textbook reference for $\Delta v$. From the blocks
+of $\Phi(T)$, the first impulse sets the velocity that reaches the origin after
+$T$, and the second cancels the arrival velocity:
+
+$$\mathbf{v}_0^+ = -\Phi_{rv}^{-1}\Phi_{rr}\,\mathbf{r}_0, \qquad \Delta v = \left|\mathbf{v}_0^+ - \mathbf{v}_0\right| + \left|\Phi_{vr}\mathbf{r}_0 + \Phi_{vv}\mathbf{v}_0^+\right|,$$
+
+minimised over $T$ up to the episode length, skipping the durations where
+$\Phi_{rv}$ is singular. Impulses ignore the thrust limit, so this is a
+reference number, not a controller that can fly in the environment.
+
+### Tuning the LQR: the velocity weight is a glide slope
+
+The first attempt weighted position and velocity by the scales the agent's
+observations are normalised with, $500\,\text{m}$ and $0.5\,\text{m/s}$. It
+never docked, and its slowest closed-loop eigenvalue stayed at $0.990$ whatever
+the fuel weight. With fuel free, the LQR balances a position error $q_r r^2$
+against a speed $q_v v^2$, and the balance is an exponential approach
+
+$$\dot r = -\frac{r}{\tau}, \qquad \tau = \sqrt{q_v/q_r} = \frac{500}{0.5} = 1000\,\text{s}, \qquad e^{-\Delta t/\tau} = e^{-0.01} = 0.990,$$
+
+too slow to cover $200\,\text{m}$ in an episode. The velocity weight is an
+implicit glide slope. So the LQR is parametrised physically, by that time
+constant, $Q = \mathrm{diag}(1, 1, \tau^2, \tau^2)/r_\mathrm{ref}^2$, and by a
+fuel weight $R = w/u_\mathrm{max}^2$ that trades time for fuel on top of it.
+
+### A fair comparison: a sweep, not a hand-picked tuning
+
+Picking one $(\tau, w)$ by hand would be arbitrary, and could favour the agent
+without meaning to. `evaluate.py` sweeps 54 tunings, $\tau$ from 50 to
+$300\,\text{s}$ and $w$ from $10^{-4}$ to $1$, flies each on the same 200
+unseen starts as the agent, and keeps those that dock every time. Their Pareto
+front in ($\Delta v$, time to dock) is the curve the agent is compared with.
+
+### Tests
+
+The LQR gain against the residual of the Riccati equation; the closed loop
+stable for every tuning; with free fuel, the slowest mode equal to
+$e^{-\Delta t/\tau}$; saturation; and docking from ten starts. The two-impulse
+transfer flown with the closed-form $\Phi$ lands on the origin to
+$10^{-9}\,\text{m}$, costs nothing from rest at the origin, and the search
+steps over the singular duration of one orbital period.
+
+### Outcome
+
+| 200 unseen starts | docked | $\Delta v$, median (5–95 %) | time, median | docking speed |
+| --- | --- | --- | --- | --- |
+| PPO agent, deterministic | 100 % | $0.98\,\text{m/s}$ ($0.68$–$1.37$) | $600\,\text{s}$ | $2.9\,\text{cm/s}$ |
+| LQR, fastest that always docks ($\tau = 100$, $w = 10^{-3}$) | 100 % | $1.05\,\text{m/s}$ ($0.71$–$1.48$) | $650\,\text{s}$ | $1.3\,\text{cm/s}$ |
+| LQR, cheapest that always docks ($\tau = 200$, $w = 0.3$) | 100 % | $0.45\,\text{m/s}$ ($0.25$–$0.80$) | $2620\,\text{s}$ | $0.2\,\text{cm/s}$ |
+| ideal two-impulse | | $0.26\,\text{m/s}$ ($0.08$–$0.51$) | $2880\,\text{s}$ | |
+
+The agent sits outside the LQR front at its fast end, sooner and cheaper than
+the fastest LQR that never crashes. More aggressive LQR tunings do not dock
+faster: they arrive too fast and crash, in up to 68 % of the attempts, because
+the docking speed limit is a hard constraint a quadratic cost cannot express.
+At the slow end the LQR wins clearly, and the ideal two-impulse transfer shows
+how much further there is to go on fuel. The whole evaluation runs in about
+40 seconds.
+
+## Step 7 — The game *(next)*
 
 `play.py`: watch the trained agent, or fly the chaser with the keyboard and
 compare your delta-v with the agent's and the LQR's on the same initial
