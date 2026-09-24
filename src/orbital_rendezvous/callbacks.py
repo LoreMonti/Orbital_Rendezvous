@@ -122,3 +122,41 @@ class LiveViewCallback(BaseCallback):
 
     def _on_rollout_end(self) -> None:
         self.live_view.update_curves(self.curves)
+
+
+class FuelCurriculum(BaseCallback):
+    """Raise the fuel weight linearly from ``start`` to ``end`` over the first part of training.
+
+    With a heavy fuel cost from the start, moving costs more than approaching
+    earns before the docking bonus has ever been seen, and the agent learns to
+    stay put. Starting light lets it learn to dock first; the weight then rises
+    to the value that defines the task, and stays there for the rest of the run:
+
+        w_f(t) = start + (end - start) * min(1, t / (ramp * total)).
+    """
+
+    def __init__(self, start: float, end: float, ramp: float = 0.5, verbose: int = 0) -> None:
+        super().__init__(verbose)
+        if not 0.0 < ramp <= 1.0:
+            raise ValueError("ramp must be a fraction of the training, in (0, 1]")
+        self.start, self.end, self.ramp = start, end, ramp
+        self.weight = start
+
+    def weight_at(self, progress: float) -> float:
+        """Fuel weight once ``progress`` (0 to 1) of the training has elapsed."""
+        return self.start + (self.end - self.start) * min(1.0, progress / self.ramp)
+
+    def _update(self) -> None:
+        total = self.model._total_timesteps
+        self.weight = self.weight_at(self.num_timesteps / total if total else 1.0)
+        self.training_env.env_method("set_fuel_weight", self.weight)
+        self.logger.record("curriculum/fuel_weight", self.weight)
+
+    def _on_training_start(self) -> None:
+        self._update()
+
+    def _on_rollout_start(self) -> None:
+        self._update()
+
+    def _on_step(self) -> bool:
+        return True

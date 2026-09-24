@@ -6,7 +6,7 @@ environments, and writes:
 - the final policy to ``--output`` (default ``models/ppo_rendezvous.zip``);
 - a run directory ``runs/<timestamp>/`` with periodic checkpoints, the
   Stable-Baselines3 log as CSV (losses included), one row per episode from the
-  Monitor wrapper, a copy of the configuration, and the final training window;
+  Monitor wrapper, the configuration used, and the final training window;
 - with ``--record``, a GIF of the replays at the milestones set in
   ``live_view.record_at``, plus the last one: the agent learning, in a few seconds.
 
@@ -20,24 +20,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import shutil
 import time
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.logger import configure
-from stable_baselines3.common.utils import set_random_seed
 
 from orbital_rendezvous import RendezvousEnv
+from orbital_rendezvous.training import train
 from orbital_rendezvous.utils import build_configs, load_config
-
-PPO_KEYS = (
-    "learning_rate", "n_steps", "batch_size", "gamma", "gae_lambda", "clip_range", "ent_coef",
-)
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,8 +57,6 @@ def main() -> None:
     config = load_config(args.config)
     env_config, reward_config = build_configs(config)
     training = config["training"]
-    if training.get("algorithm", "PPO") != "PPO":
-        raise ValueError("only PPO is supported")
 
     seed = training["seed"] if args.seed is None else args.seed
     total_timesteps = int(args.timesteps or training["total_timesteps"])
@@ -79,34 +68,9 @@ def main() -> None:
         matplotlib.use("Agg")
 
     run_dir = Path(args.runs) / datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_dir.mkdir(parents=True)
-    shutil.copy(args.config, run_dir / "config.yaml")
+    output = Path(args.output)
 
-    set_random_seed(seed)
-    vec_env = make_vec_env(
-        lambda: RendezvousEnv(env_config, reward_config),
-        n_envs=training["n_envs"],
-        seed=seed,
-        monitor_dir=str(run_dir / "monitor"),
-        monitor_kwargs={"info_keywords": ("is_success",)},
-    )
-    model = PPO(
-        training["policy"],
-        vec_env,
-        policy_kwargs=training.get("policy_kwargs"),
-        seed=seed,
-        verbose=0,
-        **{key: training[key] for key in PPO_KEYS},
-    )
-    model.set_logger(configure(str(run_dir), ["csv"]))
-
-    callbacks = [
-        CheckpointCallback(
-            save_freq=max(1, 200_000 // training["n_envs"]),
-            save_path=str(run_dir / "checkpoints"),
-            name_prefix="ppo",
-        )
-    ]
+    callbacks = []
     view = live = None
     if render or args.record:
         from orbital_rendezvous.callbacks import LiveViewCallback
@@ -126,12 +90,8 @@ def main() -> None:
     print(f"Training PPO for {total_timesteps:,} steps on {training['n_envs']} environments")
     print(f"Run directory: {run_dir}")
     start = time.perf_counter()
-    model.learn(total_timesteps=total_timesteps, callback=CallbackList(callbacks))
+    model = train(config, seed, total_timesteps, run_dir, output, callbacks)
     elapsed = time.perf_counter() - start
-
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    model.save(output)
 
     successes = list(model.ep_success_buffer)
     rate = float(np.mean(successes)) if successes else float("nan")

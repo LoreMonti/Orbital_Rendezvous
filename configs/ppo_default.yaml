@@ -10,6 +10,10 @@ environment:
   # Chaser spacecraft.
   mass: 500.0
   max_thrust: 1.0          # N, per axis limit on the commanded thrust
+  # Minimum thruster level, as a fraction of max_thrust: weaker commands leave
+  # the thruster off. 0 for the default agent; the fuel study uses it so that
+  # exploration noise around zero does not burn fuel.
+  thrust_deadzone: 0.0
 
   # Integration.
   # One decision every 10 s. The propagation is exact for any step, so this
@@ -59,6 +63,10 @@ training:
   gae_lambda: 0.95
   clip_range: 0.2
   ent_coef: 0.0
+  # Optionally raise the fuel weight during training, from `start` to
+  # rewards.fuel_weight over the first `ramp` fraction of the run, e.g.
+  # {start: 2.0, ramp: 0.5}. Off for the default agent.
+  fuel_curriculum: null
 
 live_view:
   enabled: true

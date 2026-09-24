@@ -24,7 +24,8 @@ used.*
   tunings crash in up to 68 % of the attempts;
 - a patient LQR spends less than half the fuel in four times the time, and the
   ideal two-impulse transfer less than a third: the agent learned a *quick*
-  approach, not a fuel-optimal one.
+  approach, not a fuel-optimal one. Trained to save fuel, it spends 15 % less
+  (0.83 m/s in 710 s), but not much more: why is the subject of a study below.
 
 ## Contents
 
@@ -348,6 +349,72 @@ dock faster: they arrive too fast and crash, in up to 68 % of the attempts. The
 agent's one failure is also a crash at the limit, arriving at
 $`7.2\ \text{cm/s}`$ against the $`5\ \text{cm/s}`$ allowed.
 
+### Trading time for fuel
+
+The agent is quick but not frugal, and the first reason is the discount. A
+docking bonus earned after $`K`$ steps is worth $`100\,\gamma^K`$ to the agent:
+at $`\gamma = 0.99`$, docking after 60 steps ($`600\ \text{s}`$) is worth 55,
+after 288 steps ($`2880\ \text{s}`$, the best two-impulse duration) only 5.5.
+Arriving late forfeits about 50 points of bonus, while saving
+$`0.7\ \text{m/s}`$ of fuel at $`w_f = 2`$ earns 1.4: hurrying is worth 35 times
+the fuel. At $`\gamma = 0.999`$ the same late docking is still worth 75.
+
+A study (`scripts/fuel_study.py`) trained the agent over
+$`\gamma \in \{0.99,\ 0.999\}`$ and final fuel weights
+$`w_f \in \{2,\ 5,\ 10,\ 20\}`$, three seeds each, 4 million steps per run, and
+evaluated every run on the same 200 unseen starts.
+
+![Fuel against time: the agent over a grid of discounts and fuel weights](assets/fuel_study.png)
+
+| $`\gamma`$ | $`w_f`$ | seeds that dock | $`\Delta v`$, median | time, median |
+| --- | --- | --- | --- | --- |
+| 0.99 | 2 | 3 / 3 | 0.97 m/s | 590 s |
+| 0.99 | 5 | 2 / 3 | 1.02 m/s | 570 s |
+| 0.99 | 10 | 3 / 3 | 0.94 m/s | 610 s |
+| 0.99 | 20 | 1 / 3 | 0.97 m/s | 590 s |
+| 0.999 | 2 | 3 / 3 | 0.94 m/s | 670 s |
+| 0.999 | 5 | 3 / 3 | 0.86 m/s | 710 s |
+| **0.999** | **10** | **3 / 3** | **0.83 m/s** | **710 s** |
+| 0.999 | 20 | 1 / 3 | 0.86 m/s | 690 s |
+
+*Costs are medians over the seeds that dock at least 95 % of the time; a run
+that docks rarely docks only from the easy starts, and would flatter the
+configuration.*
+
+Three things stand out.
+
+- **At $`\gamma = 0.99`$ the fuel weight barely matters**: every configuration
+  spends 0.94 to 1.02 m/s in about 600 s, as the discount argument predicts.
+  At $`\gamma = 0.999`$ fuel falls steadily with the weight, from 0.94 to
+  0.83 m/s, while the approach slows from 670 to 710 s.
+- **The best reliable configuration, $`\gamma = 0.999`$ and $`w_f = 10`$, docks
+  on every seed with 15 % less fuel than the default agent**, and about 17 %
+  less than the LQR front at the same time to dock, near 1.0 m/s at 710 s.
+- **A heavy fuel cost reopens the trap of the first training run.** With the
+  fuel weight at 5 or more from the first step, moving costs more than
+  approaching earns before the docking bonus has ever been seen, and the agent
+  learns to stay put. Every run therefore starts at $`w_f = 2`$ and raises it to
+  its final value over the first half of training (a curriculum): learn to dock
+  first, then to save. This fixes weights up to 10; at 20, two seeds in three
+  still unlearn docking once the weight has risen.
+
+One run, $`\gamma = 0.999`$ and $`w_f = 5`$ on seed 0, found a different strategy
+altogether: 0.65 m/s in 1910 s, docking 199 times in 200. A slow, economical
+approach exists and PPO can find it, but only by chance.
+
+**Why the agent does not go further.** The fuel cost is paid on the thrust
+actually commanded, exploration noise included. After training the policy keeps
+a noise of $`\sigma \approx 0.1`$ per axis, which burns about
+$`0.23\ \text{m/s}`$ per $`1000\ \text{s}`$ even with the engine nominally off:
+during training, a two-impulse approach of $`2900\ \text{s}`$ would cost about
+0.9 m/s, more than the fast one. A minimum thruster level was tried, so that
+commands near zero leave the engine off and coasting is free. The agents did
+coast, for up to 43 % of their steps, but lost the precision of the final
+approach: the weakest firing, $`4 \times 10^{-4}\ \text{m/s}^2`$, is a hundred
+times the tidal acceleration $`3n^2x`$ at a metre from the target, and they
+circled it until the time ran out, docking only 70 to 80 % of the time and
+spending no less fuel. The option is kept in the environment, off by default.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -393,6 +460,12 @@ Start by start, against the fastest LQR that never crashes, the agent is never
 more expensive: on the 199 starts where it docks, the LQR docks sooner on 3 and
 spends less fuel on none.
 
+Asked to save fuel, it saves some: a higher discount, a heavier fuel cost and a
+curriculum bring it to 0.83 m/s in 710 s, below the LQR front at that speed.
+It does not reach the slow, economical regime reliably: the discount, a fuel
+cost too heavy to learn with, and the price of exploration noise all push it
+back towards a quick approach.
+
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
 the same physics with a decision every ten seconds docked every time.
@@ -430,6 +503,7 @@ arguments for the default run and lists its options with `--help`.
 | `train.py` | trains PPO with the live window open, and saves the model to `models/` and a run directory to `runs/` |
 | `evaluate.py` | the agent against the LQR sweep and the two-impulse transfer on 200 unseen starts: a table, the plot and a JSON file |
 | `play.py` | the agent and an LQR flying the same approach side by side, in a window or as a GIF |
+| `fuel_study.py` | the agent over a grid of discounts and fuel weights, several seeds, in parallel: a table, a plot and a JSON file |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -440,6 +514,7 @@ python scripts/evaluate.py --watch 5                   # and replay 5 attempts
 python scripts/play.py                                 # against the fastest LQR
 python scripts/play.py --lqr cheapest                  # against the patient one
 python scripts/play.py --gif assets/side_by_side.gif   # save the comparison GIF
+caffeinate -ims python scripts/fuel_study.py           # the fuel study, about 40 min
 ```
 
 As a library:
@@ -477,13 +552,16 @@ Orbital_Rendezvous/
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
-│   ├── callbacks.py        # SB3 callback feeding the window, recording GIFs
+│   ├── callbacks.py        # SB3 callbacks: the window, GIFs, the fuel curriculum
+│   ├── training.py         # builds and trains PPO from a configuration
+│   ├── study.py            # one run of the fuel study, and the aggregation
 │   └── utils.py            # YAML config into the dataclasses, with checks
 ├── scripts/
 │   ├── train.py            # trains PPO and saves the model
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
-│   └── play.py             # agent against LQR, side by side, same start
-├── tests/                  # 64 tests, one file per module
+│   ├── play.py             # agent against LQR, side by side, same start
+│   └── fuel_study.py       # grid of discounts and fuel weights, in parallel
+├── tests/                  # 74 tests, one file per module
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -492,7 +570,9 @@ The physics in `dynamics.py` knows nothing about agents, so it can be tested
 against the closed-form solution on its own. The reward is kept apart from the
 environment so that it can be tuned alone. The game view is its own module, so
 that the training window holds one and the side-by-side comparison two, drawn
-identically by construction.
+identically by construction. Training lives in the package, not in the script,
+so that a run of the fuel study is by construction the same training as a
+normal run with a different configuration.
 
 ## Tests
 
@@ -529,6 +609,11 @@ would catch them.
 - **Configuration.** The YAML file and the defaults in the code agree, and
   unknown keys are rejected. This test caught PyYAML reading `6778.0e3` as a
   string: YAML 1.1 needs an explicit exponent sign.
+- **Fuel study.** The fuel weight follows its schedule inside every environment
+  and ends at its target; the two discounts stay equal whatever the
+  configuration; only the fuel term changes when the weight does; and costs are
+  aggregated over reliable seeds only, not flattered by a run that docks from
+  the easy starts alone.
 - **Visualisation.** The callback behind the curves is fed episodes whose
   outcome, return and $`\Delta v`$ are known; the status bar is checked against
   the true final state; everything runs off-screen.

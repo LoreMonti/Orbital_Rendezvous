@@ -123,6 +123,28 @@ instead of 200. Three seeds told the real story: without the clock one run in
 three parked 70 m from the target and waited out the episode. A single training
 run is an anecdote.
 
+## Step 11 — Trading time for fuel
+
+- [x] Diagnosis: at $`\gamma = 0.99`$ docking late forfeits about 50 points of bonus, against 1.4 saved in fuel, so hurrying is worth 35 times the fuel
+- [x] Training moved into the package (`training.py`), shared by `train.py` and the study; the default model reproduced weight for weight
+- [x] Fuel curriculum: the fuel weight starts at 2 and rises to its target over the first half of training
+- [x] Optional minimum thruster level (`thrust_deadzone`), off by default
+- [x] `fuel_study.py`: a grid of $`\gamma`$ and $`w_f`$, three seeds each, in parallel, resumable, stopped cleanly by Ctrl-C
+- [x] Costs aggregated over reliable seeds only (docking at least 95 %)
+- [x] Result: $`\gamma = 0.999`$, $`w_f = 10`$ docks on 3 / 3 seeds with 0.83 m/s in 710 s, 15 % less fuel than the default agent and below the LQR front at that speed
+
+*Lessons.* Four, each from a measurement rather than a guess.
+A heavy fuel cost from the first step reopens the trap of Step 5; a curriculum
+fixes it up to a weight of 10, not at 20.
+At $`\gamma = 0.99`$ the fuel weight barely matters: the discount decides.
+Exploration noise is taxed by the fuel cost, about 0.23 m/s per 1000 s, so a
+slow approach looks expensive in training.
+A minimum thruster level makes coasting free but ruins the final approach, since
+its weakest firing is a hundred times the tidal acceleration near the target:
+a negative result, kept as an option.
+And a summary that averaged over every seed flattered two configurations with
+runs that docked only from the easy starts; costs now come from reliable seeds.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -136,14 +158,22 @@ coupling. The target sits still at the centre of the view only because the view
 is the target's own. What the real ISS adds is below: an oriented docking port,
 perturbations, and, negligibly, a slightly eccentric orbit.
 
-### 1. Fuel against the two-impulse bound
+### 1. Fuel, the next attempt
 
-- [ ] Train without the time pressure (a slower glide slope, longer episodes) and
-  measure how close the agent gets to the ideal two-impulse transfer,
-  $`0.26\ \text{m/s}`$ against its current $`0.98\ \text{m/s}`$. Today the agent is
-  quick but not frugal; this asks whether it can be frugal.
-- [ ] Place the result on the $`\Delta v`$–time plot of the README, next to the
-  LQR front.
+Step 11 showed what holds the agent in the fast regime; these attack it directly.
+
+- [ ] Constrained optimisation with a Lagrange multiplier on a time budget:
+  minimise $`\Delta v`$ subject to docking within $`T_\mathrm{max}`$, with
+  $`\lambda`$ updated by dual ascent. Sweeping the budget (600 to 2900 s) puts
+  each agent at a chosen time, directly comparable with the LQR front (RCPO,
+  Tessler et al., 2019).
+- [ ] A policy conditioned on the preference: the fuel weight as an input drawn
+  at random each episode, so one training learns the whole front.
+- [ ] Hybrid actions: an explicit engine-off choice for coasting, with
+  continuous thrust kept for the final approach, which the minimum thruster
+  level could not preserve.
+- [ ] Longer training for $`\gamma = 0.999`$, and a slower curriculum for heavy
+  fuel weights.
 
 ### 2. An oriented target: approach corridor and keep-out zone
 

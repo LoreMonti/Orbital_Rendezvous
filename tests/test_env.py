@@ -174,3 +174,23 @@ def test_step_follows_the_dynamics(env):
     env.step(action)
     expected = propagate(start, env.config.max_thrust * action, env.phi, env.gamma)
     np.testing.assert_array_equal(env.state, expected)
+
+
+def test_thrusters_below_the_deadzone_stay_off():
+    env = RendezvousEnv(EnvConfig(thrust_deadzone=0.2))
+    env.reset(seed=0)
+    place(env, [100.0, 0.0, 0.0, 0.0])
+    # 0.15 is under the minimum level and stays off; -0.5 fires as commanded.
+    _, _, _, _, info = env.step(np.array([0.15, -0.5]))
+    np.testing.assert_array_equal(info["thrust"], [0.0, -0.5 * env.config.max_thrust])
+    # Noise around zero, as a stochastic policy produces while coasting, is free.
+    _, _, _, _, info = env.step(np.array([0.08, -0.12]))
+    assert info["delta_v"] == 0.0
+    assert info["reward_terms"]["fuel"] == 0.0
+
+
+def test_default_has_no_deadzone():
+    env = RendezvousEnv()
+    env.reset(seed=0)
+    _, _, _, _, info = env.step(np.array([0.05, -0.05]))
+    np.testing.assert_allclose(info["thrust"], [0.05, -0.05])

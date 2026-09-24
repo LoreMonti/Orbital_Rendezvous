@@ -2,7 +2,11 @@
 
 Action: ``a`` in ``[-1, 1]^2``, mapped to the thrust ``u = u_max a`` and
 saturated per axis. The thrust is continuous, so the agent can correct gently
-instead of choosing between a few abrupt burns.
+instead of choosing between a few abrupt burns. Optionally, a thruster has a
+minimum level: commands below ``thrust_deadzone`` (a fraction of ``u_max``) on
+an axis leave that thruster off. Real thrusters cannot fire arbitrarily weakly,
+and with it the exploration noise around zero no longer burns fuel, so the
+agent can coast for free.
 
 Observation: the relative state, normalised so that every component is of
 order one, and the fraction of the episode elapsed,
@@ -25,7 +29,7 @@ An episode ends in one of four ways:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import gymnasium as gym
@@ -51,6 +55,7 @@ class EnvConfig:
     docking_speed: float = 0.05
     max_distance: float = 500.0
     velocity_scale: float = 0.5
+    thrust_deadzone: float = 0.0
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -114,6 +119,14 @@ class RendezvousEnv(gym.Env):
         self.state = np.zeros(4)
         self.steps = 0
 
+    def set_fuel_weight(self, weight: float) -> None:
+        """Change the cost of fuel, for a curriculum that raises it during training.
+
+        Only the fuel term changes; the shaping potential does not, so the
+        shaping stays a pure telescoping sum whatever the schedule.
+        """
+        self.reward_config = replace(self.reward_config, fuel_weight=weight)
+
     def _observation(self) -> np.ndarray:
         elapsed = self.steps / self.config.max_episode_steps
         obs = np.append(self.state / self._obs_scale, elapsed).astype(np.float32)
@@ -170,7 +183,10 @@ class RendezvousEnv(gym.Env):
     def step(
         self, action: np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
-        thrust = self.config.max_thrust * np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        command = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        # Below its minimum level a thruster stays off.
+        command[np.abs(command) < self.config.thrust_deadzone] = 0.0
+        thrust = self.config.max_thrust * command
         previous_state = self.state.copy()
 
         self.state = propagate(self.state, thrust, self.phi, self.gamma)
