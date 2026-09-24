@@ -106,3 +106,91 @@ def test_aggregate_takes_medians_over_seeds():
     assert by_gamma[0.999]["reliable_seeds"] == 1
     # Only the reliable seed counts, not the flattering 0.5 of the unreliable one.
     assert by_gamma[0.999]["delta_v_median"] == 0.9
+
+
+def make_budget(**kwargs):
+    from orbital_rendezvous.callbacks import FuelBudget
+
+    return FuelBudget(budget=0.6, make_env=RendezvousEnv, **kwargs)
+
+
+def test_dual_ascent_follows_the_worked_example():
+    # The example of the README: budget 0.6 m/s, step size 5, starting from zero.
+    budget = make_budget(step_size=5.0)
+    weight = 0.0
+    for spent, expected in [(1.20, 5.0), (0.90, 7.5), (0.70, 8.333), (0.58, 8.167)]:
+        weight = budget.dual_step(weight, spent)
+        assert weight == pytest.approx(expected, abs=1e-3)
+    # On budget, the price stops moving.
+    assert budget.dual_step(weight, 0.6) == pytest.approx(weight)
+
+
+def test_multiplier_stays_within_its_bounds():
+    budget = make_budget(step_size=5.0, max_weight=20.0)
+    assert budget.dual_step(0.5, 0.0) == 0.0     # spending nothing never makes it negative
+    assert budget.dual_step(19.0, 6.0) == 20.0   # a runaway is capped
+
+
+def fake_training(budget, measurements):
+    """Drive the callback's rollout hook with scripted (success, delta_v) measurements."""
+    applied = []
+    envs = SimpleNamespace(env_method=lambda name, value: applied.append(value))
+    logger = SimpleNamespace(record=lambda key, value: None)
+    budget.model = SimpleNamespace(get_env=lambda: envs, logger=logger)
+    budget.num_timesteps = 0
+    readings = iter(measurements)
+    budget.measure = lambda: next(readings)
+    budget._on_training_start()
+    for _ in measurements:
+        budget._on_rollout_end()
+    return applied
+
+
+def test_price_stays_at_zero_until_the_agent_docks():
+    # Fuel must not get expensive before docking is learned: the stay-put trap.
+    budget = make_budget(step_size=1.0, evaluate_every=1, warmup_success=0.5)
+    fake_training(budget, [(0.0, 3.0), (0.2, 2.5), (0.6, 1.2), (0.9, 0.9)])
+    weights = [h["fuel_weight"] for h in budget.history]
+    assert weights[:2] == [0.0, 0.0]
+    assert weights[2] == pytest.approx(1.0)          # (1.2 - 0.6) / 0.6
+    assert weights[3] == pytest.approx(1.5)          # + (0.9 - 0.6) / 0.6
+    assert [h["active"] for h in budget.history] == [False, False, True, True]
+
+
+def test_price_is_measured_only_every_few_rollouts():
+    budget = make_budget(evaluate_every=3)
+    fake_training(budget, [(1.0, 1.2)] * 7)
+    assert len(budget.history) == 7 // 3
+
+
+def test_measurement_uses_the_deterministic_policy():
+    calls = []
+
+    class Model:
+        def predict(self, obs, deterministic=False):
+            calls.append(deterministic)
+            return np.zeros(2), None
+
+    budget = make_budget(episodes=2)
+    budget.model = Model()
+    success, delta_v = budget.measure()
+    assert calls and all(calls)
+    assert success == 0.0 and delta_v == 0.0
+
+
+def test_budget_jobs_and_their_aggregation():
+    jobs = make_jobs([0.999], [2.0, 10.0], [0, 1], 1000, 5, "runs/x", budgets=[0.6, 0.3])
+    assert len(jobs) == 4
+    assert {job.fuel_budget for job in jobs} == {0.6, 0.3}
+    assert all("budget" in job.label for job in jobs)
+
+    def result(budget, seed, dv):
+        summary = {"success_rate": 1.0, "delta_v_median": dv, "time_median": 700.0,
+                   "docking_speed_median": 0.03}
+        return {"gamma": 0.999, "fuel_weight": 0.0, "fuel_budget": budget, "seed": seed,
+                "summary": summary, "final_fuel_weight": 4.0 + seed}
+
+    rows = aggregate([result(0.6, 0, 0.62), result(0.6, 1, 0.58), result(0.3, 0, 0.45)])
+    assert [row["fuel_budget"] for row in rows] == [0.3, 0.6]
+    assert rows[1]["delta_v_median"] == pytest.approx(0.60)
+    assert rows[1]["final_fuel_weights"] == [4.0, 5.0]

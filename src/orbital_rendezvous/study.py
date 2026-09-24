@@ -18,7 +18,11 @@ step spent waiting, and looks expensive. A minimum thruster level (the
 environment's ``thrust_deadzone``) switches the engine off for commands near
 zero, so that coasting is free.
 
-One job trains and evaluates one (gamma, fuel weight, seed) triple. Jobs are
+With a fuel budget instead of a fixed weight, the fuel weight becomes a
+Lagrange multiplier, adjusted during training so that the deterministic agent
+spends about the budget (see `callbacks.FuelBudget`).
+
+One job trains and evaluates one (gamma, fuel weight or budget, seed) triple. Jobs are
 independent and run in separate processes; each writes its result to disk, so
 an interrupted study resumes where it stopped.
 """
@@ -34,6 +38,7 @@ from typing import Any
 
 import numpy as np
 
+from .callbacks import FuelBudget
 from .env import RendezvousEnv
 from .evaluation import HELD_OUT_SEED, evaluate, summarise
 from .training import train, with_overrides
@@ -53,10 +58,13 @@ class Job:
     curriculum_start: float = 2.0
     curriculum_ramp: float = 0.5
     thrust_deadzone: float = 0.0
+    fuel_budget: float | None = None
 
     @property
     def label(self) -> str:
         deadzone = f"-deadzone{self.thrust_deadzone:g}" if self.thrust_deadzone else ""
+        if self.fuel_budget is not None:
+            return f"gamma{self.gamma:g}-budget{self.fuel_budget:g}{deadzone}-seed{self.seed}"
         return f"gamma{self.gamma:g}-fuel{self.fuel_weight:g}{deadzone}-seed{self.seed}"
 
     @property
@@ -74,12 +82,22 @@ def make_jobs(
     curriculum_start: float = 2.0,
     curriculum_ramp: float = 0.5,
     thrust_deadzone: float = 0.0,
+    budgets: list[float] | None = None,
 ) -> list[Job]:
-    """Every (gamma, fuel weight, seed) combination, slowest-learning first.
+    """Every (gamma, fuel weight or budget, seed) combination, slowest-learning first.
 
-    The largest discounts learn slowest, so they are started first and do not
-    end up running alone at the end of the study.
+    With ``budgets``, each run has a fuel budget instead of a fixed weight, and
+    ``fuel_weights`` is ignored. The largest discounts learn slowest, so they
+    are started first and do not end up running alone at the end of the study.
     """
+    if budgets:
+        return [
+            Job(g, 0.0, s, timesteps, episodes, directory, curriculum_start, curriculum_ramp,
+                thrust_deadzone, fuel_budget=b)
+            for g in sorted(gammas, reverse=True)
+            for b in sorted(budgets, reverse=True)
+            for s in seeds
+        ]
     return [
         Job(g, w, s, timesteps, episodes, directory, curriculum_start, curriculum_ramp,
             thrust_deadzone)
@@ -101,23 +119,37 @@ def run_job(job: Job, base_config: dict[str, Any]) -> dict[str, Any]:
 
     # Several jobs run side by side: one thread each avoids oversubscribing cores.
     torch.set_num_threads(1)
-    curriculum = {"start": job.curriculum_start, "ramp": job.curriculum_ramp}
-    config = with_overrides(
-        base_config, gamma=job.gamma, fuel_weight=job.fuel_weight, curriculum=curriculum,
-        thrust_deadzone=job.thrust_deadzone,
-    )
+    callbacks = []
+    if job.fuel_budget is None:
+        curriculum = {"start": job.curriculum_start, "ramp": job.curriculum_ramp}
+        config = with_overrides(
+            base_config, gamma=job.gamma, fuel_weight=job.fuel_weight, curriculum=curriculum,
+            thrust_deadzone=job.thrust_deadzone,
+        )
+    else:
+        # The multiplier starts at zero and is set by the budget, not by a schedule.
+        config = with_overrides(
+            base_config, gamma=job.gamma, fuel_weight=0.0, thrust_deadzone=job.thrust_deadzone,
+        )
+        config["training"]["fuel_curriculum"] = None
+        budget = FuelBudget(job.fuel_budget, lambda: RendezvousEnv(*build_configs(config)))
+        callbacks.append(budget)
     run_dir = job.result_path.parent
     if run_dir.exists():
         # Left half-way by an interrupted study: start this run again from scratch.
         shutil.rmtree(run_dir)
     model_path = run_dir / "model.zip"
-    model: PPO = train(config, job.seed, job.timesteps, run_dir, model_path, checkpoints=False)
+    model: PPO = train(config, job.seed, job.timesteps, run_dir, model_path,
+                       callbacks=callbacks, checkpoints=False)
 
     env_config, reward_config = build_configs(config)
     env = RendezvousEnv(env_config, reward_config)
     seeds = range(HELD_OUT_SEED, HELD_OUT_SEED + job.episodes)
     runs = evaluate(env, lambda e, obs: model.predict(obs, deterministic=True)[0], seeds)
     result = {**asdict(job), "summary": asdict(summarise(runs))}
+    if callbacks:
+        result["budget_history"] = callbacks[0].history
+        result["final_fuel_weight"] = callbacks[0].weight
     job.result_path.write_text(json.dumps(result, indent=2))
     return result
 
@@ -134,11 +166,12 @@ def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     reported alongside, since a configuration that fails on some seeds is not
     a solution even if its successful seeds are cheap.
     """
-    groups: dict[tuple[float, float], list[dict[str, Any]]] = {}
+    groups: dict[tuple, list[dict[str, Any]]] = {}
     for result in results:
-        groups.setdefault((result["gamma"], result["fuel_weight"]), []).append(result)
+        key = (result["gamma"], result["fuel_weight"], result.get("fuel_budget") or 0.0)
+        groups.setdefault(key, []).append(result)
     rows = []
-    for (gamma, weight), group in sorted(groups.items()):
+    for (gamma, weight, budget), group in sorted(groups.items()):
         group = sorted(group, key=lambda r: r["seed"])
         reliable = [r["summary"] for r in group if r["summary"]["success_rate"] >= RELIABLE]
 
@@ -149,6 +182,8 @@ def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append({
             "gamma": gamma,
             "fuel_weight": weight,
+            "fuel_budget": budget or None,
+            "final_fuel_weights": [r.get("final_fuel_weight") for r in group],
             "seeds": len(group),
             "reliable_seeds": len(reliable),
             "success_rates": [r["summary"]["success_rate"] for r in group],

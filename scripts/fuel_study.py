@@ -61,9 +61,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--directory", default="runs/fuel_study")
     parser.add_argument("--baselines", default="assets/evaluation.json",
                         help="LQR front and two-impulse reference, from evaluate.py.")
-    parser.add_argument("--results", default="assets/fuel_study.json")
-    parser.add_argument("--plot", default="assets/fuel_study.png")
-    return parser.parse_args()
+    parser.add_argument(
+        "--budgets", type=float, nargs="+", default=None,
+        help="Fuel budgets in m/s: the fuel weight becomes a Lagrange multiplier that keeps "
+             "the agent within each budget, instead of the grid of fixed weights.",
+    )
+    parser.add_argument("--results", default=None,
+                        help="Default: assets/fuel_study.json, or lagrange_study.json.")
+    parser.add_argument("--plot", default=None,
+                        help="Default: assets/fuel_study.png, or lagrange_study.png.")
+    args = parser.parse_args()
+    name = "lagrange_study" if args.budgets else "fuel_study"
+    args.results = args.results or f"assets/{name}.json"
+    args.plot = args.plot or f"assets/{name}.png"
+    return args
 
 
 def main() -> None:
@@ -71,7 +82,7 @@ def main() -> None:
     config = load_config(args.config)
     jobs = make_jobs(args.gammas, args.fuel_weights, args.seeds, args.timesteps,
                      args.episodes, args.directory, args.curriculum_start, args.curriculum_ramp,
-                     args.deadzone)
+                     args.deadzone, args.budgets)
     done = [json.loads(job.result_path.read_text()) for job in jobs if job.result_path.exists()]
     todo = [job for job in jobs if not job.result_path.exists()]
     print(f"{len(jobs)} runs: {len(done)} already done, {len(todo)} to train, "
@@ -109,18 +120,27 @@ def main() -> None:
 
     rows = aggregate(done)
     print(f"\nCosts: medians over the seeds docking at least {100 * RELIABLE:.0f} % of the time.")
-    print(f"{'gamma':>6} {'fuel w':>6}   docked per seed        reliable   delta-v   time")
+    column = "budget" if args.budgets else "fuel w"
+    extra = "   final fuel weight per seed" if args.budgets else ""
+    print(f"{'gamma':>6} {column:>6}   docked per seed        reliable   delta-v   time{extra}")
     for row in rows:
         rates = " ".join(f"{100 * r:5.1f}" for r in row["success_rates"])
-        print(f"{row['gamma']:>6g} {row['fuel_weight']:>6g}   {rates:<22s} "
+        setting = row["fuel_budget"] if args.budgets else row["fuel_weight"]
+        weights = ""
+        if args.budgets:
+            weights = "   " + " ".join(f"{w:5.1f}" for w in row["final_fuel_weights"])
+        print(f"{row['gamma']:>6g} {setting:>6g}   {rates:<22s} "
               f"{row['reliable_seeds']}/{row['seeds']}        "
-              f"{row['delta_v_median']:5.2f}   {row['time_median']:5.0f} s")
+              f"{row['delta_v_median']:5.2f}   {row['time_median']:5.0f} s{weights}")
 
     Path(args.results).parent.mkdir(parents=True, exist_ok=True)
     Path(args.results).write_text(json.dumps({"runs": done, "configurations": rows}, indent=2))
     baselines_path = Path(args.baselines)
     baselines = json.loads(baselines_path.read_text()) if baselines_path.exists() else None
-    plot(args.plot, done, rows, baselines, args.episodes)
+    if args.budgets:
+        plot_budgets(args.plot, done, rows, baselines, args.episodes)
+    else:
+        plot(args.plot, done, rows, baselines, args.episodes)
     print(f"\nPlot saved to {args.plot}, numbers to {args.results}")
 
 
@@ -235,6 +255,94 @@ def plot(path, runs, rows, baselines, episodes) -> None:
     right.set_ylim(bottom=0)
 
     fig.suptitle(f"Trading time for fuel, on {episodes} unseen starts", color=TEXT,
+                 fontsize=13, fontweight="bold", x=0.02, ha="left")
+    fig.tight_layout()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=130, bbox_inches="tight", facecolor=PANEL)
+    plt.close(fig)
+
+
+def plot_budgets(path, runs, rows, baselines, episodes) -> None:
+    """Two panels: does the agent keep its budget, and where does that put it.
+
+    Left: the fuel spent against the budget asked for, with the line where the
+    two are equal. Right: every budget against the LQR front, labelled with its
+    budget, as in the fuel-weight study.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from orbital_rendezvous.game_view import AMBER, BLUE, GRID, MUTED, PANEL, TEXT
+
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(13.0, 5.4), facecolor=PANEL, gridspec_kw={"width_ratios": [1.0, 1.35]}
+    )
+    for ax in (left, right):
+        ax.set_facecolor(PANEL)
+        ax.tick_params(colors=MUTED)
+        for spine in ax.spines.values():
+            spine.set_color(GRID)
+        ax.grid(alpha=0.25, color=GRID)
+
+    budgets = sorted(r["fuel_budget"] for r in rows)
+    top = max(budgets + [r["delta_v_median"] for r in rows if r["reliable_seeds"]]) * 1.15
+    left.plot([0, top], [0, top], color=MUTED, ls="--", lw=1)
+    left.text(0.95 * top, 0.95 * top, "spent = budget ", color=MUTED, fontsize=9,
+              ha="right", va="bottom")
+    for run in runs:
+        s = run["summary"]
+        reliable = s["success_rate"] >= RELIABLE
+        left.scatter(run["fuel_budget"], s["delta_v_median"] if reliable else 0.02 * top,
+                     s=40, color=AMBER if reliable else PANEL, edgecolor=AMBER, lw=1.5,
+                     alpha=0.9, zorder=3, marker="o" if reliable else "v")
+    left.set_xlim(0, top)
+    left.set_ylim(0, top)
+    left.set_xlabel("fuel budget asked for [m/s]", color=TEXT)
+    left.set_ylabel(r"fuel spent, median $\Delta v$ [m/s]", color=TEXT)
+    left.set_title("Does the agent keep its budget?", color=TEXT, fontsize=11, loc="left")
+    left.text(0.98, 0.03, "one dot per seed; triangles on the axis: seeds that did not dock",
+              transform=left.transAxes, color=MUTED, fontsize=8, ha="right")
+    weights = [w for r in rows for w in r["final_fuel_weights"] if w is not None]
+    missed = all(r["delta_v_median"] > r["fuel_budget"] for r in rows if r["reliable_seeds"])
+    if weights and missed:
+        left.text(0.04, 0.55, f"above the line: budget missed\nwhile the price of fuel rose\n"
+                  f"to {min(weights):.0f}–{max(weights):.0f}", transform=left.transAxes,
+                  color=AMBER, fontsize=10, va="center")
+
+    right.set_title("Against the classical controllers  (lower left is better)",
+                    color=TEXT, fontsize=11, loc="left")
+    right.set_xlabel("time to dock, median [s]", color=TEXT)
+    right.set_ylabel(r"fuel spent, median $\Delta v$ [m/s]", color=TEXT)
+    if baselines:
+        front = baselines["lqr_front"]
+        right.plot([s["time_median"] for s in front], [s["delta_v_median"] for s in front],
+                   color=BLUE, lw=2.2, zorder=3)
+        at = front[min(1, len(front) - 1)]
+        right.annotate("LQR, best trade-offs", (at["time_median"], at["delta_v_median"]),
+                       xytext=(10, 8), textcoords="offset points", color=BLUE, fontsize=10)
+        bound = baselines["two_impulse"]["delta_v_median"]
+        right.axhline(bound, color=TEXT, ls="--", lw=1, zorder=1)
+        right.text(0.98, bound, "  ideal two-impulse transfer (not flyable)", color=TEXT,
+                   fontsize=9, ha="right", va="bottom", transform=right.get_yaxis_transform())
+        agent = baselines["agent"]
+        right.scatter(agent["time_median"], agent["delta_v_median"], s=280, marker="*",
+                      color=TEXT, zorder=5)
+        right.annotate("default agent", (agent["time_median"], agent["delta_v_median"]),
+                       xytext=(12, 4), textcoords="offset points", color=TEXT, fontsize=10)
+    shown = [r for r in sorted(rows, key=lambda r: -r["fuel_budget"]) if r["reliable_seeds"]]
+    for i, row in enumerate(shown):
+        point = (row["time_median"], row["delta_v_median"])
+        right.scatter(*point, s=110, marker="D", color=AMBER, edgecolor=TEXT, zorder=5)
+        # Alternate the labels below and to the right, so that neighbours never touch.
+        right.annotate(f"budget {row['fuel_budget']:g} m/s  ({row['reliable_seeds']}/"
+                       f"{row['seeds']} seeds)", point, xytext=(6, -120 - 18 * i),
+                       textcoords="offset points", color=AMBER, fontsize=9,
+                       arrowprops={"arrowstyle": "-", "color": AMBER, "lw": 0.6})
+    right.set_ylim(bottom=0)
+
+    fig.suptitle(f"A Lagrange multiplier on fuel, on {episodes} unseen starts", color=TEXT,
                  fontsize=13, fontweight="bold", x=0.02, ha="left")
     fig.tight_layout()
     Path(path).parent.mkdir(parents=True, exist_ok=True)

@@ -25,7 +25,8 @@ used.*
 - a patient LQR spends less than half the fuel in four times the time, and the
   ideal two-impulse transfer less than a third: the agent learned a *quick*
   approach, not a fuel-optimal one. Trained to save fuel, it spends 15 % less
-  (0.83 m/s in 710 s), but not much more: why is the subject of a study below.
+  (0.83 m/s in 710 s), but not much more, even when a Lagrange multiplier
+  raises the price of fuel 25-fold: why is the subject of two studies below.
 
 ## Contents
 
@@ -420,6 +421,48 @@ times the tidal acceleration $`3n^2x`$ at a metre from the target, and they
 circled it until the time ran out, docking only 70 to 80 % of the time and
 spending no less fuel. The option is kept in the environment, off by default.
 
+### A Lagrange multiplier on fuel
+
+The fuel study chose the fuel weight by hand. A constrained formulation asks
+instead for a budget: dock, spending at most $`D`$ of fuel [10]. The fuel weight
+becomes the Lagrange multiplier of that constraint, adjusted during training by
+dual ascent,
+
+```math
+\lambda \leftarrow \max\left(0,\ \lambda + \eta\,\frac{\widehat{\Delta v} - D}{D}\right)
+```
+
+where $`\widehat{\Delta v}`$ is measured every ten rollouts on twenty attempts
+of the *deterministic* policy, so that exploration noise, which the trained
+agent does not pay, cannot push the price up. It works like a thermostat on the
+price of fuel: spending too much raises it, spending too little lowers it. The
+multiplier stays at zero until the agent docks in half of those attempts, so
+that fuel does not become expensive before docking is learned.
+
+![A Lagrange multiplier on fuel: the budget asked for against the fuel spent](assets/lagrange_study.png)
+
+| budget $`D`$ | seeds that dock | $`\Delta v`$, median | time, median | final $`\lambda`$ per seed |
+| --- | --- | --- | --- | --- |
+| 0.6 m/s | 3 / 3 | 0.86 m/s | 680 s | 44, 48, 41 |
+| 0.45 m/s | 3 / 3 | 0.82 m/s | 710 s | 50, 50, 50 (the cap) |
+
+The multiplier does what it should: it waits for docking, then raises the price
+of fuel. At 41 to 50, over twice the fixed weight of 20 that made two seeds in
+three unlearn docking in the fuel study, every seed still docks: a price that
+rises only once docking is learned avoids the trap that a fixed schedule fell
+into. But the budget is never met. The price of fuel rose about 25-fold and
+fuel fell only from about 0.95 to 0.8 m/s, with the approach as quick as
+before.
+
+This settles what the fuel study suggested: **the fuel weight is not the
+lever**, whether chosen by hand or by a multiplier. Raising the price of fuel
+also raises the price of waiting, because during training the exploration
+noise burns about 0.23 m/s every 1000 s even with the engine nominally off. At
+$`\lambda = 50`$, a thousand seconds more in flight cost about 11 points of
+reward in noise alone: the dearer the fuel, the more it pays to hurry. The next
+step is therefore to make coasting free without losing the fine control of the
+final approach, with an explicit engine-off action.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -469,7 +512,9 @@ Asked to save fuel, it saves some: a higher discount, a heavier fuel cost and a
 curriculum bring it to 0.83 m/s in 710 s, below the LQR front at that speed.
 It does not reach the slow, economical regime reliably: the discount, a fuel
 cost too heavy to learn with, and the price of exploration noise all push it
-back towards a quick approach.
+back towards a quick approach. A Lagrange multiplier on a fuel budget removed
+the second obstacle but not the third: the price of fuel rose to its cap and
+the budget was never met, because a dearer fuel also makes waiting dearer.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -508,7 +553,7 @@ arguments for the default run and lists its options with `--help`.
 | `train.py` | trains PPO with the live window open, and saves the model to `models/` and a run directory to `runs/` |
 | `evaluate.py` | the agent against the LQR sweep and the two-impulse transfer on 200 unseen starts: a table, the plot and a JSON file |
 | `play.py` | the agent and an LQR flying the same approach side by side, in a window or as a GIF |
-| `fuel_study.py` | the agent over a grid of discounts and fuel weights, several seeds, in parallel: a table, a plot and a JSON file |
+| `fuel_study.py` | the agent over a grid of discounts and fuel weights, or of fuel budgets with a Lagrange multiplier, several seeds, in parallel: a table, a plot and a JSON file |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -520,6 +565,7 @@ python scripts/play.py                                 # against the fastest LQR
 python scripts/play.py --lqr cheapest                  # against the patient one
 python scripts/play.py --gif assets/side_by_side.gif   # save the comparison GIF
 caffeinate -ims python scripts/fuel_study.py           # the fuel study, about 40 min
+caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.6 0.45
 ```
 
 As a library:
@@ -557,7 +603,7 @@ Orbital_Rendezvous/
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
-│   ├── callbacks.py        # SB3 callbacks: the window, GIFs, the fuel curriculum
+│   ├── callbacks.py        # SB3 callbacks: window, GIFs, curriculum, fuel budget
 │   ├── training.py         # builds and trains PPO from a configuration
 │   ├── study.py            # one run of the fuel study, and the aggregation
 │   └── utils.py            # YAML config into the dataclasses, with checks
@@ -566,7 +612,7 @@ Orbital_Rendezvous/
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
 │   ├── play.py             # agent against LQR, side by side, same start
 │   └── fuel_study.py       # grid of discounts and fuel weights, in parallel
-├── tests/                  # 74 tests, one file per module
+├── tests/                  # 80 tests, one file per module
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -618,7 +664,9 @@ would catch them.
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are
   aggregated over reliable seeds only, not flattered by a run that docks from
-  the easy starts alone.
+  the easy starts alone. The Lagrange multiplier retraces the worked example of
+  dual ascent step by step, never goes negative, stays at zero until the agent
+  docks, and is measured on the deterministic policy.
 - **Visualisation.** The callback behind the curves is fed episodes whose
   outcome, return and $`\Delta v`$ are known; the status bar is checked against
   the true final state; everything runs off-screen.
@@ -647,6 +695,8 @@ How the project was built, step by step, including the runs that failed, is in
    Implementations*, J. Mach. Learn. Res. **22**, 268 (2021)
 9. F. Pardo, A. Tavakoli, V. Levdik & P. Kormushev, *Time Limits in
    Reinforcement Learning*, Proc. ICML (2018)
+10. C. Tessler, D. J. Mankowitz & S. Mannor, *Reward Constrained Policy
+    Optimization*, Proc. ICLR (2019)
 
 ## License
 

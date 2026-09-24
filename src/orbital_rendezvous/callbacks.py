@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
+from .env import RendezvousEnv
 from .live_view import LiveView, TrainingCurves
+from .rewards import Outcome
 
 
 class LiveViewCallback(BaseCallback):
@@ -157,6 +159,99 @@ class FuelCurriculum(BaseCallback):
 
     def _on_rollout_start(self) -> None:
         self._update()
+
+    def _on_step(self) -> bool:
+        return True
+
+
+class FuelBudget(BaseCallback):
+    """A Lagrange multiplier on fuel: the fuel weight that keeps delta-v within ``budget``.
+
+    The task becomes "dock, spending at most ``budget`` m/s", and the fuel weight
+    is the multiplier of that constraint, adjusted by dual ascent: every few
+    rollouts the agent flies ``episodes`` deterministic attempts, and
+
+        lambda <- clip(lambda + step_size * (delta_v - budget) / budget, 0, max_weight).
+
+    Spending too much raises the price of fuel, spending less lowers it. The
+    measurement uses the deterministic policy, so exploration noise, which the
+    trained agent does not pay, cannot push the price up.
+
+    The multiplier stays at zero until the agent docks in at least
+    ``warmup_success`` of those attempts: raising the price of fuel before the
+    agent can dock would teach it to stay put, the trap of a heavy fuel cost.
+    """
+
+    def __init__(
+        self,
+        budget: float,
+        make_env: Callable[[], RendezvousEnv],
+        step_size: float = 1.0,
+        evaluate_every: int = 10,
+        episodes: int = 20,
+        warmup_success: float = 0.5,
+        max_weight: float = 50.0,
+        first_seed: int = 50_000,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        if budget <= 0.0:
+            raise ValueError("the fuel budget must be positive")
+        self.budget = budget
+        self.make_env = make_env
+        self.step_size = step_size
+        self.evaluate_every = evaluate_every
+        self.episodes = episodes
+        self.warmup_success = warmup_success
+        self.max_weight = max_weight
+        # Starts of their own, apart from training and from the held-out evaluation.
+        self.seeds = range(first_seed, first_seed + episodes)
+        self.weight = 0.0
+        self.active = False
+        self.history: list[dict[str, float]] = []
+        self._env: RendezvousEnv | None = None
+        self._rollouts = 0
+
+    def dual_step(self, weight: float, delta_v: float) -> float:
+        """One step of dual ascent on the multiplier."""
+        weight += self.step_size * (delta_v - self.budget) / self.budget
+        return float(np.clip(weight, 0.0, self.max_weight))
+
+    def measure(self) -> tuple[float, float]:
+        """Docking rate and mean delta-v of the deterministic policy on the budget's starts."""
+        from .evaluation import evaluate
+
+        if self._env is None:
+            self._env = self.make_env()
+        runs = evaluate(
+            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
+        )
+        success = float(np.mean([r.outcome is Outcome.DOCKED for r in runs]))
+        return success, float(np.mean([r.delta_v for r in runs]))
+
+    def _apply(self) -> None:
+        self.training_env.env_method("set_fuel_weight", self.weight)
+        self.logger.record("budget/fuel_weight", self.weight)
+
+    def _on_training_start(self) -> None:
+        self._apply()
+
+    def _on_rollout_end(self) -> None:
+        self._rollouts += 1
+        if self._rollouts % self.evaluate_every:
+            return
+        success, delta_v = self.measure()
+        if not self.active and success >= self.warmup_success:
+            self.active = True
+        if self.active:
+            self.weight = self.dual_step(self.weight, delta_v)
+            self._apply()
+        self.logger.record("budget/delta_v", delta_v)
+        self.logger.record("budget/success", success)
+        self.history.append({
+            "timesteps": int(self.num_timesteps), "success": success, "delta_v": delta_v,
+            "fuel_weight": self.weight, "active": self.active,
+        })
 
     def _on_step(self) -> bool:
         return True

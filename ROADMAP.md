@@ -145,6 +145,18 @@ a negative result, kept as an option.
 And a summary that averaged over every seed flattered two configurations with
 runs that docked only from the easy starts; costs now come from reliable seeds.
 
+## Step 12 — A Lagrange multiplier on fuel
+
+- [x] The time-budget constraint first proposed was dropped before coding: the agent is already too fast, so "dock within T" would never bind
+- [x] `FuelBudget` callback: dock while spending at most $`D`$; the fuel weight is the multiplier, updated by dual ascent on the deterministic policy's fuel, and held at zero until the agent docks in half of its test attempts
+- [x] Budget mode in `fuel_study.py`; tests that retrace the worked example of dual ascent
+- [x] Result, 3 seeds per budget: every run docks, the multiplier rises to 41–50 (the cap at $`D = 0.45`$), and fuel stays at 0.80–0.89 m/s: the budget is never met
+
+*Lesson.* The multiplier fixed the trap of a heavy fuel cost, since the price
+rises only after docking is learned, but not the fuel: a dearer fuel also makes
+waiting dearer, because exploration noise burns fuel. Neither a hand-picked nor
+a self-tuned weight is the lever; the noise is.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -160,20 +172,17 @@ perturbations, and, negligibly, a slightly eccentric orbit.
 
 ### 1. Fuel, the next attempt
 
-Step 11 showed what holds the agent in the fast regime; these attack it directly.
+Steps 11 and 12 showed that the fuel weight is not the lever: exploration noise
+is taxed as fuel, so every attempt to price fuel higher also prices waiting.
 
-- [ ] Constrained optimisation with a Lagrange multiplier on a time budget:
-  minimise $`\Delta v`$ subject to docking within $`T_\mathrm{max}`$, with
-  $`\lambda`$ updated by dual ascent. Sweeping the budget (600 to 2900 s) puts
-  each agent at a chosen time, directly comparable with the LQR front (RCPO,
-  Tessler et al., 2019).
+- [ ] Hybrid actions: a discrete engine on / engine off choice, with continuous
+  thrust when on. Once learned, "off" carries no noise, so coasting is free,
+  while the continuous part keeps the fine control of the final approach that
+  the minimum thruster level of Step 11 destroyed.
+- [ ] Less exploration noise late in training (an annealed or state-dependent
+  standard deviation), as a cheaper alternative to test against.
 - [ ] A policy conditioned on the preference: the fuel weight as an input drawn
   at random each episode, so one training learns the whole front.
-- [ ] Hybrid actions: an explicit engine-off choice for coasting, with
-  continuous thrust kept for the final approach, which the minimum thruster
-  level could not preserve.
-- [ ] Longer training for $`\gamma = 0.999`$, and a slower curriculum for heavy
-  fuel weights.
 
 ### 2. An oriented target: approach corridor and keep-out zone
 
