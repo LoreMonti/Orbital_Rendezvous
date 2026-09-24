@@ -59,10 +59,12 @@ class Job:
     curriculum_ramp: float = 0.5
     thrust_deadzone: float = 0.0
     fuel_budget: float | None = None
+    engine_switch: bool = False
 
     @property
     def label(self) -> str:
         deadzone = f"-deadzone{self.thrust_deadzone:g}" if self.thrust_deadzone else ""
+        deadzone += "-switch" if self.engine_switch else ""
         if self.fuel_budget is not None:
             return f"gamma{self.gamma:g}-budget{self.fuel_budget:g}{deadzone}-seed{self.seed}"
         return f"gamma{self.gamma:g}-fuel{self.fuel_weight:g}{deadzone}-seed{self.seed}"
@@ -83,6 +85,7 @@ def make_jobs(
     curriculum_ramp: float = 0.5,
     thrust_deadzone: float = 0.0,
     budgets: list[float] | None = None,
+    engine_switch: bool = False,
 ) -> list[Job]:
     """Every (gamma, fuel weight or budget, seed) combination, slowest-learning first.
 
@@ -93,14 +96,14 @@ def make_jobs(
     if budgets:
         return [
             Job(g, 0.0, s, timesteps, episodes, directory, curriculum_start, curriculum_ramp,
-                thrust_deadzone, fuel_budget=b)
+                thrust_deadzone, fuel_budget=b, engine_switch=engine_switch)
             for g in sorted(gammas, reverse=True)
             for b in sorted(budgets, reverse=True)
             for s in seeds
         ]
     return [
         Job(g, w, s, timesteps, episodes, directory, curriculum_start, curriculum_ramp,
-            thrust_deadzone)
+            thrust_deadzone, engine_switch=engine_switch)
         for g in sorted(gammas, reverse=True)
         for w in fuel_weights
         for s in seeds
@@ -124,12 +127,13 @@ def run_job(job: Job, base_config: dict[str, Any]) -> dict[str, Any]:
         curriculum = {"start": job.curriculum_start, "ramp": job.curriculum_ramp}
         config = with_overrides(
             base_config, gamma=job.gamma, fuel_weight=job.fuel_weight, curriculum=curriculum,
-            thrust_deadzone=job.thrust_deadzone,
+            thrust_deadzone=job.thrust_deadzone, engine_switch=job.engine_switch,
         )
     else:
         # The multiplier starts at zero and is set by the budget, not by a schedule.
         config = with_overrides(
             base_config, gamma=job.gamma, fuel_weight=0.0, thrust_deadzone=job.thrust_deadzone,
+            engine_switch=job.engine_switch,
         )
         config["training"]["fuel_curriculum"] = None
         budget = FuelBudget(job.fuel_budget, lambda: RendezvousEnv(*build_configs(config)))

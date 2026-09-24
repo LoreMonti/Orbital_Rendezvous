@@ -47,6 +47,8 @@ class LQRController:
         fuel_weight: float = 1e-3,
     ) -> None:
         self.max_thrust = max_thrust
+        # With an engine switch in the environment the LQR keeps it always on.
+        self.engine_switch = False
         self.approach_time = approach_time
         self.fuel_weight = fuel_weight
         self.q = np.diag([1.0, 1.0, approach_time**2, approach_time**2]) / position_scale**2
@@ -60,13 +62,16 @@ class LQRController:
         cls, env, approach_time: float = 200.0, fuel_weight: float = 1e-3
     ) -> LQRController:
         cfg = env.config
-        return cls(
+        controller = cls(
             env.phi, env.gamma, cfg.max_thrust, cfg.max_distance, approach_time, fuel_weight
         )
+        controller.engine_switch = cfg.engine_switch
+        return controller
 
     def act(self, state: np.ndarray) -> np.ndarray:
         """Action for the physical state ``[x, y, vx, vy]``, saturated to ``[-1, 1]``."""
-        return np.clip(-self.k @ state / self.max_thrust, -1.0, 1.0)
+        action = np.clip(-self.k @ state / self.max_thrust, -1.0, 1.0)
+        return np.append(action, 1.0) if self.engine_switch else action
 
 
 def two_impulse(state: np.ndarray, n: float, duration: float) -> tuple[float, float]:

@@ -32,6 +32,7 @@ def with_overrides(
     fuel_weight: float | None = None,
     curriculum: dict[str, float] | None = None,
     thrust_deadzone: float | None = None,
+    engine_switch: bool | None = None,
 ) -> dict[str, Any]:
     """A copy of ``config`` with a new discount, fuel weight, curriculum and deadzone.
 
@@ -49,6 +50,8 @@ def with_overrides(
         config["training"]["fuel_curriculum"] = curriculum
     if thrust_deadzone is not None:
         config["environment"]["thrust_deadzone"] = thrust_deadzone
+    if engine_switch is not None:
+        config["environment"]["engine_switch"] = engine_switch
     return config
 
 

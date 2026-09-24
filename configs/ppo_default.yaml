@@ -14,6 +14,10 @@ environment:
   # the thruster off. 0 for the default agent; the fuel study uses it so that
   # exploration noise around zero does not burn fuel.
   thrust_deadzone: 0.0
+  # An engine switch as a third action: the engine fires only when it is
+  # positive, so coasting is free even under exploration noise. Off for the
+  # default agent.
+  engine_switch: false
 
   # Integration.
   # One decision every 10 s. The propagation is exact for any step, so this

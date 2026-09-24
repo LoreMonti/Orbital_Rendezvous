@@ -157,6 +157,21 @@ rises only after docking is learned, but not the fuel: a dearer fuel also makes
 waiting dearer, because exploration noise burns fuel. Neither a hand-picked nor
 a self-tuned weight is the lever; the noise is.
 
+## Step 13 — An engine switch
+
+- [x] `engine_switch` option: a third action; the engine fires only when it is positive, so "off" carries no noise while "on" keeps continuous thrust with no minimum
+- [x] The LQR keeps the switch always on; `check_env` passes with the switch
+- [x] With a fixed fuel weight of 10, the switch made the trap worse: 0 % docking, engine off 90 % of the time
+- [x] With the Lagrange multiplier, 8 million steps, three seeds per budget: $`D = 0.75`$ met on 3 / 3 seeds, 0.74 m/s in 790 s, price settling at 24–34; $`D = 0.6`$ reliable on 1 / 3
+- [x] A probe at $`D = 0.45`$: 0.58 m/s in 1100 s, engine off two steps in three, but 60 % docking
+- [x] `fuel_summary.py`: the fuel story in one plot, 0.98 → 0.83 → 0.82 → 0.74 m/s
+
+*Lesson.* The switch was the right lever, removing the tax on exploration noise,
+and made a budget reachable for the first time. What is left is exploration
+itself: a slow approach that docks every time exists, but PPO finds it only
+some of the time. The fuel line of work stops here, with diminishing returns
+(−15 %, then −11 %) and a clear account of each obstacle.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -170,19 +185,17 @@ coupling. The target sits still at the centre of the view only because the view
 is the target's own. What the real ISS adds is below: an oriented docking port,
 perturbations, and, negligibly, a slightly eccentric orbit.
 
-### 1. Fuel, the next attempt
+### 1. Fuel, if taken further
 
-Steps 11 and 12 showed that the fuel weight is not the lever: exploration noise
-is taxed as fuel, so every attempt to price fuel higher also prices waiting.
+Steps 11 to 13 took the agent from 0.98 to 0.74 m/s and removed, one by one,
+the discount, the stay-put trap and the tax on exploration noise. What is left
+is finding a slow approach reliably.
 
-- [ ] Hybrid actions: a discrete engine on / engine off choice, with continuous
-  thrust when on. Once learned, "off" carries no noise, so coasting is free,
-  while the continuous part keeps the fine control of the final approach that
-  the minimum thruster level of Step 11 destroyed.
+- [ ] Longer training, and more seeds, at budgets between 0.6 and 0.75 m/s.
+- [ ] A policy conditioned on the preference: the budget as an input drawn at
+  random each episode, so one training learns the whole front.
 - [ ] Less exploration noise late in training (an annealed or state-dependent
-  standard deviation), as a cheaper alternative to test against.
-- [ ] A policy conditioned on the preference: the fuel weight as an input drawn
-  at random each episode, so one training learns the whole front.
+  standard deviation), combined with the engine switch.
 
 ### 2. An oriented target: approach corridor and keep-out zone
 

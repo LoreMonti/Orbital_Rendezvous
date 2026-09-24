@@ -96,3 +96,14 @@ def test_summary_counts_costs_on_docked_attempts_only(env):
     assert summary.success_rate == 0.0
     assert np.isnan(summary.delta_v_median)
     assert sum(summary.outcomes.values()) == 4
+
+
+def test_lqr_keeps_the_engine_switch_on():
+    from orbital_rendezvous import EnvConfig
+
+    env = RendezvousEnv(EnvConfig(engine_switch=True))
+    lqr = LQRController.from_env(env, 200.0, 1e-3)
+    action = lqr.act(np.array([100.0, 0.0, 0.0, 0.0]))
+    assert action.shape == (3,) and action[2] == 1.0
+    runs = evaluate(env, lambda e, obs: lqr.act(e.state), range(10_000, 10_005))
+    assert all(run.outcome is Outcome.DOCKED for run in runs)

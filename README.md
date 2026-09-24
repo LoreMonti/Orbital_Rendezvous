@@ -24,9 +24,9 @@ used.*
   tunings crash in up to 68 % of the attempts;
 - a patient LQR spends less than half the fuel in four times the time, and the
   ideal two-impulse transfer less than a third: the agent learned a *quick*
-  approach, not a fuel-optimal one. Trained to save fuel, it spends 15 % less
-  (0.83 m/s in 710 s), but not much more, even when a Lagrange multiplier
-  raises the price of fuel 25-fold: why is the subject of two studies below.
+  approach, not a fuel-optimal one. Asked to save fuel, it gets to 25 % less
+  (0.74 m/s in 790 s) with an engine switch and a Lagrange multiplier on a fuel
+  budget; how, and why not further, is the subject of three studies below.
 
 ## Contents
 
@@ -463,6 +463,51 @@ reward in noise alone: the dearer the fuel, the more it pays to hurry. The next
 step is therefore to make coasting free without losing the fine control of the
 final approach, with an explicit engine-off action.
 
+### An engine switch
+
+Both studies point at the same obstacle: exploration noise is taxed as fuel.
+To switch the engine off, the agent has to command exactly zero thrust, and the
+noise added to its actions during training never lets it. The minimum thruster
+level of the fuel study removed the noise by tying "off" to the size of the
+thrust, and lost the small firings the last metre needs. An engine switch
+separates the two: a third action $`a_\mathrm{on}`$, and
+
+```math
+\mathbf{u} = \begin{cases} u_\mathrm{max}\,[a_x,\ a_y] & a_\mathrm{on} \gt 0 \\ \mathbf{0} & a_\mathrm{on} \le 0 \end{cases}
+```
+
+Off, the thrust is exactly zero whatever the noise on $`a_x`$ and $`a_y`$, so
+coasting is free even while exploring; on, the thrust stays continuous with no
+minimum. It remains a plain continuous action space, which Stable-Baselines3
+handles unchanged. With a fixed fuel weight of 10 the switch made the old trap
+worse: "engine off" is the easiest way to do nothing, and the agent learned
+exactly that, docking 0 % of the time. With the Lagrange multiplier, whose price
+rises only after docking is learned, it works. Eight million steps, three seeds
+per budget:
+
+![The engine switch with a Lagrange multiplier on fuel](assets/lagrange_study_switch.png)
+
+| budget $`D`$ | seeds that dock | $`\Delta v`$ per seed | time, median | final $`\lambda`$ per seed |
+| --- | --- | --- | --- | --- |
+| **0.75 m/s** | **3 / 3** | 0.74, 0.78, 0.73 | 790 s | 33, 34, 24 |
+| 0.6 m/s | 1 / 3 | 0.74, *1 % docked*, *83 % docked* | 830 s | 50, 50, 50 (the cap) |
+
+For the first time a budget is met: at $`D = 0.75`$ the price of fuel settles
+below its cap, where the agent spends just under the budget, and every seed
+docks every time. Asking for less breaks the agent: at $`D = 0.6`$ one seed docks
+from 1 % of the starts and another from 83 %. A run with $`D = 0.45`$ after four
+million steps showed what lies beyond, 0.58 m/s in 1100 s with the engine off
+for two steps in three, but docked only 60 % of the time. The slow, economical
+regime is now reachable, not yet reliably.
+
+![The whole fuel story: the default agent and the best of each attempt](assets/fuel_journey.png)
+
+*Each point is the cheapest setting of an attempt that docks on every seed.*
+Asked to save fuel, the agent went from 0.98 to 0.74 m/s, 25 % less, taking
+790 s instead of 600, and staying below the LQR front at every speed it
+reached. Each attempt removed one obstacle, and the last one standing is the
+difficulty of *finding* a slow approach that docks every time.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -514,7 +559,10 @@ It does not reach the slow, economical regime reliably: the discount, a fuel
 cost too heavy to learn with, and the price of exploration noise all push it
 back towards a quick approach. A Lagrange multiplier on a fuel budget removed
 the second obstacle but not the third: the price of fuel rose to its cap and
-the budget was never met, because a dearer fuel also makes waiting dearer.
+the budget was never met, because a dearer fuel also makes waiting dearer. An
+engine switch removed the third, making coasting free: with it, a budget of
+0.75 m/s is met on every seed, 25 % below the default agent. Lower budgets
+reach a slow, cheap regime but lose reliability.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -553,7 +601,8 @@ arguments for the default run and lists its options with `--help`.
 | `train.py` | trains PPO with the live window open, and saves the model to `models/` and a run directory to `runs/` |
 | `evaluate.py` | the agent against the LQR sweep and the two-impulse transfer on 200 unseen starts: a table, the plot and a JSON file |
 | `play.py` | the agent and an LQR flying the same approach side by side, in a window or as a GIF |
-| `fuel_study.py` | the agent over a grid of discounts and fuel weights, or of fuel budgets with a Lagrange multiplier, several seeds, in parallel: a table, a plot and a JSON file |
+| `fuel_study.py` | the agent over a grid of discounts and fuel weights, or of fuel budgets with a Lagrange multiplier, optionally with an engine switch, several seeds, in parallel: a table, a plot and a JSON file |
+| `fuel_summary.py` | the default agent and the best of each fuel study in one plot, from the saved results |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -566,6 +615,9 @@ python scripts/play.py --lqr cheapest                  # against the patient one
 python scripts/play.py --gif assets/side_by_side.gif   # save the comparison GIF
 caffeinate -ims python scripts/fuel_study.py           # the fuel study, about 40 min
 caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.6 0.45
+caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.75 0.6 \
+    --engine-switch --timesteps 8000000                # with the engine switch
+python scripts/fuel_summary.py                         # the fuel story in one plot
 ```
 
 As a library:
@@ -611,8 +663,9 @@ Orbital_Rendezvous/
 │   ├── train.py            # trains PPO and saves the model
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
 │   ├── play.py             # agent against LQR, side by side, same start
-│   └── fuel_study.py       # grid of discounts and fuel weights, in parallel
-├── tests/                  # 80 tests, one file per module
+│   ├── fuel_study.py       # grid of discounts, fuel weights or budgets, in parallel
+│   └── fuel_summary.py     # the fuel story in one plot, from saved results
+├── tests/                  # 84 tests, one file per module
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -648,8 +701,9 @@ would catch them.
   state that must lead to it in one step, including a chaser fast enough to
   cross the docking sphere between two steps; the clock starts at zero and ticks
   by $`1/T_\mathrm{max}`$ per step, and at the timeout the shaping pays back
-  exactly $`-\Phi(\mathbf{s})`$; `check_env` passes with warnings treated as
-  errors.
+  exactly $`-\Phi(\mathbf{s})`$; with the engine switch off the thrust is zero
+  whatever the noise, and on it keeps even the smallest firings; `check_env`
+  passes with warnings treated as errors, with and without the switch.
 - **Reward.** The sign of every term, and the property that makes the shaping
   safe: over a random trajectory the discounted sum equals
   $`\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)`$ to $`10^{-12}`$.

@@ -62,6 +62,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baselines", default="assets/evaluation.json",
                         help="LQR front and two-impulse reference, from evaluate.py.")
     parser.add_argument(
+        "--engine-switch", action="store_true",
+        help="Give the agent an engine switch, so that coasting is free (ROADMAP, Step 13).",
+    )
+    parser.add_argument(
         "--budgets", type=float, nargs="+", default=None,
         help="Fuel budgets in m/s: the fuel weight becomes a Lagrange multiplier that keeps "
              "the agent within each budget, instead of the grid of fixed weights.",
@@ -72,6 +76,7 @@ def parse_args() -> argparse.Namespace:
                         help="Default: assets/fuel_study.png, or lagrange_study.png.")
     args = parser.parse_args()
     name = "lagrange_study" if args.budgets else "fuel_study"
+    name += "_switch" if args.engine_switch else ""
     args.results = args.results or f"assets/{name}.json"
     args.plot = args.plot or f"assets/{name}.png"
     return args
@@ -82,7 +87,7 @@ def main() -> None:
     config = load_config(args.config)
     jobs = make_jobs(args.gammas, args.fuel_weights, args.seeds, args.timesteps,
                      args.episodes, args.directory, args.curriculum_start, args.curriculum_ramp,
-                     args.deadzone, args.budgets)
+                     args.deadzone, args.budgets, args.engine_switch)
     done = [json.loads(job.result_path.read_text()) for job in jobs if job.result_path.exists()]
     todo = [job for job in jobs if not job.result_path.exists()]
     print(f"{len(jobs)} runs: {len(done)} already done, {len(todo)} to train, "
@@ -337,7 +342,7 @@ def plot_budgets(path, runs, rows, baselines, episodes) -> None:
         right.scatter(*point, s=110, marker="D", color=AMBER, edgecolor=TEXT, zorder=5)
         # Alternate the labels below and to the right, so that neighbours never touch.
         right.annotate(f"budget {row['fuel_budget']:g} m/s  ({row['reliable_seeds']}/"
-                       f"{row['seeds']} seeds)", point, xytext=(6, -120 - 18 * i),
+                       f"{row['seeds']} seeds)", point, xytext=(22, -75 - 20 * i),
                        textcoords="offset points", color=AMBER, fontsize=9,
                        arrowprops={"arrowstyle": "-", "color": AMBER, "lw": 0.6})
     right.set_ylim(bottom=0)

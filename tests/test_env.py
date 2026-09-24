@@ -194,3 +194,31 @@ def test_default_has_no_deadzone():
     env.reset(seed=0)
     _, _, _, _, info = env.step(np.array([0.05, -0.05]))
     np.testing.assert_allclose(info["thrust"], [0.05, -0.05])
+
+
+def test_engine_switch_off_means_no_thrust_whatever_the_noise():
+    env = RendezvousEnv(EnvConfig(engine_switch=True))
+    assert env.action_space.shape == (3,)
+    env.reset(seed=0)
+    place(env, [100.0, 0.0, 0.0, 0.0])
+    # Thrust commands with exploration noise, engine switched off.
+    _, _, _, _, info = env.step(np.array([0.13, -0.08, -0.4]))
+    np.testing.assert_array_equal(info["thrust"], [0.0, 0.0])
+    assert info["delta_v"] == 0.0 and info["reward_terms"]["fuel"] == 0.0
+    assert info["engine_on"] is False
+
+
+def test_engine_switch_on_keeps_even_tiny_thrusts():
+    # Unlike a minimum thruster level, the switch leaves fine control intact.
+    env = RendezvousEnv(EnvConfig(engine_switch=True))
+    env.reset(seed=0)
+    place(env, [100.0, 0.0, 0.0, 0.0])
+    _, _, _, _, info = env.step(np.array([0.01, -0.02, 0.3]))
+    np.testing.assert_allclose(info["thrust"], [0.01, -0.02])
+    assert info["engine_on"] is True
+
+
+def test_engine_switch_passes_check_env():
+    from gymnasium.utils.env_checker import check_env
+
+    check_env(RendezvousEnv(EnvConfig(engine_switch=True)), skip_render_check=True)

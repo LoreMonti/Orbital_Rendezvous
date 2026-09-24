@@ -8,6 +8,12 @@ an axis leave that thruster off. Real thrusters cannot fire arbitrarily weakly,
 and with it the exploration noise around zero no longer burns fuel, so the
 agent can coast for free.
 
+Optionally too, an engine switch: with ``engine_switch`` the action gains a
+third component, ``a_on``, and the engine fires only when ``a_on > 0``. Off, the
+thrust is exactly zero whatever the noise on the other two components, so
+coasting costs nothing even while exploring; on, the thrust stays continuous
+with no minimum level, keeping the fine control a minimum level would lose.
+
 Observation: the relative state, normalised so that every component is of
 order one, and the fraction of the episode elapsed,
 ``[x / r_max, y / r_max, vx / v_ref, vy / v_ref, t / T_max]``. Positions are
@@ -56,6 +62,7 @@ class EnvConfig:
     max_distance: float = 500.0
     velocity_scale: float = 0.5
     thrust_deadzone: float = 0.0
+    engine_switch: bool = False
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -93,7 +100,9 @@ class RendezvousEnv(gym.Env):
         self.n = mean_motion(self.config.semi_major_axis, self.config.mu)
         self.phi, self.gamma = discretize(self.n, self.config.time_step, self.config.mass)
 
-        self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
+        # Thrust on the two axes, and with the engine switch a third command, a_on.
+        n_actions = 3 if self.config.engine_switch else 2
+        self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(n_actions,), dtype=np.float32)
         # Finite but generous bounds: twice the escape radius on position, and
         # 10 m/s on velocity, more than the delta-v an episode can spend. The
         # elapsed fraction of the episode lies in [0, 1].
@@ -184,6 +193,10 @@ class RendezvousEnv(gym.Env):
         self, action: np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         command = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        engine_on = True
+        if self.config.engine_switch:
+            engine_on = bool(command[2] > 0.0)
+            command = command[:2] if engine_on else np.zeros(2)
         # Below its minimum level a thruster stays off.
         command[np.abs(command) < self.config.thrust_deadzone] = 0.0
         thrust = self.config.max_thrust * command
@@ -206,4 +219,5 @@ class RendezvousEnv(gym.Env):
 
         info = self._info(outcome, thrust)
         info["reward_terms"] = terms
+        info["engine_on"] = engine_on
         return self._observation(), reward, terminated, truncated, info
