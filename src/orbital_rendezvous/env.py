@@ -5,18 +5,22 @@ saturated per axis. The thrust is continuous, so the agent can correct gently
 instead of choosing between a few abrupt burns.
 
 Observation: the relative state, normalised so that every component is of
-order one, ``[x / r_max, y / r_max, vx / v_ref, vy / v_ref]``. Positions are
+order one, and the fraction of the episode elapsed,
+``[x / r_max, y / r_max, vx / v_ref, vy / v_ref, t / T_max]``. Positions are
 hundreds of metres and velocities centimetres per second; fed raw, the network
-would barely see the velocities.
+would barely see the velocities. Without the clock, two identical states early
+and late in an episode would look the same to the agent although their futures
+differ, and the problem would not be Markovian.
 
 An episode ends in one of four ways:
 
 - docked: inside the docking radius and slower than the docking speed;
 - crashed: inside the docking radius, or through it, too fast;
 - escaped: further than ``max_distance`` from the target;
-- timeout: ``max_episode_steps`` reached. This one is reported as
-  ``truncated`` rather than ``terminated``, so PPO treats it as an interrupted
-  episode and not as a failure.
+- timeout: ``max_episode_steps`` reached. Since the agent sees the clock, the
+  time limit is part of the task and the timeout is a true end of the episode,
+  reported as ``terminated`` (Pardo et al., 2018). It is not penalised: the
+  agent should not learn to fear the clock itself.
 """
 
 from __future__ import annotations
@@ -86,9 +90,11 @@ class RendezvousEnv(gym.Env):
 
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         # Finite but generous bounds: twice the escape radius on position, and
-        # 10 m/s on velocity, more than twice the delta-v an episode can spend.
-        bound = np.array([2.0, 2.0, 20.0, 20.0], dtype=np.float32)
-        self.observation_space = gym.spaces.Box(-bound, bound, dtype=np.float32)
+        # 10 m/s on velocity, more than the delta-v an episode can spend. The
+        # elapsed fraction of the episode lies in [0, 1].
+        low = np.array([-2.0, -2.0, -20.0, -20.0, 0.0], dtype=np.float32)
+        high = np.array([2.0, 2.0, 20.0, 20.0, 1.0], dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low, high, dtype=np.float32)
 
         self._obs_scale = np.array(
             [
@@ -109,7 +115,8 @@ class RendezvousEnv(gym.Env):
         self.steps = 0
 
     def _observation(self) -> np.ndarray:
-        obs = (self.state / self._obs_scale).astype(np.float32)
+        elapsed = self.steps / self.config.max_episode_steps
+        obs = np.append(self.state / self._obs_scale, elapsed).astype(np.float32)
         return np.clip(obs, self.observation_space.low, self.observation_space.high)
 
     def _info(self, outcome: Outcome | None, thrust: np.ndarray) -> dict[str, Any]:
@@ -170,8 +177,10 @@ class RendezvousEnv(gym.Env):
         self.steps += 1
 
         outcome = self._outcome(previous_state[:2])
-        terminated = outcome in (Outcome.DOCKED, Outcome.CRASHED, Outcome.ESCAPED)
-        truncated = outcome is Outcome.TIMEOUT
+        # With the clock observed, every outcome, the timeout included, ends
+        # the task; nothing is left to bootstrap from.
+        terminated = outcome is not None
+        truncated = False
 
         terms = step_reward(
             previous_state, self.state, thrust, terminated, self.reward_config, self.scales

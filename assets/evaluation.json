@@ -1,14 +1,15 @@
 {
   "episodes": 200,
   "agent": {
-    "success_rate": 1.0,
-    "delta_v_median": 0.9792226104815368,
-    "delta_v_p5": 0.6763262328221167,
-    "delta_v_p95": 1.3689616674095453,
+    "success_rate": 0.995,
+    "delta_v_median": 0.9801126290743543,
+    "delta_v_p5": 0.6443470944597504,
+    "delta_v_p95": 1.3687792581748153,
     "time_median": 600.0,
-    "docking_speed_median": 0.029334192089206172,
+    "docking_speed_median": 0.028884333509023686,
     "outcomes": {
-      "docked": 200
+      "docked": 199,
+      "crashed": 1
     }
   },
   "lqr_sweep": [

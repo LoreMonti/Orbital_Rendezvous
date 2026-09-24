@@ -15,8 +15,9 @@ used.*
 
 **Key results**, on 200 starting points never seen in training:
 
-- the agent docks **200 times out of 200**, after 2 million training steps,
-  about two minutes on a laptop;
+- the agent docks **199 times out of 200**, after 2 million training steps,
+  about two minutes on a laptop, and between 197 and 200 out of 200 over three
+  training seeds;
 - it docks in a median $`600\ \text{s}`$ for $`0.98\ \text{m/s}`$ of
   $`\Delta v`$: sooner **and** cheaper than the fastest LQR controller that
   never crashes ($`650\ \text{s}`$, $`1.05\ \text{m/s}`$), whose more aggressive
@@ -135,13 +136,13 @@ The environment follows the Gymnasium interface [5].
 | | |
 | --- | --- |
 | **action** | $`a \in [-1, 1]^2`$, thrust $`\mathbf{u} = u_\mathrm{max}\,a`$ saturated per axis, $`u_\mathrm{max} = 1\ \text{N}`$ |
-| **observation** | $`[x/r_\mathrm{max},\ y/r_\mathrm{max},\ \dot{x}/v_\mathrm{ref},\ \dot{y}/v_\mathrm{ref}]`$, with $`r_\mathrm{max} = 500\ \text{m}`$ and $`v_\mathrm{ref} = 0.5\ \text{m/s}`$ |
+| **observation** | $`[x/r_\mathrm{max},\ y/r_\mathrm{max},\ \dot{x}/v_\mathrm{ref},\ \dot{y}/v_\mathrm{ref},\ t/T_\mathrm{max}]`$, with $`r_\mathrm{max} = 500\ \text{m}`$, $`v_\mathrm{ref} = 0.5\ \text{m/s}`$ and $`T_\mathrm{max} = 3000\ \text{s}`$ |
 | **start** | a random distance $`r_0 \in [80, 200]\ \text{m}`$ in a random direction, with a small random velocity |
 | **step** | $`\Delta t = 10\ \text{s}`$, at most 300 steps ($`3000\ \text{s}`$) |
 | **docked** | inside $`1\ \text{m}`$ of the target and slower than $`0.05\ \text{m/s}`$ |
 | **crashed** | inside $`1\ \text{m}`$, too fast |
 | **escaped** | further than $`500\ \text{m}`$ |
-| **timeout** | the step limit, reported as a truncation rather than a failure |
+| **timeout** | the step limit: a true end of the episode, not penalised |
 
 The chaser has a mass of $`500\ \text{kg}`$, so its acceleration is at most
 $`2\ \text{mm/s}^2`$ per axis. The thrust is continuous rather than a set of
@@ -150,6 +151,14 @@ agent can correct gently. The observation is normalised because positions are
 hundreds of metres and velocities centimetres per second; fed raw, the network
 would barely see the velocities. The start is random so that the agent learns a
 strategy rather than memorising a trajectory.
+
+The last component of the observation is the clock. Without it, the same
+position and velocity early and late in an episode would look identical to the
+agent although their futures differ, and the problem would not be Markovian.
+With the clock observed, the time limit is part of the task, so the timeout is
+treated as a true end of the episode rather than an interruption to bootstrap
+from [9]. It carries no penalty: the agent should not learn to fear the clock
+itself.
 
 At a few metres per second the chaser can cover more than the docking diameter
 in one step, and fly through the target with neither end of the step inside the
@@ -301,8 +310,8 @@ around 1500 it has learned to close in but stops short of the target; around
 2500 it docks about half the time; by the end it docks cleanly almost every
 time, on a fraction of the fuel it burnt while learning.*
 
-The docking rate is 5 % over the first 2000 episodes, 75 % over the next 2000,
-and 97 to 99 % from there on. The fuel curve rises first and falls later: the
+The docking rate is 5 % over the first 2000 episodes, 85 % over the next 2000,
+and 97 to 98 % from there on. The fuel curve rises first and falls later: the
 agent first discovers that moving pays, and burns up to $`5.5\ \text{m/s}`$ per
 attempt; once it docks reliably, it learns to do so on about $`1\ \text{m/s}`$.
 Two runs with the same seed give identical numbers.
@@ -328,14 +337,37 @@ compete; their best trade-offs form the blue curve.
 
 | | docked | $`\Delta v`$, median (5–95 %) | time, median | speed at docking |
 | --- | --- | --- | --- | --- |
-| PPO agent, deterministic | 200 / 200 | 0.98 m/s (0.68–1.37) | 600 s | 2.9 cm/s |
+| PPO agent, deterministic | 199 / 200 | 0.98 m/s (0.64–1.37) | 600 s | 2.9 cm/s |
 | LQR, fastest that always docks | 200 / 200 | 1.05 m/s (0.71–1.48) | 650 s | 1.3 cm/s |
 | LQR, cheapest that always docks | 200 / 200 | 0.45 m/s (0.25–0.80) | 2620 s | 0.2 cm/s |
 | ideal two-impulse transfer | not flyable | 0.26 m/s (0.08–0.51) | 2880 s | |
 
 The fastest reliable LQR has $`\tau = 100\ \text{s}`$ and $`w = 10^{-3}`$, the
 cheapest $`\tau = 200\ \text{s}`$ and $`w = 0.3`$. More aggressive tunings do not
-dock faster: they arrive too fast and crash, in up to 68 % of the attempts.
+dock faster: they arrive too fast and crash, in up to 68 % of the attempts. The
+agent's one failure is also a crash at the limit, arriving at
+$`7.2\ \text{cm/s}`$ against the $`5\ \text{cm/s}`$ allowed.
+
+### Robustness across training seeds
+
+A single training run can be lucky or unlucky, so the effect of the clock in the
+observation was measured on three seeds, each trained and evaluated on the same
+200 unseen starts:
+
+| seed | without the clock | with the clock |
+| --- | --- | --- |
+| 0 | 200 / 200 | 199 / 200 |
+| 1 | 200 / 200 | 197 / 200 |
+| 2 | **0 / 200** | 200 / 200 |
+
+Without the clock, one run in three never learned to dock: it closed to about
+$`70\ \text{m}`$, parked there at $`1\ \text{cm/s}`$ and waited for the episode
+to end, a local optimum in which waiting has no visible end. With the clock, and
+the timeout treated as the true end of the task, every seed docks; the cost is
+one to three crashes in 200, all at the edge of the docking speed. Three seeds
+are too few for a statistic, but a run that fails outright is hard to dismiss.
+Docking rate, $`\Delta v`$ and time to dock are otherwise the same within a few
+percent.
 
 ## Discussion and limitations
 
@@ -350,12 +382,16 @@ its own crashes. Without being given the dynamics, it also found much the same
 path as the controller that was: in the side-by-side replays the two
 trajectories are strikingly similar.
 
-**Where it does not.** Nothing shows the agent is fuel-efficient in absolute
+**Where it does not.** It is not perfectly reliable: one to three attempts in
+200 still crash, just over the docking speed limit, where the LQR never does.
+Nothing shows the agent is fuel-efficient in absolute
 terms: an LQR allowed four times longer spends less than half as much, and the
 ideal two-impulse transfer less than a third. The agent was trained with a time
-limit and a glide slope that reward a quick approach, and it found one. Its
-advantage is also a statement about medians: on single starting points the LQR
-sometimes docks first, as the second start of the side-by-side replay shows.
+limit and a glide slope that reward a quick approach, and it found one.
+
+Start by start, against the fastest LQR that never crashes, the agent is never
+more expensive: on the 199 starts where it docks, the LQR docks sooner on 3 and
+spends less fuel on none.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -447,7 +483,7 @@ Orbital_Rendezvous/
 │   ├── train.py            # trains PPO and saves the model
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
 │   └── play.py             # agent against LQR, side by side, same start
-├── tests/                  # 63 tests, one file per module
+├── tests/                  # 64 tests, one file per module
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -479,8 +515,10 @@ would catch them.
   the coupling.
 - **Environment.** Each outcome is reached by placing the chaser by hand in a
   state that must lead to it in one step, including a chaser fast enough to
-  cross the docking sphere between two steps; `check_env` passes with warnings
-  treated as errors.
+  cross the docking sphere between two steps; the clock starts at zero and ticks
+  by $`1/T_\mathrm{max}`$ per step, and at the timeout the shaping pays back
+  exactly $`-\Phi(\mathbf{s})`$; `check_env` passes with warnings treated as
+  errors.
 - **Reward.** The sign of every term, and the property that makes the shaping
   safe: over a random trajectory the discounted sum equals
   $`\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)`$ to $`10^{-12}`$.
@@ -517,6 +555,8 @@ How the project was built, step by step, including the runs that failed, is in
    *Proximal Policy Optimization Algorithms*, arXiv:1707.06347 (2017)
 8. A. Raffin et al., *Stable-Baselines3: Reliable Reinforcement Learning
    Implementations*, J. Mach. Learn. Res. **22**, 268 (2021)
+9. F. Pardo, A. Tavakoli, V. Levdik & P. Kormushev, *Time Limits in
+   Reinforcement Learning*, Proc. ICML (2018)
 
 ## License
 

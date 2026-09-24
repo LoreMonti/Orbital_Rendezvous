@@ -31,7 +31,10 @@ def test_passes_gymnasium_checker():
 def test_spaces():
     env = RendezvousEnv()
     assert env.action_space.shape == (2,)
-    assert env.observation_space.shape == (4,)
+    assert env.observation_space.shape == (5,)
+    # The last component, the elapsed fraction of the episode, lies in [0, 1].
+    assert env.observation_space.low[-1] == 0.0
+    assert env.observation_space.high[-1] == 1.0
     np.testing.assert_array_equal(env.action_space.low, [-1.0, -1.0])
     np.testing.assert_array_equal(env.action_space.high, [1.0, 1.0])
 
@@ -54,9 +57,19 @@ def test_initial_distance_within_range():
 
 def test_observation_is_normalised(env):
     place(env, [250.0, -100.0, 0.25, -0.5])
+    env.steps = 75
     obs = env._observation()
-    np.testing.assert_allclose(obs, [0.5, -0.2, 0.5, -1.0])
+    np.testing.assert_allclose(obs, [0.5, -0.2, 0.5, -1.0, 75 / env.config.max_episode_steps])
     assert obs.dtype == np.float32
+
+
+def test_clock_starts_at_zero_and_ticks_once_per_step():
+    env = RendezvousEnv(EnvConfig(max_episode_steps=4))
+    obs, _ = env.reset(seed=0)
+    assert obs[-1] == 0.0
+    for k in range(1, 4):
+        obs, *_ = env.step(np.zeros(2))
+        assert obs[-1] == pytest.approx(k / 4)
 
 
 def test_thrust_saturates(env):
@@ -127,18 +140,28 @@ def test_escape(env):
     assert terminated and not truncated
 
 
-def test_timeout_is_a_truncation_not_a_failure():
+def test_timeout_ends_the_task_but_is_not_a_failure():
+    # With the clock in the observation the time limit is part of the task, so
+    # the timeout terminates the episode (Pardo et al., 2018), without penalty.
     env = RendezvousEnv(EnvConfig(max_episode_steps=5))
     env.reset(seed=0)
     place(env, [100.0, 0.0, 0.0, 0.0])
     for _ in range(4):
         _, _, terminated, truncated, _ = env.step(np.zeros(2))
         assert not terminated and not truncated
-    _, reward, terminated, truncated, info = env.step(np.zeros(2))
+    before = env.state.copy()
+    obs, _, terminated, truncated, info = env.step(np.zeros(2))
     assert info["outcome"] is Outcome.TIMEOUT
-    assert truncated and not terminated
+    assert terminated and not truncated
+    assert obs[-1] == 1.0
     assert info["reward_terms"]["terminal"] == 0.0
     assert not info["is_success"]
+    # A terminated state has zero potential, so the shaping pays back -Phi(s).
+    from orbital_rendezvous.rewards import potential
+
+    assert info["reward_terms"]["shaping"] == pytest.approx(
+        -potential(before, env.reward_config, env.scales)
+    )
 
 
 def test_step_follows_the_dynamics(env):

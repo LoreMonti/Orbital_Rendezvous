@@ -102,6 +102,27 @@ holds for the median, and the replay shows it as it is.
 - [x] Math rewritten for GitHub's renderer, every formula checked through its API
 - [x] README reorganised as a technical write-up: physics, control problem, baselines, results, discussion, then installation, layout and tests
 
+## Step 10 — A Markovian episode
+
+- [x] The elapsed fraction of the episode, $`t/T_\mathrm{max}`$, added to the observation
+- [x] The timeout made a true end of the episode, since the time limit is now part of the task (Pardo et al., 2018), still without penalty
+- [x] Tests: the clock starts at zero and ticks once per step; at the timeout the shaping pays back exactly $`-\Phi(\mathbf{s})`$
+- [x] Three training seeds, with and without the clock, on the same 200 unseen starts
+
+| seed | without the clock | with the clock |
+| --- | --- | --- |
+| 0 | 200 / 200 | 199 / 200 |
+| 1 | 200 / 200 | 197 / 200 |
+| 2 | **0 / 200** | 200 / 200 |
+
+Start by start, the retrained agent now beats the fastest reliable LQR on fuel
+on every one of its 199 dockings, and is slower on only 3 of them.
+
+*Lesson.* On a single seed the change looked like a small step back, 199
+instead of 200. Three seeds told the real story: without the clock one run in
+three parked 70 m from the target and waited out the episode. A single training
+run is an anecdote.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -115,14 +136,7 @@ coupling. The target sits still at the centre of the view only because the view
 is the target's own. What the real ISS adds is below: an oriented docking port,
 perturbations, and, negligibly, a slightly eccentric orbit.
 
-### 1. A Markovian episode
-
-- [ ] Add the time remaining, $`t/T_\mathrm{max}`$, to the observation. Episodes are
-  truncated at $`3000\ \text{s}`$, but the agent cannot see the clock, so strictly
-  the problem it faces is not Markovian. A small change that fixes a real flaw,
-  to be done before anything else.
-
-### 2. Fuel against the two-impulse bound
+### 1. Fuel against the two-impulse bound
 
 - [ ] Train without the time pressure (a slower glide slope, longer episodes) and
   measure how close the agent gets to the ideal two-impulse transfer,
@@ -131,7 +145,7 @@ perturbations, and, negligibly, a slightly eccentric orbit.
 - [ ] Place the result on the $`\Delta v`$–time plot of the README, next to the
   LQR front.
 
-### 3. An oriented target: approach corridor and keep-out zone
+### 2. An oriented target: approach corridor and keep-out zone
 
 - [ ] Give the target a docking port along a fixed direction, typically the
   along-track axis (a V-bar approach), and require the chaser to arrive inside a
@@ -141,19 +155,19 @@ perturbations, and, negligibly, a slightly eccentric orbit.
 - [ ] Compare with the LQR, which cannot express either constraint. This is where
   a learned policy should matter most.
 
-### 4. Three dimensions
+### 3. Three dimensions
 
 - [ ] Add the out-of-plane axis, $`\ddot{z} + n^2 z = u_z/m`$. On its own it is a
   decoupled oscillator and adds little; together with an oriented docking port
-  it couples the three axes, so it follows item 3.
+  it couples the three axes, so it follows item 2.
 
-### 5. Robustness
+### 4. Robustness
 
 - [ ] Navigation noise on the observed state, and thrust errors in magnitude and
   direction.
 - [ ] Measure how the agent and the LQR degrade as the noise grows.
 
-### 6. Perturbations
+### 5. Perturbations
 
 - [ ] Differential atmospheric drag and the $`J_2`$ term of the Earth's
   oblateness, which make the relative motion depart from the Clohessy-Wiltshire
@@ -162,8 +176,9 @@ perturbations, and, negligibly, a slightly eccentric orbit.
 - [ ] An eccentric target orbit (Tschauner-Hempel equations). For the ISS,
   $`e \approx 0.0003`$, so this comes last.
 
-### 7. A sounder comparison
+### 6. A sounder comparison
 
-- [ ] Several training seeds, to put error bars on every number in the README
-  instead of quoting a single run.
+- [ ] More training seeds, to put error bars on every number in the README
+  (three were run in Step 10, enough to catch a failed run but not for a
+  statistic).
 - [ ] SAC as a second algorithm, on the same environment and budget.
