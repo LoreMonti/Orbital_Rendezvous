@@ -125,54 +125,118 @@ def main() -> None:
 
 
 def plot(path, runs, rows, baselines, episodes) -> None:
+    """Two panels, one message each, labelled on the points rather than in a legend.
+
+    Left: what the fuel weight does, one line per discount. Right: where the
+    best configuration lands against the LQR front and the two-impulse bound.
+    """
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from orbital_rendezvous.game_view import AMBER, BLUE, GREEN, GRID, MUTED, ORANGE, PANEL, TEXT
+    from orbital_rendezvous.game_view import AMBER, BLUE, GREEN, GRID, MUTED, PANEL, TEXT
 
-    # Palettes repeat rather than silently drop values beyond the third.
-    palette, shapes = (GREEN, AMBER, ORANGE), ("o", "s", "D", "^")
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(13.0, 5.4), facecolor=PANEL, gridspec_kw={"width_ratios": [1.0, 1.35]}
+    )
+    for ax in (left, right):
+        ax.set_facecolor(PANEL)
+        ax.tick_params(colors=MUTED)
+        for spine in ax.spines.values():
+            spine.set_color(GRID)
+        ax.grid(alpha=0.25, color=GRID)
+
+    # -- left: fuel against the fuel weight, one line per discount ---------------
     gammas = sorted({r["gamma"] for r in rows})
+    colours = {g: c for g, c in zip(gammas, (GREEN, AMBER, BLUE, MUTED), strict=False)}
+    for gamma in gammas:
+        line = [r for r in rows if r["gamma"] == gamma and r["reliable_seeds"]]
+        colour = colours.get(gamma, MUTED)
+        left.plot([r["fuel_weight"] for r in line], [r["delta_v_median"] for r in line],
+                  color=colour, lw=2.2, zorder=2)
+        for r in line:
+            solid = r["reliable_seeds"] == r["seeds"]
+            left.scatter(r["fuel_weight"], r["delta_v_median"], s=90, zorder=3, lw=2,
+                         color=colour if solid else PANEL, edgecolor=colour)
+            if not solid:
+                left.annotate(f"{r['reliable_seeds']}/{r['seeds']} seeds", 
+                              (r["fuel_weight"], r["delta_v_median"]), xytext=(0, 11),
+                              textcoords="offset points", ha="center", color=MUTED, fontsize=8)
+        end = line[-1]
+        left.annotate(f"$\\gamma$ = {gamma:g}", (end["fuel_weight"], end["delta_v_median"]),
+                      xytext=(10, 0), textcoords="offset points", va="center",
+                      color=colour, fontsize=11, fontweight="bold")
     weights = sorted({r["fuel_weight"] for r in rows})
-    colours = {g: palette[i % len(palette)] for i, g in enumerate(gammas)}
-    markers = {w: shapes[i % len(shapes)] for i, w in enumerate(weights)}
+    left.set_xscale("log")
+    left.set_xticks(weights)
+    left.set_xticklabels([f"{w:g}" for w in weights])
+    left.minorticks_off()
+    low, high = left.get_ylim()
+    left.set_ylim(low - 0.1 * (high - low), high + 0.15 * (high - low))
+    left.set_xlim(min(weights) / 1.3, max(weights) * 2.2)
+    left.set_xlabel("fuel weight $w_f$", color=TEXT)
+    left.set_ylabel(r"fuel spent, median $\Delta v$ [m/s]", color=TEXT)
+    left.set_title("A heavier fuel cost only helps with a long horizon", color=TEXT,
+                   fontsize=11, loc="left")
+    left.text(0.02, 0.03, "hollow: not every seed learned to dock", transform=left.transAxes,
+              color=MUTED, fontsize=8)
 
-    fig, ax = plt.subplots(figsize=(8.6, 5.6), facecolor=PANEL)
-    ax.set_facecolor(PANEL)
+    # -- right: the best configuration against the classical references ----------
+    right.set_title("Against the classical controllers  (lower left is better)",
+                    color=TEXT, fontsize=11, loc="left")
+    right.set_xlabel("time to dock, median [s]", color=TEXT)
+    right.set_ylabel(r"fuel spent, median $\Delta v$ [m/s]", color=TEXT)
+    reliable_runs = [r for r in runs if r["summary"]["success_rate"] >= RELIABLE]
+    right.scatter([r["summary"]["time_median"] for r in reliable_runs],
+                  [r["summary"]["delta_v_median"] for r in reliable_runs],
+                  s=16, color=MUTED, alpha=0.45, zorder=2)
     if baselines:
         front = baselines["lqr_front"]
-        ax.plot([s["time_median"] for s in front], [s["delta_v_median"] for s in front],
-                color=BLUE, lw=2, marker="o", ms=3, label="LQR, best trade-offs")
-        ax.axhline(baselines["two_impulse"]["delta_v_median"], color=TEXT, ls="--", lw=1,
-                   label="ideal two-impulse transfer (not flyable)")
+        right.plot([s["time_median"] for s in front], [s["delta_v_median"] for s in front],
+                   color=BLUE, lw=2.2, zorder=3)
+        at = front[min(1, len(front) - 1)]
+        right.annotate("LQR, best trade-offs", (at["time_median"], at["delta_v_median"]),
+                       xytext=(10, 8), textcoords="offset points", color=BLUE, fontsize=10)
+        bound = baselines["two_impulse"]["delta_v_median"]
+        right.axhline(bound, color=TEXT, ls="--", lw=1, zorder=1)
+        right.text(0.98, bound, "  ideal two-impulse transfer (not flyable)", color=TEXT,
+                   fontsize=9, ha="right", va="bottom", transform=right.get_yaxis_transform())
+    complete = [r for r in rows if r["reliable_seeds"] == r["seeds"]]
+    if complete and baselines:
+        best = min(complete, key=lambda r: r["delta_v_median"])
         agent = baselines["agent"]
-        ax.scatter([agent["time_median"]], [agent["delta_v_median"]], s=260, marker="*",
-                   color=TEXT, zorder=6, label="default agent")
-    # Every seed faintly, and the median of each configuration boldly.
-    for run in runs:
-        s = run["summary"]
-        if s["success_rate"] >= RELIABLE:
-            ax.scatter(s["time_median"], s["delta_v_median"], s=18, alpha=0.35,
-                       color=colours[run["gamma"]], marker=markers[run["fuel_weight"]])
-    for row in rows:
-        if not row["reliable_seeds"]:
-            continue
-        ax.scatter(row["time_median"], row["delta_v_median"], s=110, edgecolor=TEXT, lw=0.8,
-                   color=colours[row["gamma"]], marker=markers[row["fuel_weight"]], zorder=5,
-                   label=f"PPO, $\\gamma$ = {row['gamma']:g}, $w_f$ = {row['fuel_weight']:g}"
-                         f"  ({row['reliable_seeds']}/{row['seeds']} seeds dock)")
-    ax.set_xlabel("time to dock, median [s]", color=TEXT)
-    ax.set_ylabel(r"fuel spent, median $\Delta v$ [m/s]", color=TEXT)
-    ax.set_title(f"Trading time for fuel, on {episodes} unseen starts  (lower left is better)",
-                 color=TEXT, fontsize=11)
-    ax.tick_params(colors=MUTED)
-    for spine in ax.spines.values():
-        spine.set_color(GRID)
-    ax.grid(alpha=0.25, color=GRID)
-    ax.set_ylim(bottom=0)
-    ax.legend(facecolor=PANEL, edgecolor=GRID, labelcolor=TEXT, fontsize=8)
+        start = (agent["time_median"], agent["delta_v_median"])
+        stop = (best["time_median"], best["delta_v_median"])
+        right.scatter(*start, s=280, marker="*", color=TEXT, zorder=5)
+        right.annotate("default agent", start, xytext=(12, 4), textcoords="offset points",
+                       color=TEXT, fontsize=10)
+        right.scatter(*stop, s=150, marker="D", color=AMBER, edgecolor=TEXT, zorder=5)
+        saving = 100 * (1 - stop[1] / start[1])
+        right.annotate(
+            f"$\\gamma$ = {best['gamma']:g}, $w_f$ = {best['fuel_weight']:g}\n"
+            f"{saving:.0f} % less fuel, all seeds dock",
+            stop, xytext=(-30, -115), textcoords="offset points", color=AMBER, fontsize=10,
+            arrowprops={"arrowstyle": "-", "color": AMBER, "lw": 0.8},
+        )
+        right.annotate("", xy=stop, xytext=start,
+                       arrowprops={"arrowstyle": "-|>", "color": AMBER, "lw": 1.6,
+                                   "shrinkA": 10, "shrinkB": 8})
+    slow = max(reliable_runs, key=lambda r: r["summary"]["time_median"], default=None)
+    if slow and slow["summary"]["time_median"] > 1.5 * min(
+        r["summary"]["time_median"] for r in reliable_runs
+    ):
+        point = (slow["summary"]["time_median"], slow["summary"]["delta_v_median"])
+        right.scatter(*point, s=60, color=MUTED, edgecolor=TEXT, zorder=5)
+        right.annotate(f"one run of {len(runs)} found\na slow, cheap approach", point,
+                       xytext=(10, 6), textcoords="offset points", color=MUTED, fontsize=9)
+    right.text(0.02, 0.03, "grey dots: every other run that docks reliably",
+               transform=right.transAxes, color=MUTED, fontsize=8)
+    right.set_ylim(bottom=0)
+
+    fig.suptitle(f"Trading time for fuel, on {episodes} unseen starts", color=TEXT,
+                 fontsize=13, fontweight="bold", x=0.02, ha="left")
+    fig.tight_layout()
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=130, bbox_inches="tight", facecolor=PANEL)
     plt.close(fig)

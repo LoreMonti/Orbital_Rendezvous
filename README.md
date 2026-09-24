@@ -366,6 +366,11 @@ evaluated every run on the same 200 unseen starts.
 
 ![Fuel against time: the agent over a grid of discounts and fuel weights](assets/fuel_study.png)
 
+*Left: the fuel spent against the fuel weight, one line per discount; with
+$`\gamma = 0.99`$ the weight barely matters, with $`\gamma = 0.999`$ fuel falls
+as it grows. Right: the best configuration against the LQR front and the
+two-impulse bound; the grey dots are all the other runs that dock reliably.*
+
 | $`\gamma`$ | $`w_f`$ | seeds that dock | $`\Delta v`$, median | time, median |
 | --- | --- | --- | --- | --- |
 | 0.99 | 2 | 3 / 3 | 0.97 m/s | 590 s |
