@@ -1,4 +1,6 @@
-# Default configuration for training a PPO agent on the 2D rendezvous task.
+# Configuration for Step 14: the default agent, with an oriented target. The
+# station has a docking port on the V-bar (+y), and a keep-out sphere of 20 m
+# that may only be entered inside a 15 degree approach cone around it.
 # Lengths are in metres, velocities in m/s, times in seconds.
 
 environment:
@@ -22,7 +24,7 @@ environment:
   # Keep-out sphere around the station, entered only inside an approach cone
   # around the docking axis +y (the V-bar). 0 turns it off, as for the default
   # agent; configs/ppo_corridor.yaml turns it on.
-  keep_out_radius: 0.0         # m
+  keep_out_radius: 20.0        # m
   approach_cone_deg: 15.0      # half-angle of the cone
 
   # Integration.

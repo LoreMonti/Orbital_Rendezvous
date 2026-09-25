@@ -27,6 +27,9 @@ used.*
   approach, not a fuel-optimal one. Asked to save fuel, it gets to 25 % less
   (0.74 m/s in 790 s) with an engine switch and a Lagrange multiplier on a fuel
   budget; how, and why not further, is the subject of three studies below.
+  Asked to dock through a port, along a narrow approach corridor, it learns to
+  arrive from the front half of the station but not to go around it, where
+  the classical V-bar procedure succeeds every time.
 
 ## Contents
 
@@ -103,6 +106,12 @@ the chaser down and leaves it further behind. To catch up, one has to go down.
 **Closed relative orbits.** The column of $`\dot{y}`$ contains $`4s - 3\tau`$.
 With $`\dot{y}_0 = -2 n x_0`$ the secular terms cancel, and the relative orbit
 closes into a periodic ellipse twice as long along-track as it is radially.
+
+**Hold points on the V-bar.** The second column of $`\Phi`$ is
+$`(0, 1, 0, 0)^T`$: a chaser at rest anywhere on the along-track axis,
+$`x = 0`$, stays there. Points on this axis, the V-bar, are equilibria, which is
+why real missions to the ISS stop at hold points on it before the final
+approach.
 
 ### Thrust held over a step
 
@@ -299,6 +308,20 @@ minimised over $`T`$ up to the length of an episode, skipping the durations wher
 $`\Phi_{rv}`$ is singular, at multiples of the orbital period. Impulses are
 instantaneous and ignore the thrust limit, so this is a reference number, not a
 controller that can fly in the environment.
+
+### The V-bar procedure
+
+For an oriented target (see *An oriented target* in the results) the reference
+is the procedure real missions fly. An LQR brings the chaser to a hold point on
+the V-bar, 30 m out, first via a waypoint beside the keep-out sphere if the
+direct way would cross it. The chaser then tracks a reference sliding down the
+axis at $`v_c = 4\ \text{cm/s}`$ to the port. Staying on the axis while moving
+along it needs a steady radial thrust against the Coriolis term: with $`x = 0`$
+and $`\dot{y} = -v_c`$ the first Clohessy-Wiltshire equation gives
+
+```math
+u_x = 2\,n\,v_c\,m
+```
 
 ## Results
 
@@ -508,6 +531,62 @@ Asked to save fuel, the agent went from 0.98 to 0.74 m/s, 25 % less, taking
 reached. Each attempt removed one obstacle, and the last one standing is the
 difficulty of *finding* a slow approach that docks every time.
 
+### An oriented target
+
+A real station has a docking port on one side and a keep-out sphere around it,
+entered only along an approach corridor. Here the port faces the V-bar ($`+y`$),
+the keep-out sphere has a radius of $`R = 20\ \text{m}`$, and inside it, outside
+the docking sphere, the chaser must stay within a cone of half-angle
+$`\theta_c = 15°`$ around the axis. Leaving it is a *keep-out violation* and a
+failure. The rule is checked along the whole segment of each step, since a
+fast chaser can cross the sphere between two decisions.
+
+Nothing trained so far respects it: on the 200 unseen starts, the default agent
+violates the zone 199 times and the fastest LQR 200 times, since both arrive
+from wherever they start. The V-bar procedure docks every time without a
+violation:
+
+| V-bar procedure | docked | violations | $`\Delta v`$, median | time, median |
+| --- | --- | --- | --- | --- |
+| LQR with $`\tau = 100\ \text{s}`$ to the hold point | 200 / 200 | 0 | 1.23 m/s | 1400 s |
+| LQR with $`\tau = 200\ \text{s}`$ to the hold point | 200 / 200 | 0 | 1.06 m/s | 1775 s |
+
+Teaching the agent the rule took five attempts, each on at least two seeds.
+
+| attempt | what happened |
+| --- | --- |
+| the rule enforced from the start | the agent stops approaching: nearly every early approach comes in from the wrong side and ends in a violation |
+| a potential pulling towards the mouth of the cone, at 15° from the start | the agent never learns to dock, even with violations free |
+| a Lagrange multiplier on violations, rising fast | docking is learned, then collapses as soon as the price rises |
+| the same, rising slowly and relaxing when docking is lost | docking collapses all the same, and never comes back |
+| **a curriculum narrowing the cone from 180°** | the cone narrows to **90°**, then stops |
+
+The curriculum starts with a cone of 180°, which is no constraint at all, and
+narrows it by 10° whenever the deterministic agent docks in 90 % of its
+attempts under the strict rule. With it, the shaping potential measures the
+shortest path to the mouth of the *current* cone around the sphere, a tangent,
+an arc of its rim and the axis,
+
+```math
+d = \sqrt{r^2 - R^2} + R\,\Delta\varphi + R
+```
+
+equal to the straight distance at 180° and changing only as the cone narrows,
+so that the potential and the constraint change together.
+
+![The approach cone during training: both runs stop at 90 degrees](assets/cone_curriculum.png)
+
+Both runs stop at 90°, one after 1.5 million steps, where it then stops docking
+altogether, and one after 6.4 million, where it docks 70 to 85 % of the time
+but never the 90 % needed to go further. With the straight potential instead,
+two earlier runs stopped at the same angle. At 90° the rule becomes *arrive
+from the front half*, and every start behind the station must go around it.
+Down to that point, the agent learned to shift its direction of arrival a
+little at a time; going around the station is not a small shift but a
+different manoeuvre, and PPO does not find it in small steps. On the full
+corridor the V-bar procedure, a few lines written by someone who knows the
+physics, wins.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -564,13 +643,24 @@ engine switch removed the third, making coasting free: with it, a budget of
 0.75 m/s is met on every seed, 25 % below the default agent. Lower budgets
 reach a slow, cheap regime but lose reliability.
 
+**Where it loses outright.** On an oriented target the classical procedure
+docks every time through the approach corridor, and the agent does not. The
+two results mirror each other. Against the LQR, the agent won because it
+learned a constraint a quadratic cost cannot express, a limit on the speed at
+docking, by adjusting how it arrived. The corridor asks for more than an
+adjustment: from behind the station the chaser must go around it, a different
+manoeuvre, which a curriculum reached step by step up to 90° and no further.
+The knowledge that solves it, stop on the V-bar and then advance, sits in a
+few lines of the classical procedure.
+
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
 the same physics with a decision every ten seconds docked every time.
 
 **What is left out.** The model is linear, planar and deterministic: no
-out-of-plane motion, no perturbations (drag, $`J_2`$), no navigation noise, no
-approach corridor or keep-out zone, and a single target on a circular orbit.
+out-of-plane motion, no perturbations (drag, $`J_2`$), no navigation noise,
+and a single target on a circular orbit, whose attitude is fixed in the LVLH
+frame.
 These are where a learned policy could matter more than here, since they break
 the assumptions that make the LQR a natural fit.
 
@@ -603,6 +693,7 @@ arguments for the default run and lists its options with `--help`.
 | `play.py` | the agent and an LQR flying the same approach side by side, in a window or as a GIF |
 | `fuel_study.py` | the agent over a grid of discounts and fuel weights, or of fuel budgets with a Lagrange multiplier, optionally with an engine switch, several seeds, in parallel: a table, a plot and a JSON file |
 | `fuel_summary.py` | the default agent and the best of each fuel study in one plot, from the saved results |
+| `cone_summary.py` | the approach cone narrowing during training, from the saved results |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -618,6 +709,7 @@ caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.6 0.45
 caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.75 0.6 \
     --engine-switch --timesteps 8000000                # with the engine switch
 python scripts/fuel_summary.py                         # the fuel story in one plot
+python scripts/cone_summary.py                         # the cone curriculum in one plot
 ```
 
 As a library:
@@ -646,7 +738,8 @@ Orbital_Rendezvous/
 ├── LICENSE
 ├── pyproject.toml          # metadata, dependencies, ruff and pytest config
 ├── configs/
-│   └── ppo_default.yaml    # environment, reward, PPO and window parameters
+│   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
+│   └── ppo_corridor.yaml   # the same, with the keep-out sphere and approach cone
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -664,8 +757,9 @@ Orbital_Rendezvous/
 │   ├── evaluate.py         # agent against LQR and two impulses: table and plot
 │   ├── play.py             # agent against LQR, side by side, same start
 │   ├── fuel_study.py       # grid of discounts, fuel weights or budgets, in parallel
-│   └── fuel_summary.py     # the fuel story in one plot, from saved results
-├── tests/                  # 84 tests, one file per module
+│   ├── fuel_summary.py     # the fuel story in one plot, from saved results
+│   └── cone_summary.py     # the cone curriculum in one plot, from saved results
+├── tests/                  # 100 tests, one file per module
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -714,6 +808,14 @@ would catch them.
 - **Configuration.** The YAML file and the defaults in the code agree, and
   unknown keys are rejected. This test caught PyYAML reading `6778.0e3` as a
   string: YAML 1.1 needs an explicit exponent sign.
+- **Oriented target.** A violation is caught inside the sphere and outside the
+  cone, even when a fast step crosses the sphere with both ends outside it;
+  the docking sphere is exempt; a cone of 180° is no constraint; the path
+  around the sphere matches $`\sqrt{r^2 - R^2} + R\,\Delta\varphi + R`$ and is
+  continuous across the edge of the cone; the V-bar procedure docks with no
+  violation; the price of a violation waits for docking and relaxes when
+  docking is lost; the cone narrows only once mastered, never below its final
+  angle.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are

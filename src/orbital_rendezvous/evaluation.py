@@ -31,6 +31,7 @@ class Rollout:
     delta_v: float
     time: float
     final_speed: float
+    violated: bool
     positions: np.ndarray = field(repr=False)
     velocities: np.ndarray = field(repr=False)
     thrusts: np.ndarray = field(repr=False)
@@ -53,10 +54,11 @@ def rollout(env: RendezvousEnv, controller: Controller, seed: int) -> Rollout:
     """Fly one attempt from the start that ``seed`` selects."""
     obs, _ = env.reset(seed=seed)
     positions, velocities, thrusts = [], [], []
-    delta_v, done = 0.0, False
+    delta_v, done, violated = 0.0, False, False
     while not done:
         obs, _, terminated, truncated, info = env.step(controller(env, obs))
         delta_v += info["delta_v"]
+        violated = violated or info.get("keep_out_violated", False)
         positions.append(info["position"])
         velocities.append(info["velocity"])
         thrusts.append(info["thrust"])
@@ -66,6 +68,7 @@ def rollout(env: RendezvousEnv, controller: Controller, seed: int) -> Rollout:
         delta_v=delta_v,
         time=env.steps * env.config.time_step,
         final_speed=info["speed"],
+        violated=violated,
         positions=np.array(positions),
         velocities=np.array(velocities),
         thrusts=np.array(thrusts),

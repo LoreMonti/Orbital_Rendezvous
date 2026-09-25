@@ -41,12 +41,14 @@ OUTCOME_COLORS = {
     Outcome.CRASHED: RED,
     Outcome.ESCAPED: RED,
     Outcome.TIMEOUT: MUTED,
+    Outcome.KEEP_OUT: RED,
 }
 BANNERS = {
     Outcome.DOCKED: "DOCKED!",
     Outcome.CRASHED: "CRASHED",
     Outcome.ESCAPED: "LOST IN SPACE",
     Outcome.TIMEOUT: "OUT OF TIME",
+    Outcome.KEEP_OUT: "KEEP-OUT VIOLATION",
 }
 RING_RADII = (10.0, 25.0, 50.0, 100.0, 200.0, 400.0)
 

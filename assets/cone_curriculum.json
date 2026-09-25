@@ -1,0 +1,1959 @@
+{
+ "description": "Cone curriculum, Step 14: half-angle of the approach cone and docking rate of the deterministic policy under the strict rule, measured every 10 rollouts. Potential: shortest path around the keep-out sphere. 8M steps.",
+ "runs": {
+  "seed0": [
+   {
+    "timesteps": 40960,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 81920,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 122880,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 163840,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 204800,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 245760,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 286720,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 327680,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 368640,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 409600,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 450560,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 491520,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 532480,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 573440,
+    "cone_deg": 180.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 614400,
+    "cone_deg": 170.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 655360,
+    "cone_deg": 170.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 696320,
+    "cone_deg": 170.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 737280,
+    "cone_deg": 170.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 778240,
+    "cone_deg": 170.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 819200,
+    "cone_deg": 160.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 860160,
+    "cone_deg": 160.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 901120,
+    "cone_deg": 150.0,
+    "success": 0.95
+   },
+   {
+    "timesteps": 942080,
+    "cone_deg": 150.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 983040,
+    "cone_deg": 150.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 1024000,
+    "cone_deg": 150.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 1064960,
+    "cone_deg": 150.0,
+    "success": 0.05
+   },
+   {
+    "timesteps": 1105920,
+    "cone_deg": 150.0,
+    "success": 0.35
+   },
+   {
+    "timesteps": 1146880,
+    "cone_deg": 150.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1187840,
+    "cone_deg": 150.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 1228800,
+    "cone_deg": 150.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 1269760,
+    "cone_deg": 140.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 1310720,
+    "cone_deg": 140.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1351680,
+    "cone_deg": 140.0,
+    "success": 0.1
+   },
+   {
+    "timesteps": 1392640,
+    "cone_deg": 140.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1433600,
+    "cone_deg": 140.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1474560,
+    "cone_deg": 140.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1515520,
+    "cone_deg": 140.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1556480,
+    "cone_deg": 140.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 1597440,
+    "cone_deg": 130.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 1638400,
+    "cone_deg": 130.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1679360,
+    "cone_deg": 130.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 1720320,
+    "cone_deg": 130.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1761280,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 1802240,
+    "cone_deg": 130.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 1843200,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 1884160,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 1925120,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 1966080,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 2007040,
+    "cone_deg": 130.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 2048000,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 2088960,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 2129920,
+    "cone_deg": 130.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 2170880,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 2211840,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 2252800,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 2293760,
+    "cone_deg": 130.0,
+    "success": 0.1
+   },
+   {
+    "timesteps": 2334720,
+    "cone_deg": 130.0,
+    "success": 0.3
+   },
+   {
+    "timesteps": 2375680,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 2416640,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 2457600,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 2498560,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 2539520,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 2580480,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 2621440,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 2662400,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 2703360,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 2744320,
+    "cone_deg": 130.0,
+    "success": 0.3
+   },
+   {
+    "timesteps": 2785280,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 2826240,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 2867200,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 2908160,
+    "cone_deg": 130.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 2949120,
+    "cone_deg": 130.0,
+    "success": 0.3
+   },
+   {
+    "timesteps": 2990080,
+    "cone_deg": 130.0,
+    "success": 0.3
+   },
+   {
+    "timesteps": 3031040,
+    "cone_deg": 130.0,
+    "success": 0.35
+   },
+   {
+    "timesteps": 3072000,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 3112960,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 3153920,
+    "cone_deg": 130.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 3194880,
+    "cone_deg": 130.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 3235840,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3276800,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3317760,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3358720,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3399680,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3440640,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3481600,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3522560,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3563520,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3604480,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3645440,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3686400,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3727360,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3768320,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3809280,
+    "cone_deg": 130.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 3850240,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 3891200,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 3932160,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 3973120,
+    "cone_deg": 130.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 4014080,
+    "cone_deg": 130.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 4055040,
+    "cone_deg": 130.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 4096000,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 4136960,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4177920,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4218880,
+    "cone_deg": 130.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 4259840,
+    "cone_deg": 130.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 4300800,
+    "cone_deg": 130.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 4341760,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4382720,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4423680,
+    "cone_deg": 130.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 4464640,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4505600,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4546560,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4587520,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4628480,
+    "cone_deg": 130.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 4669440,
+    "cone_deg": 130.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 4710400,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4751360,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4792320,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4833280,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4874240,
+    "cone_deg": 130.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 4915200,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 4956160,
+    "cone_deg": 130.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 4997120,
+    "cone_deg": 120.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 5038080,
+    "cone_deg": 120.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 5079040,
+    "cone_deg": 120.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 5120000,
+    "cone_deg": 120.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 5160960,
+    "cone_deg": 120.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 5201920,
+    "cone_deg": 120.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 5242880,
+    "cone_deg": 120.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 5283840,
+    "cone_deg": 120.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 5324800,
+    "cone_deg": 120.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 5365760,
+    "cone_deg": 120.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 5406720,
+    "cone_deg": 120.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 5447680,
+    "cone_deg": 120.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 5488640,
+    "cone_deg": 120.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 5529600,
+    "cone_deg": 110.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 5570560,
+    "cone_deg": 110.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 5611520,
+    "cone_deg": 110.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 5652480,
+    "cone_deg": 110.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 5693440,
+    "cone_deg": 100.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 5734400,
+    "cone_deg": 100.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 5775360,
+    "cone_deg": 100.0,
+    "success": 0.15
+   },
+   {
+    "timesteps": 5816320,
+    "cone_deg": 100.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 5857280,
+    "cone_deg": 100.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 5898240,
+    "cone_deg": 100.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 5939200,
+    "cone_deg": 100.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 5980160,
+    "cone_deg": 100.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 6021120,
+    "cone_deg": 100.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 6062080,
+    "cone_deg": 100.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 6103040,
+    "cone_deg": 100.0,
+    "success": 0.3
+   },
+   {
+    "timesteps": 6144000,
+    "cone_deg": 100.0,
+    "success": 0.55
+   },
+   {
+    "timesteps": 6184960,
+    "cone_deg": 100.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 6225920,
+    "cone_deg": 100.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 6266880,
+    "cone_deg": 90.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 6307840,
+    "cone_deg": 90.0,
+    "success": 0.4
+   },
+   {
+    "timesteps": 6348800,
+    "cone_deg": 90.0,
+    "success": 0.5
+   },
+   {
+    "timesteps": 6389760,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 6430720,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 6471680,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 6512640,
+    "cone_deg": 90.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 6553600,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 6594560,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 6635520,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 6676480,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 6717440,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 6758400,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 6799360,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 6840320,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 6881280,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 6922240,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 6963200,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 7004160,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7045120,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7086080,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7127040,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7168000,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 7208960,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 7249920,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7290880,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7331840,
+    "cone_deg": 90.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 7372800,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 7413760,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7454720,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7495680,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7536640,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7577600,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 7618560,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 7659520,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7700480,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7741440,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 7782400,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 7823360,
+    "cone_deg": 90.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 7864320,
+    "cone_deg": 90.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 7905280,
+    "cone_deg": 90.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 7946240,
+    "cone_deg": 90.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 7987200,
+    "cone_deg": 90.0,
+    "success": 0.75
+   }
+  ],
+  "seed1": [
+   {
+    "timesteps": 40960,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 81920,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 122880,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 163840,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 204800,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 245760,
+    "cone_deg": 180.0,
+    "success": 0.05
+   },
+   {
+    "timesteps": 286720,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 327680,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 368640,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 409600,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 450560,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 491520,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 532480,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 573440,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 614400,
+    "cone_deg": 180.0,
+    "success": 0.25
+   },
+   {
+    "timesteps": 655360,
+    "cone_deg": 180.0,
+    "success": 0.45
+   },
+   {
+    "timesteps": 696320,
+    "cone_deg": 180.0,
+    "success": 0.05
+   },
+   {
+    "timesteps": 737280,
+    "cone_deg": 180.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 778240,
+    "cone_deg": 170.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 819200,
+    "cone_deg": 170.0,
+    "success": 0.05
+   },
+   {
+    "timesteps": 860160,
+    "cone_deg": 160.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 901120,
+    "cone_deg": 150.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 942080,
+    "cone_deg": 140.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 983040,
+    "cone_deg": 140.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1024000,
+    "cone_deg": 140.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1064960,
+    "cone_deg": 130.0,
+    "success": 1.0
+   },
+   {
+    "timesteps": 1105920,
+    "cone_deg": 130.0,
+    "success": 0.75
+   },
+   {
+    "timesteps": 1146880,
+    "cone_deg": 120.0,
+    "success": 0.95
+   },
+   {
+    "timesteps": 1187840,
+    "cone_deg": 110.0,
+    "success": 0.95
+   },
+   {
+    "timesteps": 1228800,
+    "cone_deg": 110.0,
+    "success": 0.85
+   },
+   {
+    "timesteps": 1269760,
+    "cone_deg": 100.0,
+    "success": 0.95
+   },
+   {
+    "timesteps": 1310720,
+    "cone_deg": 100.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 1351680,
+    "cone_deg": 100.0,
+    "success": 0.7
+   },
+   {
+    "timesteps": 1392640,
+    "cone_deg": 100.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 1433600,
+    "cone_deg": 100.0,
+    "success": 0.8
+   },
+   {
+    "timesteps": 1474560,
+    "cone_deg": 90.0,
+    "success": 0.9
+   },
+   {
+    "timesteps": 1515520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1556480,
+    "cone_deg": 90.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 1597440,
+    "cone_deg": 90.0,
+    "success": 0.65
+   },
+   {
+    "timesteps": 1638400,
+    "cone_deg": 90.0,
+    "success": 0.6
+   },
+   {
+    "timesteps": 1679360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1720320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1761280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1802240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1843200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1884160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1925120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 1966080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2007040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2048000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2088960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2129920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2170880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2211840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2252800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2293760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2334720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2375680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2416640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2457600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2498560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2539520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2580480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2621440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2662400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2703360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2744320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2785280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2826240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2867200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2908160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2949120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 2990080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3031040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3072000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3112960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3153920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3194880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3235840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3276800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3317760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3358720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3399680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3440640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3481600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3522560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3563520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3604480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3645440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3686400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3727360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3768320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3809280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3850240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3891200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3932160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 3973120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4014080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4055040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4096000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4136960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4177920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4218880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4259840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4300800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4341760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4382720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4423680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4464640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4505600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4546560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4587520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4628480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4669440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4710400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4751360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4792320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4833280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4874240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4915200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4956160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 4997120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5038080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5079040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5120000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5160960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5201920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5242880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5283840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5324800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5365760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5406720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5447680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5488640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5529600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5570560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5611520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5652480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5693440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5734400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5775360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5816320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5857280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5898240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5939200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 5980160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6021120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6062080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6103040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6144000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6184960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6225920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6266880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6307840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6348800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6389760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6430720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6471680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6512640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6553600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6594560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6635520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6676480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6717440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6758400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6799360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6840320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6881280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6922240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 6963200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7004160,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7045120,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7086080,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7127040,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7168000,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7208960,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7249920,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7290880,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7331840,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7372800,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7413760,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7454720,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7495680,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7536640,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7577600,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7618560,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7659520,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7700480,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7741440,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7782400,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7823360,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7864320,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7905280,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7946240,
+    "cone_deg": 90.0,
+    "success": 0.0
+   },
+   {
+    "timesteps": 7987200,
+    "cone_deg": 90.0,
+    "success": 0.0
+   }
+  ]
+ }
+}

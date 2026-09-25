@@ -27,6 +27,14 @@ An episode ends in one of four ways:
 - docked: inside the docking radius and slower than the docking speed;
 - crashed: inside the docking radius, or through it, too fast;
 - escaped: further than ``max_distance`` from the target;
+- keep-out violation: with ``keep_out_radius`` set, entering the keep-out
+  sphere around the station outside the approach cone, of half-angle
+  ``approach_cone_deg`` around the docking axis +y (the V-bar). The docking
+  sphere itself is exempt, as the cone's apex is the port. With
+  ``keep_out_mode = "penalty"`` a violation does not end the episode: each step
+  spent in the forbidden zone costs ``keep_out_weight`` instead, a constraint a
+  Lagrange multiplier can price during training (see
+  `callbacks.KeepOutBudget`), while evaluation keeps the strict rule;
 - timeout: ``max_episode_steps`` reached. Since the agent sees the clock, the
   time limit is part of the task and the timeout is a true end of the episode,
   reported as ``terminated`` (Pardo et al., 2018). It is not penalised: the
@@ -42,7 +50,14 @@ import gymnasium as gym
 import numpy as np
 
 from .dynamics import discretize, mean_motion, propagate
-from .rewards import Outcome, RewardConfig, Scales, step_reward, terminal_reward
+from .rewards import (
+    Outcome,
+    RewardConfig,
+    Scales,
+    in_approach_cone,
+    step_reward,
+    terminal_reward,
+)
 
 
 @dataclass(frozen=True)
@@ -63,6 +78,10 @@ class EnvConfig:
     velocity_scale: float = 0.5
     thrust_deadzone: float = 0.0
     engine_switch: bool = False
+    keep_out_radius: float = 0.0
+    approach_cone_deg: float = 15.0
+    keep_out_mode: str = "terminal"
+    keep_out_weight: float = 0.0
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -124,9 +143,20 @@ class RendezvousEnv(gym.Env):
             docking_speed=self.config.docking_speed,
             mass=self.config.mass,
             time_step=self.config.time_step,
+            keep_out_radius=self.config.keep_out_radius,
+            approach_cone_deg=self.config.approach_cone_deg,
         )
         self.state = np.zeros(4)
         self.steps = 0
+
+    def set_approach_cone(self, degrees: float) -> None:
+        """Change the half-angle of the approach cone, for a curriculum that narrows it."""
+        self.config = replace(self.config, approach_cone_deg=degrees)
+        self.scales = replace(self.scales, approach_cone_deg=degrees)
+
+    def set_keep_out_weight(self, weight: float) -> None:
+        """Change the cost of a step in the forbidden zone, in penalty mode."""
+        self.config = replace(self.config, keep_out_weight=weight)
 
     def set_fuel_weight(self, weight: float) -> None:
         """Change the cost of fuel, for a curriculum that raises it during training.
@@ -174,11 +204,29 @@ class RendezvousEnv(gym.Env):
         self.steps = 0
         return self._observation(), self._info(None, np.zeros(2))
 
-    def _outcome(self, previous_position: np.ndarray) -> Outcome | None:
+    def _violates_keep_out(self, p0: np.ndarray, p1: np.ndarray, samples: int = 21) -> bool:
+        """Whether the step from ``p0`` to ``p1`` enters the keep-out sphere outside the cone.
+
+        Checked along the whole segment, not only at its ends: in one step the
+        chaser can cross the sphere with neither end inside it.
+        """
+        cfg = self.config
+        for s in np.linspace(0.0, 1.0, samples):
+            point = p0 + s * (p1 - p0)
+            distance = float(np.hypot(*point))
+            if cfg.docking_radius <= distance < cfg.keep_out_radius and not in_approach_cone(
+                point, cfg.approach_cone_deg
+            ):
+                return True
+        return False
+
+    def _outcome(self, previous_position: np.ndarray, violated: bool) -> Outcome | None:
         cfg = self.config
         distance = float(np.linalg.norm(self.state[:2]))
         speed = float(np.linalg.norm(self.state[2:]))
 
+        if violated and cfg.keep_out_mode == "terminal":
+            return Outcome.KEEP_OUT
         # The segment test covers the endpoint too: ending inside the sphere is
         # the special case where the closest point is the last one.
         if _closest_approach(previous_position, self.state[:2]) < cfg.docking_radius:
@@ -205,7 +253,10 @@ class RendezvousEnv(gym.Env):
         self.state = propagate(self.state, thrust, self.phi, self.gamma)
         self.steps += 1
 
-        outcome = self._outcome(previous_state[:2])
+        violated = bool(self.config.keep_out_radius) and self._violates_keep_out(
+            previous_state[:2], self.state[:2]
+        )
+        outcome = self._outcome(previous_state[:2], violated)
         # With the clock observed, every outcome, the timeout included, ends
         # the task; nothing is left to bootstrap from.
         terminated = outcome is not None
@@ -215,9 +266,13 @@ class RendezvousEnv(gym.Env):
             previous_state, self.state, thrust, terminated, self.reward_config, self.scales
         )
         terms["terminal"] = terminal_reward(outcome, self.reward_config)
+        if self.config.keep_out_radius:
+            penalised = violated and self.config.keep_out_mode == "penalty"
+            terms["keep_out"] = -self.config.keep_out_weight if penalised else 0.0
         reward = float(sum(terms.values()))
 
         info = self._info(outcome, thrust)
         info["reward_terms"] = terms
         info["engine_on"] = engine_on
+        info["keep_out_violated"] = violated
         return self._observation(), reward, terminated, truncated, info

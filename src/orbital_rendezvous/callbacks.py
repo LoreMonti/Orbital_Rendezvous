@@ -255,3 +255,184 @@ class FuelBudget(BaseCallback):
 
     def _on_step(self) -> bool:
         return True
+
+
+class KeepOutBudget(BaseCallback):
+    """A Lagrange multiplier on the keep-out constraint: the price of a forbidden step.
+
+    The environment runs in penalty mode, where a step spent in the keep-out
+    sphere outside the approach cone costs ``lambda`` instead of ending the
+    episode. Every few rollouts the agent flies ``episodes`` deterministic
+    attempts, and with ``p`` the fraction of them that entered the forbidden
+    zone,
+
+        lambda <- clip(lambda + step_size * (p - tolerance), 0, max_weight).
+
+    A terminal penalty from the start teaches the agent to keep away from the
+    station altogether: nearly every early approach comes in from the wrong
+    side. So the price stays at zero until the agent docks in at least
+    ``warmup_success`` of its attempts, as for the fuel budget. And if docking
+    later falls below that level, raising the price further would only teach
+    the agent to stay away, so the price relaxes instead, by ``relax`` per
+    measurement: the task is to dock without violating, not to avoid
+    violations at any cost.
+    """
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        tolerance: float = 0.02,
+        step_size: float = 5.0,
+        relax: float = 0.9,
+        evaluate_every: int = 10,
+        episodes: int = 20,
+        warmup_success: float = 0.5,
+        max_weight: float = 200.0,
+        first_seed: int = 60_000,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.make_env = make_env
+        self.tolerance = tolerance
+        self.step_size = step_size
+        self.relax = relax
+        self.evaluate_every = evaluate_every
+        self.episodes = episodes
+        self.warmup_success = warmup_success
+        self.max_weight = max_weight
+        self.seeds = range(first_seed, first_seed + episodes)
+        self.weight = 0.0
+        self.active = False
+        self.history: list[dict[str, float]] = []
+        self._env: RendezvousEnv | None = None
+        self._rollouts = 0
+
+    def dual_step(self, weight: float, violation_rate: float) -> float:
+        """One step of dual ascent on the multiplier."""
+        weight += self.step_size * (violation_rate - self.tolerance)
+        return float(np.clip(weight, 0.0, self.max_weight))
+
+    def measure(self) -> tuple[float, float]:
+        """Docking rate and violation rate of the deterministic policy."""
+        from .evaluation import evaluate
+
+        if self._env is None:
+            self._env = self.make_env()
+        runs = evaluate(
+            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
+        )
+        success = float(np.mean([r.outcome is Outcome.DOCKED for r in runs]))
+        return success, float(np.mean([r.violated for r in runs]))
+
+    def _apply(self) -> None:
+        self.training_env.env_method("set_keep_out_weight", self.weight)
+        self.logger.record("keep_out/weight", self.weight)
+
+    def _on_training_start(self) -> None:
+        self._apply()
+
+    def _on_rollout_end(self) -> None:
+        self._rollouts += 1
+        if self._rollouts % self.evaluate_every:
+            return
+        success, violation_rate = self.measure()
+        if not self.active and success >= self.warmup_success:
+            self.active = True
+        if self.active:
+            if success >= self.warmup_success:
+                self.weight = self.dual_step(self.weight, violation_rate)
+            else:
+                self.weight *= self.relax
+            self._apply()
+        self.logger.record("keep_out/violation_rate", violation_rate)
+        self.logger.record("keep_out/success", success)
+        self.history.append({
+            "timesteps": int(self.num_timesteps), "success": success,
+            "violation_rate": violation_rate, "weight": self.weight, "active": self.active,
+        })
+
+    def _on_step(self) -> bool:
+        return True
+
+
+class ConeCurriculum(BaseCallback):
+    """Narrow the approach cone from ``start_deg`` to ``final_deg`` as the agent masters it.
+
+    Every few rollouts the agent flies ``episodes`` deterministic attempts with
+    the current cone and the strict rule, where a violation ends the attempt.
+    If it docks in at least ``success_threshold`` of them, the cone narrows by
+    ``step_deg``; otherwise it stays. At 180 degrees the cone is the whole
+    plane and there is no constraint at all, so training starts as for the
+    default agent.
+
+    Imposing the final cone at once, as a terminal rule or as a price on
+    violations, made the agent stop approaching altogether: coming in through
+    the port is a different strategy from coming in from wherever it starts.
+    Narrowing the cone a little at a time asks for a small correction of the
+    strategy it already has, and only once it has mastered the current one.
+    """
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        final_deg: float = 15.0,
+        start_deg: float = 180.0,
+        step_deg: float = 10.0,
+        success_threshold: float = 0.9,
+        evaluate_every: int = 10,
+        episodes: int = 20,
+        first_seed: int = 70_000,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.make_env = make_env
+        self.final_deg = final_deg
+        self.step_deg = step_deg
+        self.success_threshold = success_threshold
+        self.evaluate_every = evaluate_every
+        self.episodes = episodes
+        self.seeds = range(first_seed, first_seed + episodes)
+        self.cone_deg = start_deg
+        self.history: list[dict[str, float]] = []
+        self._env: RendezvousEnv | None = None
+        self._rollouts = 0
+
+    def narrowed(self, cone_deg: float, success: float) -> float:
+        """The cone after one measurement: narrower if the agent mastered this one."""
+        if success >= self.success_threshold:
+            return max(self.final_deg, cone_deg - self.step_deg)
+        return cone_deg
+
+    def measure(self) -> float:
+        """Docking rate of the deterministic policy with the current cone, strict rule."""
+        from .evaluation import evaluate
+
+        if self._env is None:
+            self._env = self.make_env()
+        self._env.set_approach_cone(self.cone_deg)
+        runs = evaluate(
+            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
+        )
+        return float(np.mean([r.outcome is Outcome.DOCKED for r in runs]))
+
+    def _apply(self) -> None:
+        self.training_env.env_method("set_approach_cone", self.cone_deg)
+        self.logger.record("cone/half_angle_deg", self.cone_deg)
+
+    def _on_training_start(self) -> None:
+        self._apply()
+
+    def _on_rollout_end(self) -> None:
+        self._rollouts += 1
+        if self._rollouts % self.evaluate_every:
+            return
+        success = self.measure()
+        self.cone_deg = self.narrowed(self.cone_deg, success)
+        self._apply()
+        self.logger.record("cone/success", success)
+        self.history.append({
+            "timesteps": int(self.num_timesteps), "success": success, "cone_deg": self.cone_deg,
+        })
+
+    def _on_step(self) -> bool:
+        return True

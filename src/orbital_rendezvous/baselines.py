@@ -103,3 +103,83 @@ def best_two_impulse(
         if total < best[0]:
             best = (total, float(duration))
     return best
+
+
+class VbarApproach:
+    """The classical procedure for an oriented target: a hold point, then along the V-bar.
+
+    Phase 1 flies an LQR to a hold point on the docking axis, outside the
+    keep-out sphere; if the way there would cut through the sphere, it goes
+    first to a waypoint beside it. Points on the V-bar (``x = 0``, at rest) are
+    equilibria of the Clohessy-Wiltshire equations, which is why real missions
+    hold there. Phase 2 tracks a reference sliding down the axis at a constant
+    ``closing_speed`` to the port. Staying on the axis while moving along it
+    needs a steady radial thrust against the Coriolis term: with ``x = 0`` and
+    ``y' = -v_c``, the x equation gives ``u_x = 2 n v_c m``.
+
+    Callable as a controller, ``(env, obs) -> action``; it resets itself when the
+    environment starts a new episode.
+    """
+
+    def __init__(
+        self,
+        env,
+        approach_time: float = 100.0,
+        fuel_weight: float = 1e-3,
+        hold_distance: float = 30.0,
+        closing_speed: float = 0.04,
+        hold_tolerance: float = 2.0,
+        waypoint_distance: float = 50.0,
+    ) -> None:
+        cfg = env.config
+        self.lqr = LQRController.from_env(env, approach_time, fuel_weight)
+        self.n, self.mass, self.dt = env.n, cfg.mass, cfg.time_step
+        self.keep_out = cfg.keep_out_radius
+        self.hold = np.array([0.0, hold_distance])
+        self.closing_speed = closing_speed
+        self.hold_tolerance = hold_tolerance
+        self.waypoint_distance = waypoint_distance
+        self.reset(np.zeros(4))
+
+    def reset(self, state: np.ndarray) -> None:
+        self.phase = "waypoint"
+        self.slide_steps = 0
+        self.waypoint = self._waypoint(state[:2])
+        if self.waypoint is None:
+            self.phase = "hold"
+
+    def _waypoint(self, start: np.ndarray) -> np.ndarray | None:
+        """A point beside the sphere, if the straight way to the hold point crosses it."""
+        d = self.hold - start
+        t = np.clip(-(start @ d) / max(d @ d, 1e-12), 0.0, 1.0)
+        if np.hypot(*(start + t * d)) > self.keep_out + 5.0:
+            return None
+        side = np.sign(start[0]) or 1.0
+        return np.array([side * self.waypoint_distance, 0.0])
+
+    def _track(self, state: np.ndarray, reference: np.ndarray, feedforward: np.ndarray):
+        thrust = feedforward - self.lqr.k @ (state - reference)
+        action = np.clip(thrust / self.lqr.max_thrust, -1.0, 1.0)
+        return np.append(action, 1.0) if self.lqr.engine_switch else action
+
+    def __call__(self, env, obs) -> np.ndarray:
+        state = env.state
+        if env.steps == 0:
+            self.reset(state)
+        position, speed = state[:2], float(np.hypot(*state[2:]))
+        if self.phase == "waypoint":
+            if np.hypot(*(position - self.waypoint)) < 3 * self.hold_tolerance:
+                self.phase = "hold"
+            else:
+                return self._track(state, np.append(self.waypoint, [0.0, 0.0]), np.zeros(2))
+        if self.phase == "hold":
+            at_hold = np.hypot(*(position - self.hold)) < self.hold_tolerance
+            if at_hold and speed < self.closing_speed:
+                self.phase = "slide"
+            else:
+                return self._track(state, np.append(self.hold, [0.0, 0.0]), np.zeros(2))
+        self.slide_steps += 1
+        along = max(0.0, self.hold[1] - self.closing_speed * self.dt * self.slide_steps)
+        reference = np.array([0.0, along, 0.0, -self.closing_speed if along > 0 else 0.0])
+        coriolis = 2 * self.n * self.closing_speed * self.mass if along > 0 else 0.0
+        return self._track(state, reference, np.array([coriolis, 0.0]))

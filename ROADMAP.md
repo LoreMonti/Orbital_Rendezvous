@@ -172,6 +172,23 @@ itself: a slow approach that docks every time exists, but PPO finds it only
 some of the time. The fuel line of work stops here, with diminishing returns
 (−15 %, then −11 %) and a clear account of each obstacle.
 
+## Step 14 — An oriented target
+
+- [x] Keep-out sphere of 20 m around the station, entered only inside a 15° approach cone around the docking axis (the V-bar); a violation is checked along the whole step and ends the attempt; `configs/ppo_corridor.yaml`
+- [x] Baseline: the V-bar procedure, an LQR to a hold point 30 m out on the axis, then sliding along it with a steady radial thrust against Coriolis; 200 / 200, no violation, 1.06–1.23 m/s
+- [x] Reference: the default agent violates the zone 199 times in 200, the fastest LQR 200 times
+- [x] Attempt 1, the rule from the start: the agent stops approaching
+- [x] Attempt 2, a potential towards the mouth of the cone at 15° from the start: the agent never learns to dock, even with violations free (checked against the straight potential: 97 % against 0 %)
+- [x] Attempts 3–4, a Lagrange multiplier on violations in a penalty mode (`KeepOutBudget`), fast, then slow and relaxing: docking is learned, then collapses and does not return
+- [x] Attempt 5, a curriculum narrowing the cone from 180° (`ConeCurriculum`), with a potential that follows the current cone around the sphere: both runs stop at 90°
+- [x] `cone_summary.py` and `assets/cone_curriculum.json`
+
+*Lesson.* The agent can shift its direction of arrival a little at a time, down
+to the front half of the station; it cannot find, in small steps, the different
+manoeuvre that a start behind the station needs, going around it. Helping it
+with a clever potential did more harm than good twice. On the full corridor,
+the classical procedure wins: the knowledge that solves it fits in a few lines.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -197,15 +214,17 @@ is finding a slow approach reliably.
 - [ ] Less exploration noise late in training (an annealed or state-dependent
   standard deviation), combined with the engine switch.
 
-### 2. An oriented target: approach corridor and keep-out zone
+### 2. The oriented target, if taken further
 
-- [ ] Give the target a docking port along a fixed direction, typically the
-  along-track axis (a V-bar approach), and require the chaser to arrive inside a
-  cone around it.
-- [ ] Add a keep-out sphere around the station that the chaser must not enter
-  outside the cone.
-- [ ] Compare with the LQR, which cannot express either constraint. This is where
-  a learned policy should matter most.
+Step 14 stopped at a cone of 90°: the agent does not learn to go around the
+station.
+
+- [ ] A hybrid: the V-bar procedure to the hold point, the agent for the final
+  approach along the corridor, where learned control has already shown its
+  worth.
+- [ ] A curriculum on the starting points instead of the cone: first in front
+  of the station, then further and further behind.
+- [ ] Imitation of the V-bar procedure as a starting policy, refined with RL.
 
 ### 3. Three dimensions
 
