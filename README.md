@@ -27,10 +27,10 @@ used.*
   approach, not a fuel-optimal one. Asked to save fuel, it gets to 25 % less
   (0.74 m/s in 790 s) with an engine switch and a Lagrange multiplier on a fuel
   budget; how, and why not further, is the subject of three studies below.
-  Asked to dock through a port, along a narrow approach corridor, it learns to
-  hold the corridor and, on its best seed of three, to go around the station
-  (153 of 200), but never from directly behind it, where the classical V-bar
-  procedure succeeds every time.
+  Asked to dock through a port, along a narrow approach corridor, a single
+  agent docks at best 153 times in 200; two learned pilots flying the plan of
+  the classical V-bar procedure dock **200 times in 200**, with no violation,
+  on all nine pairings of trained seeds, at much the procedure's cost.
 
 ## Contents
 
@@ -663,7 +663,104 @@ starts each agent docks:
 The seeds found different trades. Seeds 0 and 1 are faster than the procedure
 on every start they dock, by about 400 s in the median, and spend more fuel. Seed 2 is
 cheaper on every one, by about 20 % against the slower procedure, and 190 s
-slower. None is both, and none is as reliable.
+slower. None is both, and none is as reliable. The next section keeps the plan
+classical and learns only the flying.
+
+### Two learned pilots on the classical plan
+
+Before choosing a remedy, one more measurement: *how* the Step 15 agents fail
+from behind. From starts 160–180° from the axis, both of the better seeds
+failed 18 times out of 18, the best one by flying straight into the back of the
+keep-out sphere, at a median of 172°; when they did go around, it was always on
+the side they started from. The optimal action
+behind the station jumps between going around on one side and on the other,
+
+```math
+a^*(\varphi) = \begin{cases} a_\text{one side}, & \varphi \lt 180° \\ a_\text{other side}, & \varphi \gt 180° \end{cases}
+```
+
+while a network with $`\tanh`$ units is a continuous function of the state, so
+in some band around $`180°`$ it must pass through the average of the two,
+straight ahead. A diagnostic run with starts on one side only, so that no jump
+is needed, went further, to $`175°`$, but then lost that stage, and of four
+such runs two never docked at all and one learned and collapsed. The choice of
+side was a real obstacle but not the main one: the main one was that the
+agent did not keep what it learned, on a task that kept changing under it.
+
+The remedy keeps the plan of the V-bar procedure, and learns only the flying:
+
+1. the procedure's planner puts a waypoint beside the keep-out sphere, 50 m
+   out on the radial axis on the side of the start, if the straight way to the
+   hold point would cross the sphere;
+2. a **go-to pilot** flies to that waypoint, passing it without stopping, then
+   to the hold point 30 m out on the docking axis, where it stops;
+3. a **final-approach pilot** takes over there and flies down the corridor.
+
+The go-to pilot learns the task of the default agent with the target moved to
+a goal $`\mathbf{g}`$: the same potential, with distances measured from
+$`\mathbf{g}`$, and success within 2 m of it, slower than 4 cm/s, which are also
+the handover thresholds. A shift of the target is not a symmetry of the
+dynamics: at rest at $`x`$ the chaser needs a steady thrust
+
+```math
+u_x = -3\,n^2\,x\,m
+```
+
+to stay, 0.1 N at the waypoint and none on the V-bar, so the pilot observes its
+position both relative to the goal and in absolute terms,
+$`[(\mathbf{p}-\mathbf{g})/r_\mathrm{max},\ \mathbf{v}/v_\mathrm{ref},\ \mathbf{g}/r_\mathrm{max},\ t/T_\mathrm{max}]`$.
+Goals are the planner's three points, each moved at random by up to 5 m, and a
+third of the starts are set up as a handover at a waypoint: near one, already
+moving at up to 0.3 m/s. The final-approach pilot starts 25–35 m out within
+$`5°`$ of the axis, with the full rule, and the cone curriculum of phase 1.
+
+Three things keep what is learned: each pilot learns one task that never
+changes, apart from the cone; the policy kept is the best one on 50
+validation starts, seeds apart from both the training and the test starts,
+not the last one; and once chosen, a pilot is frozen. The choice of side is
+the planner's, so neither network has to jump. Configurations
+`configs/ppo_goto.yaml` and `configs/ppo_final_approach.yaml`, three seeds
+each, about 20 minutes for all six in parallel.
+
+Each pilot reached 100 % on its validation starts on every seed, the go-to
+pilot within 0.6 million steps, the final-approach pilot within 1.3–3.4
+million, and kept it; one final-approach run later dipped to 94 %, where the
+best model it had saved stayed at 100 %. On the 200 unseen starts, with every
+pairing of the three go-to and the three final-approach pilots:
+
+| | docked | violations | from $`135\text{–}180°`$ | $`\Delta v`$, median | time, median |
+| --- | --- | --- | --- | --- | --- |
+| V-bar procedure, $`\tau = 100\ \text{s}`$ | 200 / 200 | 0 | 47 / 47 | 1.23 m/s | 1400 s |
+| V-bar procedure, $`\tau = 200\ \text{s}`$ | 200 / 200 | 0 | 47 / 47 | 1.06 m/s | 1775 s |
+| **pilots, 9 pairings of seeds** | **200 / 200 each** | **0** | **47 / 47 each** | 1.01–1.31 m/s | 1070–1850 s |
+| best single agent of Step 15 | 153 / 200 | 47 | 5 / 47 | 1.45 m/s | 980 s |
+
+![Two learned pilots and the V-bar procedure](assets/pilots.png)
+
+*Left: the same four held-out starts flown by the pilots (green) and by the
+V-bar procedure (grey), from behind the station included. Right: the median
+cost of each of the nine pairings of pilots, coloured by the seed of the go-to
+pilot, against the two tunings of the procedure.*
+
+Every pairing docks from every start: 1800 attempts, 1800 dockings, no
+violation. On cost the pilots and the procedure are close, and the leg by leg
+split shows where they differ:
+
+| median over the 200 starts | to the hold point | down the corridor |
+| --- | --- | --- |
+| V-bar procedure, $`\tau = 100\ \text{s}`$ | 1.12 m/s, 680 s | 0.10 m/s, 720 s |
+| V-bar procedure, $`\tau = 200\ \text{s}`$ | 0.95 m/s, 1055 s | 0.10 m/s, 720 s |
+| go-to seed 0 | 0.85 m/s, 1290 s | |
+| go-to seed 1 | 0.92 m/s, 1080 s | |
+| go-to seed 2 | 1.10 m/s, 650 s | |
+| final-approach seeds 0–2 | | 0.15–0.21 m/s, 420–550 s |
+
+To the hold point, where most of the fuel goes, each go-to seed found a
+different point on much the same trade-off as the procedure's LQR, a few
+percent better at equal time at most. Down the corridor the learned pilot is
+170 to 300 s faster and spends 0.05 to 0.1 m/s more. Seeds of the go-to pilot
+differ far more than seeds of the final approach, so the choice of go-to
+pilot sets the cost of the whole approach.
 
 ### Robustness across training seeds
 
@@ -735,7 +832,15 @@ once it can dock. With that learned first, two seeds of three went around the
 station, but none from directly behind it, and none reliably: 153 of 200 at
 best, with a cost that trades time against fuel differently on each seed. The
 knowledge that solves the whole corridor, stop on the V-bar and then advance,
-still sits in a few lines of the classical procedure.
+sits in a few lines of the classical procedure, and with those lines as the plan
+two learned pilots dock every time. The division of labour is the lesson: the
+plan decides what a smooth network cannot, the side to go around, and each
+pilot learns one fixed task and is frozen at its best, so nothing learned is
+lost. What the pilots do not do is beat the procedure clearly on cost: to the
+hold point they land on much the same trade-off as its LQR, and down the
+corridor they buy speed with fuel. Two things also remain hand-written, the
+waypoints and the handover, so this is learned control inside a classical
+plan, not a learned plan.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -768,7 +873,9 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 ### Usage
 
 Every parameter lives in `configs/ppo_default.yaml`, and in
-`configs/ppo_corridor.yaml` for the oriented target and its curricula. Each
+`configs/ppo_corridor.yaml` for the oriented target and its curricula, and in
+`configs/ppo_goto.yaml` and `configs/ppo_final_approach.yaml` for its two
+learned pilots. Each
 script needs no arguments for the default run and lists its options with
 `--help`.
 
@@ -782,6 +889,7 @@ script needs no arguments for the default run and lists its options with
 | `cone_summary.py` | the approach cone narrowing during training, from the saved results |
 | `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
+| `pilots_summary.py` | the two learned pilots: a few approaches next to the V-bar procedure's, and the cost of every pairing, from the saved results |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -802,6 +910,14 @@ caffeinate -ims python scripts/train.py --config configs/ppo_corridor.yaml --no-
     --seed 1 --output models/corridor_seed1.zip        # the corridor, about 100 min
 python scripts/corridor_eval.py --models models/corridor_seed1.zip
 python scripts/curriculum_summary.py --collect runs/<run directory>/
+caffeinate -ims python scripts/train.py --config configs/ppo_goto.yaml --no-render \
+    --output models/goto_seed0.zip                     # the go-to pilot, about 20 min
+caffeinate -ims python scripts/train.py --config configs/ppo_final_approach.yaml \
+    --no-render --output models/final_approach_seed0.zip
+python scripts/corridor_eval.py --go-to models/goto_seed0_best.zip \
+    --final models/final_approach_seed0_best.zip --results assets/pilots_evaluation.json
+python scripts/pilots_summary.py --go-to models/goto_seed0_best.zip \
+    --final models/final_approach_seed0_best.zip
 ```
 
 As a library:
@@ -831,16 +947,19 @@ Orbital_Rendezvous/
 ├── pyproject.toml          # metadata, dependencies, ruff and pytest config
 ├── configs/
 │   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
-│   └── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
+│   ├── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
+│   ├── ppo_goto.yaml       # the go-to pilot: fly to a goal point and stop
+│   └── ppo_final_approach.yaml  # the final-approach pilot: down the corridor
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
-│   ├── env.py              # RendezvousEnv, the Gymnasium API
+│   ├── env.py              # RendezvousEnv, the Gymnasium API, and GoToEnv
 │   ├── rewards.py          # potential-based shaping, fuel and terminal terms
-│   ├── baselines.py        # LQR controller and two-impulse transfer
+│   ├── baselines.py        # LQR, two-impulse transfer, V-bar procedure and its planner
+│   ├── hierarchy.py        # the V-bar plan flown by two learned pilots
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
-│   ├── callbacks.py        # SB3 callbacks: window, GIFs, curricula, Lagrange multipliers
+│   ├── callbacks.py        # SB3 callbacks: window, curricula, multipliers, best model
 │   ├── training.py         # builds and trains PPO from a configuration
 │   ├── study.py            # one run of the fuel study, and the aggregation
 │   └── utils.py            # YAML config into the dataclasses, with checks
@@ -852,8 +971,9 @@ Orbital_Rendezvous/
 │   ├── fuel_summary.py     # the fuel story in one plot, from saved results
 │   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
-│   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
-├── tests/                  # 113 tests, one file per module or feature
+│   ├── curriculum_summary.py  # the corridor curricula in one plot, from the runs
+│   └── pilots_summary.py   # the two learned pilots in one figure
+├── tests/                  # 126 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -922,6 +1042,16 @@ would catch them.
   where it was after one step; and the corridor configuration trains with
   phase 1 under way from the first episode, while saving the full task and the
   seed actually used.
+- **Learned pilots.** With the goal at the origin the go-to task pays exactly
+  the default rewards, and it counts a goal reached only close and slow, never
+  a fast pass as a failure; holding still at $`x = 50\ \text{m}`$ takes
+  exactly $`u_x = -3n^2x\,m`$ and coasting drifts away, which is why the pilot
+  sees its absolute position; its goals and moving starts follow the
+  configuration; the planner goes around on the start side and both legs clear
+  the sphere, for starts all around the back; the pilot passes a waypoint at
+  speed, hands over only close to the hold point and slow, and restarts the
+  clock of each leg; and the best model is kept on more dockings, or on less
+  fuel at equal dockings, never merely the last.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are

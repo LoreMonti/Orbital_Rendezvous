@@ -5,8 +5,8 @@ circular orbit, where the relative motion obeys the Clohessy-Wiltshire
 equations. See `dynamics` for the physics and `env` for the Gymnasium wrapper.
 """
 
-from .env import EnvConfig, RendezvousEnv
+from .env import EnvConfig, GoToConfig, GoToEnv, RendezvousEnv
 from .rewards import Outcome, RewardConfig
 
-__all__ = ["EnvConfig", "Outcome", "RendezvousEnv", "RewardConfig"]
+__all__ = ["EnvConfig", "GoToConfig", "GoToEnv", "Outcome", "RendezvousEnv", "RewardConfig"]
 __version__ = "0.1.0"

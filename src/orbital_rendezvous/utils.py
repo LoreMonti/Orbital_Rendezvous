@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from .env import EnvConfig
+from .env import EnvConfig, GoToConfig, GoToEnv, RendezvousEnv
 from .rewards import RewardConfig
 
 
@@ -47,3 +47,22 @@ def build_configs(config: dict[str, Any]) -> tuple[EnvConfig, RewardConfig]:
             f"rewards.gamma ({reward_config.gamma}) must equal training.gamma ({training_gamma})"
         )
     return env_config, reward_config
+
+
+def build_goal_config(config: dict[str, Any]) -> GoToConfig | None:
+    """The ``goal`` section, present only for the pilot that flies to a point."""
+    if "goal" not in config:
+        return None
+    values = dict(config["goal"])
+    if "goals" in values:
+        values["goals"] = tuple(tuple(float(c) for c in g) for g in values["goals"])
+    return _build(GoToConfig, values, "goal")
+
+
+def make_env(config: dict[str, Any]) -> RendezvousEnv:
+    """The environment a configuration describes: `GoToEnv` with a ``goal`` section."""
+    env_config, reward_config = build_configs(config)
+    goal_config = build_goal_config(config)
+    if goal_config is not None:
+        return GoToEnv(env_config, reward_config, goal_config)
+    return RendezvousEnv(env_config, reward_config)

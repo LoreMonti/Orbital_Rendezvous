@@ -1,0 +1,460 @@
+{
+ "description": "Oriented target: keep-out sphere of 20 m, approach cone of 15 degrees. 200 held-out starts in every direction; costs are medians over the dockings; sectors are start angles from the docking axis.",
+ "sectors_deg": [
+  0.0,
+  45.0,
+  90.0,
+  135.0,
+  180.0
+ ],
+ "results": {
+  "V-bar procedure, tau = 100 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.2307316768740946,
+   "time_median": 1400.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "V-bar procedure, tau = 200 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0570284400676986,
+   "time_median": 1775.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed0_best + final_approach_seed0_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0594831882016291,
+   "time_median": 1770.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed0_best + final_approach_seed1_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0318044429283024,
+   "time_median": 1720.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed0_best + final_approach_seed2_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0052451657460904,
+   "time_median": 1850.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed1_best + final_approach_seed0_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.1342594601794334,
+   "time_median": 1560.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed1_best + final_approach_seed1_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.105914078711237,
+   "time_median": 1510.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed1_best + final_approach_seed2_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.077260752309528,
+   "time_median": 1630.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed2_best + final_approach_seed0_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.3062142082898587,
+   "time_median": 1110.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed2_best + final_approach_seed1_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.285341665453165,
+   "time_median": 1070.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "goto_seed2_best + final_approach_seed2_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.2580073232320623,
+   "time_median": 1190.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  }
+ },
+ "same_starts": {
+  "goto_seed0_best + final_approach_seed0_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.0594831882016291,
+    "time_median": 1770.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.95,
+    "agent_faster": 0.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.375,
+    "agent_faster": 0.515
+   }
+  },
+  "goto_seed0_best + final_approach_seed1_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.0318044429283024,
+    "time_median": 1720.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.985,
+    "agent_faster": 0.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.55,
+    "agent_faster": 0.79
+   }
+  },
+  "goto_seed0_best + final_approach_seed2_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.0052451657460904,
+    "time_median": 1850.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.995,
+    "agent_faster": 0.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.79,
+    "agent_faster": 0.325
+   }
+  },
+  "goto_seed1_best + final_approach_seed0_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.1342594601794334,
+    "time_median": 1560.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.98,
+    "agent_faster": 0.145
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.01,
+    "agent_faster": 0.925
+   }
+  },
+  "goto_seed1_best + final_approach_seed1_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.105914078711237,
+    "time_median": 1510.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.26
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.125,
+    "agent_faster": 0.975
+   }
+  },
+  "goto_seed1_best + final_approach_seed2_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.077260752309528,
+    "time_median": 1630.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.05
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.41,
+    "agent_faster": 0.81
+   }
+  },
+  "goto_seed2_best + final_approach_seed0_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.3062142082898587,
+    "time_median": 1110.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.015,
+    "agent_faster": 1.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.0,
+    "agent_faster": 1.0
+   }
+  },
+  "goto_seed2_best + final_approach_seed1_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.285341665453165,
+    "time_median": 1070.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.02,
+    "agent_faster": 1.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.0,
+    "agent_faster": 1.0
+   }
+  },
+  "goto_seed2_best + final_approach_seed2_best": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 1.2580073232320623,
+    "time_median": 1190.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 0.09,
+    "agent_faster": 1.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 0.0,
+    "agent_faster": 1.0
+   }
+  }
+ }
+}

@@ -21,7 +21,7 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.utils import set_random_seed
 
 from .env import RendezvousEnv
-from .utils import build_configs
+from .utils import build_configs, make_env
 
 PPO_KEYS = (
     "learning_rate", "n_steps", "batch_size", "gamma", "gae_lambda", "clip_range", "ent_coef",
@@ -59,7 +59,7 @@ def with_overrides(
 
 def build_model(config: dict[str, Any], seed: int, run_dir: Path) -> PPO:
     """PPO on parallel environments, logging to ``run_dir``."""
-    env_config, reward_config = build_configs(config)
+    build_configs(config)   # validates the configuration before anything is written
     training = config["training"]
     if training.get("algorithm", "PPO") != "PPO":
         raise ValueError("only PPO is supported")
@@ -73,7 +73,7 @@ def build_model(config: dict[str, Any], seed: int, run_dir: Path) -> PPO:
 
     set_random_seed(seed)
     vec_env = make_vec_env(
-        lambda: RendezvousEnv(env_config, reward_config),
+        lambda: make_env(config),
         n_envs=training["n_envs"],
         seed=seed,
         monitor_dir=str(run_dir / "monitor"),
@@ -103,7 +103,9 @@ def train(
     """Train, save the model to ``output`` and return it.
 
     With ``training.start_curriculum`` the history of its stages is also saved
-    to ``curriculum.json`` in the run directory.
+    to ``curriculum.json`` in the run directory. With ``training.best_model``
+    the best policy on validation starts is saved next to ``output`` as
+    ``<name>_best.zip``, and its measurements to ``best_model.json``.
     """
     starts = config["training"].get("start_curriculum")
     stages: dict[str, Any] = {}
@@ -125,6 +127,7 @@ def train(
         stages["starts"] = StartCurriculum(
             lambda: RendezvousEnv(env_config, reward_config),
             start_deg=starts["start_deg"],
+            final_deg=starts.get("final_deg", 180.0),
             after=stages.get("cone"),
             **rule,
         )
@@ -143,6 +146,14 @@ def train(
         callbacks = [*(callbacks or []), FuelCurriculum(
             curriculum["start"], config["rewards"]["fuel_weight"], curriculum["ramp"]
         )]
+    best = None
+    if config["training"].get("best_model"):
+        from .callbacks import BestModel
+
+        # Saved next to the final model: models/x.zip and models/x_best.zip.
+        best = BestModel(lambda: make_env(config), output.with_name(output.stem + "_best.zip"),
+                         **config["training"]["best_model"])
+        callbacks = [*(callbacks or []), best]
     every = [
         CheckpointCallback(
             save_freq=max(1, 200_000 // config["training"]["n_envs"]),
@@ -156,4 +167,7 @@ def train(
     if stages:
         with open(run_dir / "curriculum.json", "w") as handle:
             json.dump({name: c.history for name, c in stages.items()}, handle, indent=1)
+    if best is not None:
+        with open(run_dir / "best_model.json", "w") as handle:
+            json.dump(best.history, handle, indent=1)
     return model

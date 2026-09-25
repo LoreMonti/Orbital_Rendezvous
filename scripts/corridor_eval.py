@@ -12,9 +12,17 @@ procedure that also flies the hard ones, so each agent's costs are then set
 against the V-bar procedure's on the very starts that agent docked. Saves both
 tables as JSON.
 
+With ``--go-to`` and ``--final``, also the two learned pilots flying the V-bar
+procedure's plan (`hierarchy.HierarchicalPilot`): a go-to agent to the
+waypoints and the hold point, then a final-approach agent down the corridor.
+Every pairing of the models given is flown, so that trained seeds of each
+pilot are tested together as well as apart.
+
 Usage:
     python scripts/corridor_eval.py --models models/corridor_seed0.zip models/corridor_seed1.zip
     python scripts/corridor_eval.py --models models/corridor_seed*.zip --episodes 50
+    python scripts/corridor_eval.py --go-to models/goto_seed*_best.zip \
+        --final models/final_approach_seed*_best.zip
 """
 
 from __future__ import annotations
@@ -29,6 +37,7 @@ from stable_baselines3 import PPO
 from orbital_rendezvous import RendezvousEnv
 from orbital_rendezvous.baselines import VbarApproach
 from orbital_rendezvous.evaluation import HELD_OUT_SEED, docked_by_sector, evaluate
+from orbital_rendezvous.hierarchy import HierarchicalPilot
 from orbital_rendezvous.rewards import Outcome
 from orbital_rendezvous.utils import build_configs, load_config
 
@@ -41,6 +50,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--config", default="configs/ppo_corridor.yaml")
     parser.add_argument("--models", nargs="*", default=[], help="Trained agents to evaluate.")
+    parser.add_argument("--go-to", nargs="*", default=[], help="Trained go-to pilots.")
+    parser.add_argument("--final", nargs="*", default=[], help="Trained final-approach pilots.")
+    parser.add_argument("--pilot-configs", nargs=2, metavar=("GO_TO", "FINAL"),
+                        default=["configs/ppo_goto.yaml", "configs/ppo_final_approach.yaml"])
     parser.add_argument("--episodes", type=int, default=200)
     parser.add_argument("--results", default="assets/corridor_evaluation.json")
     return parser.parse_args()
@@ -62,7 +75,7 @@ def row(name: str, s: dict) -> str:
     cost = (f"{s['delta_v_median']:5.2f} m/s {s['time_median']:6.0f} s"
             if s["docked"] else f"{'-':>9s} {'-':>8s}")
     sectors = "  ".join(f"{d:>3d}/{n:<3d}" for d, n in s["docked_by_sector"])
-    return (f"{name:<28s} {s['docked']:>3d}/{s['attempts']:<3d} {s['violations']:>5d}  "
+    return (f"{name:<46s} {s['docked']:>3d}/{s['attempts']:<3d} {s['violations']:>5d}  "
             f"{cost}   {sectors}")
 
 
@@ -82,11 +95,20 @@ def main() -> None:
         runs = evaluate(env, lambda e, obs, m=model: m.predict(obs, deterministic=True)[0], seeds)
         agents[Path(path).stem] = runs
         results[Path(path).stem] = summary(runs)
+    configs = [build_configs(load_config(c))[0] for c in args.pilot_configs]
+    for go_to_path in args.go_to:
+        for final_path in args.final:
+            pilot = HierarchicalPilot.from_models(PPO.load(go_to_path), PPO.load(final_path),
+                                                  *configs, keep_out=env_config.keep_out_radius)
+            name = f"{Path(go_to_path).stem} + {Path(final_path).stem}"
+            runs = evaluate(env, pilot, seeds)
+            agents[name] = runs
+            results[name] = summary(runs)
 
     edges = zip(SECTORS[:-1], SECTORS[1:], strict=True)
     labels = "  ".join(f"{f'{a:.0f}-{b:.0f}°':>7s}" for a, b in edges)
-    print(f"{'':<56s}   docked, by start angle from the docking axis")
-    print(f"{'controller':<28s} {'docked':>7s} {'viol.':>5s}  {'Δv':>9s} {'time':>8s}   {labels}")
+    print(f"{'':<74s}   docked, by start angle from the docking axis")
+    print(f"{'controller':<46s} {'docked':>7s} {'viol.':>5s}  {'Δv':>9s} {'time':>8s}   {labels}")
     for name, s in results.items():
         print(row(name, s))
 
@@ -103,7 +125,7 @@ def main() -> None:
             "time_median": float(np.median([runs[i].time for i in docked])),
         }}
         agent = entry["agent"]
-        line = (f"{name:<16s} {len(docked):>3d} starts: agent "
+        line = (f"{name:<46s} {len(docked):>3d} starts: agent "
                 f"{agent['delta_v_median']:4.2f} m/s {agent['time_median']:5.0f} s")
         for reference, reference_runs in vbar.items():
             cheaper = np.mean([runs[i].delta_v < reference_runs[i].delta_v for i in docked])

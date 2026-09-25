@@ -105,6 +105,28 @@ def best_two_impulse(
     return best
 
 
+def side_waypoint(
+    start: np.ndarray,
+    hold: np.ndarray,
+    keep_out: float,
+    distance: float = 50.0,
+    margin: float = 5.0,
+) -> np.ndarray | None:
+    """A point beside the keep-out sphere, if the straight way to the hold point crosses it.
+
+    ``None`` when the segment from ``start`` to ``hold`` stays more than
+    ``margin`` outside the sphere; otherwise a point ``distance`` out on the
+    radial axis, on the side the chaser starts from. Shared by the V-bar
+    procedure and the learned pilots, so that both fly the same plan.
+    """
+    d = hold - start
+    t = np.clip(-(start @ d) / max(d @ d, 1e-12), 0.0, 1.0)
+    if np.hypot(*(start + t * d)) > keep_out + margin:
+        return None
+    side = np.sign(start[0]) or 1.0
+    return np.array([side * distance, 0.0])
+
+
 class VbarApproach:
     """The classical procedure for an oriented target: a hold point, then along the V-bar.
 
@@ -149,13 +171,7 @@ class VbarApproach:
             self.phase = "hold"
 
     def _waypoint(self, start: np.ndarray) -> np.ndarray | None:
-        """A point beside the sphere, if the straight way to the hold point crosses it."""
-        d = self.hold - start
-        t = np.clip(-(start @ d) / max(d @ d, 1e-12), 0.0, 1.0)
-        if np.hypot(*(start + t * d)) > self.keep_out + 5.0:
-            return None
-        side = np.sign(start[0]) or 1.0
-        return np.array([side * self.waypoint_distance, 0.0])
+        return side_waypoint(start, self.hold, self.keep_out, self.waypoint_distance)
 
     def _track(self, state: np.ndarray, reference: np.ndarray, feedforward: np.ndarray):
         thrust = feedforward - self.lqr.k @ (state - reference)

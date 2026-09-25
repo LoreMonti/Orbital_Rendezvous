@@ -209,6 +209,24 @@ start, up to 145–155° on two seeds of three, but not from directly behind, an
 twice as much training did not move it. On the starts they dock, the agents are
 faster or cheaper than the procedure, never both, and never as reliable.
 
+## Step 16 — Two learned pilots on the classical plan
+
+- [x] Diagnosis of the Step 15 agents behind the station: from 160–180° they fail 18 times in 18, the best one flying straight into the back of the sphere, and they only ever go around on the side they start from
+- [x] Hypothesis: the optimal action jumps between the two sides at 180°, which a continuous network cannot do
+- [x] Diagnostic, starts on one side only, four runs: one reached 175° and then lost it, two never docked, one learned and collapsed; the jump matters, but losing what was learned matters more
+- [x] `GoToEnv`: fly to a goal point and stop, the default task with the target moved; the goal and the absolute position both observed, since holding still at $`x`$ takes $`u_x = -3n^2x\,m`$
+- [x] `HierarchicalPilot`: the V-bar planner (`side_waypoint`, now shared with the procedure), a go-to pilot to the waypoint and the hold point, a final-approach pilot down the corridor
+- [x] `BestModel`: the best policy on validation starts is kept, not the last one
+- [x] `configs/ppo_goto.yaml`, `configs/ppo_final_approach.yaml`; `corridor_eval.py --go-to --final` flies every pairing; `pilots_summary.py`
+- [x] Result, three seeds of each pilot: 100 % on validation for all six; **200 / 200 with no violation for all nine pairings**, 47 / 47 from behind; 1.01–1.31 m/s in 1070–1850 s, against 1.06–1.23 m/s in 1400–1775 s for the procedure
+
+*Lesson.* Two causes were tangled, and a cheap diagnostic separated them
+before any new method was built: the plan should decide what a smooth
+network cannot, and a learner should get a fixed task and be kept at its best.
+With both, the same PPO that could not hold the corridor from behind docks
+every time. On cost it matches the classical procedure rather than beating
+it, so the win is reliability with learned control, not a better controller.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -236,18 +254,22 @@ is finding a slow approach reliably.
 
 ### 2. The oriented target, if taken further
 
-Step 15 held the corridor on every seed and went around the station on two of
-three, to 145–155°, but never from directly behind it.
+Step 16 docks every time with two learned pilots on the V-bar procedure's
+plan, at much the procedure's cost.
 
+- [ ] A learned high-level policy choosing the waypoints (hierarchical RL), on
+  top of the frozen pilots, for a fully learned system. The pilots now reach
+  99 % and more, so a failure of the new level would point to that level.
+- [ ] Pilots trained for fuel: the go-to pilot with the engine switch and the
+  fuel budget of Step 13, since it spends most of the fuel and sits on the
+  procedure's trade-off; the final approach with a fuel weight, since it buys
+  speed with fuel.
 - [ ] Residual learning on the V-bar procedure: the thrust is the procedure's
-  plus a learned correction, so training starts at 200 / 200 with no violation
-  and the stay-put trap cannot arise: the question becomes how much learning
-  can improve a safe classical procedure.
-- [ ] A hybrid: an agent to the hold point, where 90 % of the procedure's fuel
-  is spent, and the procedure along the corridor, where it spends 0.10 m/s.
-- [ ] More seeds, and a mastery test on the whole range as well as the outer
-  band, since one seed in three stopped at 55° and one lost its last stage.
-- [ ] Imitation of the V-bar procedure as a starting policy, refined with RL.
+  plus a learned correction, a second way to put learning inside a safe plan,
+  to compare with the pilots.
+- [ ] A single agent, if taken up again: a mastery test on the whole range,
+  more seeds, and the side of approach as an input, so that the network does
+  not have to jump.
 
 ### 3. Three dimensions
 

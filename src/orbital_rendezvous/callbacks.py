@@ -552,3 +552,68 @@ class StartCurriculum(MasteryCurriculum):
     def _apply(self) -> None:
         self.training_env.env_method("set_start_angles", 0.0, self.value)
         self.logger.record("starts/max_angle_deg", self.value)
+
+
+class BestModel(BaseCallback):
+    """Keep the best policy seen during training, not the last one.
+
+    Every ``evaluate_every`` rollouts the deterministic policy flies
+    ``episodes`` attempts on the task the configuration describes, whatever
+    stage a curriculum has reached, from validation starts: seeds of their own,
+    apart from both the training starts and the held-out starts of the final
+    evaluation, so that choosing the best does not peek at the test. The
+    policy that docks most often is saved to ``path``, the one spending less
+    fuel on a tie. PPO can learn a manoeuvre and later lose it; the curricula
+    of Step 15 did, twice.
+    """
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        path,
+        evaluate_every: int = 25,
+        episodes: int = 50,
+        first_seed: int = 90_000,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.make_env = make_env
+        self.path = path
+        self.evaluate_every = evaluate_every
+        self.seeds = range(first_seed, first_seed + episodes)
+        self.best: tuple[float, float] | None = None
+        self.history: list[dict[str, float]] = []
+        self._env: RendezvousEnv | None = None
+        self._rollouts = 0
+
+    def measure(self) -> tuple[float, float]:
+        """Docking rate, and median delta-v of the dockings, of the deterministic policy."""
+        from .evaluation import evaluate
+
+        if self._env is None:
+            self._env = self.make_env()
+        runs = evaluate(
+            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
+        )
+        docked = [r.delta_v for r in runs if r.outcome is Outcome.DOCKED]
+        return len(docked) / len(runs), float(np.median(docked)) if docked else float("inf")
+
+    @staticmethod
+    def better(score: tuple[float, float], best: tuple[float, float] | None) -> bool:
+        """More dockings wins; on equal dockings, less fuel."""
+        return best is None or score[0] > best[0] or (score[0] == best[0] and score[1] < best[1])
+
+    def _on_rollout_end(self) -> None:
+        self._rollouts += 1
+        if self._rollouts % self.evaluate_every:
+            return
+        score = self.measure()
+        if self.better(score, self.best):
+            self.best = score
+            self.model.save(self.path)
+        self.logger.record("best/success", score[0])
+        self.history.append({"timesteps": int(self.num_timesteps), "success": score[0],
+                             "delta_v": score[1], "best_success": self.best[0]})
+
+    def _on_step(self) -> bool:
+        return True
