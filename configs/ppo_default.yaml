@@ -35,6 +35,10 @@ environment:
   # Initial condition: the chaser starts somewhere on this annulus,
   # with a small random relative velocity.
   initial_radius_range: [80.0, 200.0]
+  # Angle between the start and the docking axis +y, drawn in this range on a
+  # random side of the axis. [0, 180] is every direction; the start curriculum
+  # of configs/ppo_corridor.yaml narrows it at first, then widens it.
+  start_angle_range_deg: [0.0, 180.0]
   initial_velocity_scale: 0.05
 
   # Terminal conditions.
@@ -77,6 +81,11 @@ training:
   # rewards.fuel_weight over the first `ramp` fraction of the run, e.g.
   # {start: 2.0, ramp: 0.5}. Off for the default agent.
   fuel_curriculum: null
+  # Optionally start every episode in front of the docking port, narrow the
+  # approach cone there, then widen the starts towards the back of the station,
+  # as the agent masters each stage; see configs/ppo_corridor.yaml. Off for the
+  # default agent.
+  start_curriculum: null
 
 live_view:
   enabled: true

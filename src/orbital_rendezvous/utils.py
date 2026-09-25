@@ -35,8 +35,9 @@ def build_configs(config: dict[str, Any]) -> tuple[EnvConfig, RewardConfig]:
     so a mismatch is an error rather than a silent choice between the two.
     """
     env_values = dict(config["environment"])
-    if "initial_radius_range" in env_values:
-        env_values["initial_radius_range"] = tuple(env_values["initial_radius_range"])
+    for key in ("initial_radius_range", "start_angle_range_deg"):
+        if key in env_values:
+            env_values[key] = tuple(env_values[key])
     env_config = _build(EnvConfig, env_values, "environment")
     reward_config = _build(RewardConfig, dict(config["rewards"]), "rewards")
 

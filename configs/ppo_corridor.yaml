@@ -1,6 +1,8 @@
 # Configuration for Step 14: the default agent, with an oriented target. The
 # station has a docking port on the V-bar (+y), and a keep-out sphere of 20 m
 # that may only be entered inside a 15 degree approach cone around it.
+# Step 15 trains it with two curricula: the cone narrowed for starts in front of
+# the port, then the starts widened towards the back of the station.
 # Lengths are in metres, velocities in m/s, times in seconds.
 
 environment:
@@ -37,6 +39,10 @@ environment:
   # Initial condition: the chaser starts somewhere on this annulus,
   # with a small random relative velocity.
   initial_radius_range: [80.0, 200.0]
+  # Angle between the start and the docking axis +y, drawn in this range on a
+  # random side of the axis. [0, 180] is every direction; the start curriculum
+  # of configs/ppo_corridor.yaml narrows it at first, then widens it.
+  start_angle_range_deg: [0.0, 180.0]
   initial_velocity_scale: 0.05
 
   # Terminal conditions.
@@ -62,7 +68,7 @@ rewards:
 
 training:
   algorithm: PPO
-  total_timesteps: 2_000_000
+  total_timesteps: 32_000_000  # 17 narrowings of the cone, then 17 widenings of the starts
   seed: 0
   n_envs: 8
   policy: MlpPolicy
@@ -79,6 +85,13 @@ training:
   # rewards.fuel_weight over the first `ramp` fraction of the run, e.g.
   # {start: 2.0, ramp: 0.5}. Off for the default agent.
   fuel_curriculum: null
+  # Two curricula in sequence, each stage reached once the deterministic agent
+  # docks in `threshold` of 20 test attempts. Phase 1: starts at most start_deg
+  # from the docking axis, and the approach cone narrowed from cone_start_deg
+  # (no constraint) to its final 15 degrees, by step_deg. Phase 2: that cone,
+  # and the starts widened by step_deg, tested on the outer 30 degrees of the
+  # range, up to every direction.
+  start_curriculum: {start_deg: 15.0, step_deg: 10.0, threshold: 0.9, cone_start_deg: 180.0}
 
 live_view:
   enabled: true

@@ -39,6 +39,14 @@ An episode ends in one of four ways:
   time limit is part of the task and the timeout is a true end of the episode,
   reported as ``terminated`` (Pardo et al., 2018). It is not penalised: the
   agent should not learn to fear the clock itself.
+
+The chaser starts at a random distance in ``initial_radius_range``, in a random
+direction. ``start_angle_range_deg`` can restrict that direction: the angle
+between the start and the docking axis +y is drawn in the range, on either side
+of the axis at random. The default, 0 to 180 degrees, is every direction, drawn
+exactly as without the option; `callbacks.StartCurriculum` widens a narrower
+range as the agent masters it, from starts in front of the port to starts
+behind the station.
 """
 
 from __future__ import annotations
@@ -82,6 +90,7 @@ class EnvConfig:
     approach_cone_deg: float = 15.0
     keep_out_mode: str = "terminal"
     keep_out_weight: float = 0.0
+    start_angle_range_deg: tuple[float, float] = (0.0, 180.0)
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -154,6 +163,10 @@ class RendezvousEnv(gym.Env):
         self.config = replace(self.config, approach_cone_deg=degrees)
         self.scales = replace(self.scales, approach_cone_deg=degrees)
 
+    def set_start_angles(self, low: float, high: float) -> None:
+        """Change the range of start angles from the docking axis, for a curriculum on starts."""
+        self.config = replace(self.config, start_angle_range_deg=(low, high))
+
     def set_keep_out_weight(self, weight: float) -> None:
         """Change the cost of a step in the forbidden zone, in penalty mode."""
         self.config = replace(self.config, keep_out_weight=weight)
@@ -196,11 +209,19 @@ class RendezvousEnv(gym.Env):
         super().reset(seed=seed)
         cfg = self.config
         radius = self.np_random.uniform(*cfg.initial_radius_range)
-        angle = self.np_random.uniform(0.0, 2.0 * np.pi)
+        low, high = cfg.start_angle_range_deg
+        if (low, high) == (0.0, 180.0):
+            # Every direction, drawn as before the option existed, so that a
+            # seed still selects the same start and old models reproduce.
+            angle = self.np_random.uniform(0.0, 2.0 * np.pi)
+            position = radius * np.array([np.cos(angle), np.sin(angle)])
+        else:
+            # Angle from the docking axis +y, on a random side of it.
+            angle = np.radians(self.np_random.uniform(low, high))
+            side = 1.0 if self.np_random.random() < 0.5 else -1.0
+            position = radius * np.array([side * np.sin(angle), np.cos(angle)])
         velocity = self.np_random.normal(0.0, cfg.initial_velocity_scale, size=2)
-        self.state = np.array(
-            [radius * np.cos(angle), radius * np.sin(angle), velocity[0], velocity[1]]
-        )
+        self.state = np.append(position, velocity)
         self.steps = 0
         return self._observation(), self._info(None, np.zeros(2))
 

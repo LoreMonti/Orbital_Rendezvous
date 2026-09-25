@@ -35,6 +35,7 @@ class Rollout:
     positions: np.ndarray = field(repr=False)
     velocities: np.ndarray = field(repr=False)
     thrusts: np.ndarray = field(repr=False)
+    start: np.ndarray = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ class Summary:
 def rollout(env: RendezvousEnv, controller: Controller, seed: int) -> Rollout:
     """Fly one attempt from the start that ``seed`` selects."""
     obs, _ = env.reset(seed=seed)
+    start = env.state.copy()
     positions, velocities, thrusts = [], [], []
     delta_v, done, violated = 0.0, False, False
     while not done:
@@ -72,6 +74,7 @@ def rollout(env: RendezvousEnv, controller: Controller, seed: int) -> Rollout:
         positions=np.array(positions),
         velocities=np.array(velocities),
         thrusts=np.array(thrusts),
+        start=start,
     )
 
 
@@ -98,6 +101,30 @@ def summarise(rollouts: Sequence[Rollout]) -> Summary:
         docking_speed_median=stat([r.final_speed for r in docked], np.median),
         outcomes=outcomes,
     )
+
+
+def start_angle(position: np.ndarray) -> float:
+    """Angle between a position and the docking axis +y, in degrees, from 0 to 180."""
+    return float(np.degrees(np.arctan2(abs(position[0]), position[1])))
+
+
+def docked_by_sector(
+    rollouts: Sequence[Rollout], edges: Sequence[float] = (0.0, 45.0, 90.0, 135.0, 180.0)
+) -> list[tuple[int, int]]:
+    """Dockings and attempts for each sector of start angles from the docking axis.
+
+    With an oriented target, the direction a start comes from sets how hard
+    it is: from behind the station the chaser must go around the keep-out
+    sphere. The last sector includes 180 degrees.
+    """
+    angles = np.array([start_angle(r.start) for r in rollouts])
+    docked = np.array([r.outcome is Outcome.DOCKED for r in rollouts])
+    counts = []
+    for i, (low, high) in enumerate(zip(edges[:-1], edges[1:], strict=True)):
+        last = i == len(edges) - 2
+        inside = (angles >= low) & ((angles <= high) if last else (angles < high))
+        counts.append((int(docked[inside].sum()), int(inside.sum())))
+    return counts
 
 
 def pareto_front(points: Sequence[tuple[float, float]]) -> list[int]:

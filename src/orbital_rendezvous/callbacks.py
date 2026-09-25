@@ -355,22 +355,116 @@ class KeepOutBudget(BaseCallback):
         return True
 
 
-class ConeCurriculum(BaseCallback):
+class MasteryCurriculum(BaseCallback):
+    """A task made harder one stage at a time, whenever the agent masters the current one.
+
+    Every ``evaluate_every`` rollouts the deterministic policy flies
+    ``episodes`` attempts on an evaluation environment set to the current stage,
+    with the strict rule, where a violation ends the attempt. If it docks in at
+    least ``success_threshold`` of them, the stage advances; otherwise it stays.
+    Subclasses say what a stage is: ``advanced`` moves ``value`` on towards
+    ``final_deg``, ``_configure`` sets the evaluation environment to it and
+    ``_apply`` the training ones. Once the final stage is reached the
+    measurements stop. With ``after``, another curriculum, this one waits for
+    that one to finish before measuring anything: two curricula in sequence.
+    """
+
+    #: Name of the stage in ``history``, and prefix of the logged keys.
+    key = "stage"
+    prefix = "curriculum"
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        value: float,
+        success_threshold: float = 0.9,
+        evaluate_every: int = 10,
+        episodes: int = 20,
+        first_seed: int = 70_000,
+        after: MasteryCurriculum | None = None,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.make_env = make_env
+        self.value = value
+        self.final_deg = value
+        self.after = after
+        self.success_threshold = success_threshold
+        self.evaluate_every = evaluate_every
+        self.episodes = episodes
+        self.seeds = range(first_seed, first_seed + episodes)
+        self.history: list[dict[str, float]] = []
+        self._env: RendezvousEnv | None = None
+        self._rollouts = 0
+
+    @property
+    def finished(self) -> bool:
+        return self.value == self.final_deg
+
+    @property
+    def active(self) -> bool:
+        """Whether this curriculum is measuring: not finished, and not waiting for another."""
+        return not self.finished and (self.after is None or self.after.finished)
+
+    def advanced(self, value: float, success: float) -> float:
+        raise NotImplementedError
+
+    def _configure(self, env: RendezvousEnv) -> None:
+        raise NotImplementedError
+
+    def _apply(self) -> None:
+        raise NotImplementedError
+
+    def measure(self) -> float:
+        """Docking rate of the deterministic policy at the current stage, strict rule."""
+        from .evaluation import evaluate
+
+        if self._env is None:
+            self._env = self.make_env()
+        self._configure(self._env)
+        runs = evaluate(
+            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
+        )
+        return float(np.mean([r.outcome is Outcome.DOCKED for r in runs]))
+
+    def _on_training_start(self) -> None:
+        self._apply()
+
+    def _on_rollout_end(self) -> None:
+        if not self.active:
+            return
+        self._rollouts += 1
+        if self._rollouts % self.evaluate_every:
+            return
+        success = self.measure()
+        self.value = self.advanced(self.value, success)
+        self._apply()
+        self.logger.record(f"{self.prefix}/success", success)
+        self.history.append({
+            "timesteps": int(self.num_timesteps), "success": success, self.key: self.value,
+        })
+
+    def _on_step(self) -> bool:
+        return True
+
+
+class ConeCurriculum(MasteryCurriculum):
     """Narrow the approach cone from ``start_deg`` to ``final_deg`` as the agent masters it.
 
-    Every few rollouts the agent flies ``episodes`` deterministic attempts with
-    the current cone and the strict rule, where a violation ends the attempt.
-    If it docks in at least ``success_threshold`` of them, the cone narrows by
-    ``step_deg``; otherwise it stays. At 180 degrees the cone is the whole
-    plane and there is no constraint at all, so training starts as for the
-    default agent.
+    Each stage narrows the cone by ``step_deg``. At 180 degrees the cone is the
+    whole plane and there is no constraint at all, so training starts as for
+    the default agent.
 
     Imposing the final cone at once, as a terminal rule or as a price on
     violations, made the agent stop approaching altogether: coming in through
     the port is a different strategy from coming in from wherever it starts.
     Narrowing the cone a little at a time asks for a small correction of the
     strategy it already has, and only once it has mastered the current one.
+    In Step 14 this reached 90 degrees and no further.
     """
+
+    key = "cone_deg"
+    prefix = "cone"
 
     def __init__(
         self,
@@ -378,24 +472,15 @@ class ConeCurriculum(BaseCallback):
         final_deg: float = 15.0,
         start_deg: float = 180.0,
         step_deg: float = 10.0,
-        success_threshold: float = 0.9,
-        evaluate_every: int = 10,
-        episodes: int = 20,
-        first_seed: int = 70_000,
-        verbose: int = 0,
+        **kwargs,
     ) -> None:
-        super().__init__(verbose)
-        self.make_env = make_env
+        super().__init__(make_env, start_deg, **kwargs)
         self.final_deg = final_deg
         self.step_deg = step_deg
-        self.success_threshold = success_threshold
-        self.evaluate_every = evaluate_every
-        self.episodes = episodes
-        self.seeds = range(first_seed, first_seed + episodes)
-        self.cone_deg = start_deg
-        self.history: list[dict[str, float]] = []
-        self._env: RendezvousEnv | None = None
-        self._rollouts = 0
+
+    @property
+    def cone_deg(self) -> float:
+        return self.value
 
     def narrowed(self, cone_deg: float, success: float) -> float:
         """The cone after one measurement: narrower if the agent mastered this one."""
@@ -403,36 +488,67 @@ class ConeCurriculum(BaseCallback):
             return max(self.final_deg, cone_deg - self.step_deg)
         return cone_deg
 
-    def measure(self) -> float:
-        """Docking rate of the deterministic policy with the current cone, strict rule."""
-        from .evaluation import evaluate
+    advanced = narrowed
 
-        if self._env is None:
-            self._env = self.make_env()
-        self._env.set_approach_cone(self.cone_deg)
-        runs = evaluate(
-            self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
-        )
-        return float(np.mean([r.outcome is Outcome.DOCKED for r in runs]))
+    def _configure(self, env: RendezvousEnv) -> None:
+        env.set_approach_cone(self.value)
 
     def _apply(self) -> None:
-        self.training_env.env_method("set_approach_cone", self.cone_deg)
-        self.logger.record("cone/half_angle_deg", self.cone_deg)
+        self.training_env.env_method("set_approach_cone", self.value)
+        self.logger.record("cone/half_angle_deg", self.value)
 
-    def _on_training_start(self) -> None:
-        self._apply()
 
-    def _on_rollout_end(self) -> None:
-        self._rollouts += 1
-        if self._rollouts % self.evaluate_every:
-            return
-        success = self.measure()
-        self.cone_deg = self.narrowed(self.cone_deg, success)
-        self._apply()
-        self.logger.record("cone/success", success)
-        self.history.append({
-            "timesteps": int(self.num_timesteps), "success": success, "cone_deg": self.cone_deg,
-        })
+class StartCurriculum(MasteryCurriculum):
+    """Widen the starts from in front of the port to behind the station, as the agent masters them.
 
-    def _on_step(self) -> bool:
-        return True
+    What changes is where the chaser starts: at an angle from the docking axis
+    between 0 and ``value``, first ``start_deg``, widened by ``step_deg`` at each
+    stage up to ``final_deg``, while the approach cone stays at its final angle.
+    Each stage asks for a way around the keep-out sphere only a little longer
+    than the last.
+
+    On its own, from scratch, it never docks, not even from in front of the
+    port: the Coriolis term pushes an approach along the V-bar sideways, by
+    ``2 n |y'|``, out of a 15 degree cone, and an agent that cannot dock yet does
+    not find the correction by chance. It therefore runs ``after`` a
+    `ConeCurriculum` that narrows the cone on the first stage's starts: first
+    docking, then the corridor, then the way around the station.
+
+    Training starts are drawn over the whole current range, so the easy starts
+    are not forgotten, but mastery is measured only on the outer ``band_deg``:
+    at 180 degrees the newest 10 degrees are 6 % of the range, and a threshold
+    of 90 % over all of it could be passed while failing every new start.
+    """
+
+    key = "start_deg"
+    prefix = "starts"
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        start_deg: float = 15.0,
+        final_deg: float = 180.0,
+        step_deg: float = 10.0,
+        band_deg: float = 30.0,
+        first_seed: int = 80_000,
+        **kwargs,
+    ) -> None:
+        super().__init__(make_env, start_deg, first_seed=first_seed, **kwargs)
+        self.final_deg = final_deg
+        self.step_deg = step_deg
+        self.band_deg = band_deg
+
+    def widened(self, start_deg: float, success: float) -> float:
+        """The range of starts after one measurement: wider if the agent mastered this one."""
+        if success >= self.success_threshold:
+            return min(self.final_deg, start_deg + self.step_deg)
+        return start_deg
+
+    advanced = widened
+
+    def _configure(self, env: RendezvousEnv) -> None:
+        env.set_start_angles(max(0.0, self.value - self.band_deg), self.value)
+
+    def _apply(self) -> None:
+        self.training_env.env_method("set_start_angles", 0.0, self.value)
+        self.logger.record("starts/max_angle_deg", self.value)

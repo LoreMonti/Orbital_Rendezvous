@@ -28,8 +28,9 @@ used.*
   (0.74 m/s in 790 s) with an engine switch and a Lagrange multiplier on a fuel
   budget; how, and why not further, is the subject of three studies below.
   Asked to dock through a port, along a narrow approach corridor, it learns to
-  arrive from the front half of the station but not to go around it, where
-  the classical V-bar procedure succeeds every time.
+  hold the corridor and, on its best seed of three, to go around the station
+  (153 of 200), but never from directly behind it, where the classical V-bar
+  procedure succeeds every time.
 
 ## Contents
 
@@ -583,9 +584,86 @@ two earlier runs stopped at the same angle. At 90° the rule becomes *arrive
 from the front half*, and every start behind the station must go around it.
 Down to that point, the agent learned to shift its direction of arrival a
 little at a time; going around the station is not a small shift but a
-different manoeuvre, and PPO does not find it in small steps. On the full
-corridor the V-bar procedure, a few lines written by someone who knows the
-physics, wins.
+different manoeuvre, and PPO does not find it in these small steps. On the
+full corridor the V-bar procedure, a few lines written by someone who knows the
+physics, wins. The next section takes the small steps in the starting points
+instead, and gets further.
+
+### Two curricula for the corridor
+
+Step 14 changed the rule for every start at once. The next attempt kept the
+rule and changed the starts instead, a *reverse curriculum* [11]: first only
+starts at most $`15°`$ from the docking axis, then wider by $`10°`$ each time
+the agent docks in 90 % of 20 test attempts from the outer $`30°`$ of the
+current range. The test uses the outer band only: at $`180°`$ the newest
+$`10°`$ are 6 % of the starts, and a threshold over all of them could be
+passed while failing every new one. Training starts are still drawn over the
+whole range, so the easy ones are not forgotten.
+
+On its own, from scratch, this never docked, not once in 27 000 episodes per
+seed on two seeds, not even from in front of the port. Starting inside the cone
+does not make the straight approach easy, because the approach is not straight.
+Moving along the V-bar at $`\dot{y}`$, the first Clohessy-Wiltshire equation
+gives a sideways acceleration
+
+```math
+\ddot{x} = 2\,n\,|\dot{y}|
+```
+
+which at $`0.1\ \text{m/s}`$ is $`2.3 \times 10^{-4}\ \text{m/s}^2`$: in 150 s,
+uncorrected, $`\tfrac12\,\ddot{x}\,t^2 \approx 2.5\ \text{m}`$, while 5 m from
+the port the cone is only $`\pm 1.3\ \text{m}`$ wide. Even the default agent,
+which docks from anywhere without the rule, fails 100 times in 100 from these
+starts with a cone of 15°, and 17 times with a cone of 60°. A policy that cannot
+dock yet never sees a docking, while coming close costs $`-100`$ and staying out
+costs nothing, so it stays out.
+
+The two curricula were therefore put in sequence, each where it had worked:
+
+1. **Phase 1**: starts at most $`15°`$ from the axis, and the cone narrowed from
+   $`180°`$, no constraint, to $`15°`$, as in Step 14. The agent first learns
+   to dock, then to hold the axis against the Coriolis term.
+2. **Phase 2**: the cone at $`15°`$, and the starts widened, as above.
+
+Each run trained for 32 million steps, about 100 minutes, three seeds in
+parallel:
+
+![The two curricula during training](assets/start_curriculum.png)
+
+Phase 1 reaches $`15°`$ on every seed, in 1.6 to 2.0 million steps, where
+Step 14, with starts in every direction, stopped at $`90°`$. Holding the corridor
+is learned. Phase 2 goes around the station on two seeds out of three, to
+$`145°`$ and $`155°`$, and stops at $`55°`$ on the third. No seed reaches
+$`180°`$, and none moves after 13 million steps: doubling the training from
+16 to 32 million steps did not move the curriculum on the two seeds run both
+ways. On the
+200 unseen starts in every direction:
+
+| | docked | violations | from $`0\text{–}90°`$ | from $`90\text{–}135°`$ | from $`135\text{–}180°`$ |
+| --- | --- | --- | --- | --- | --- |
+| V-bar procedure | 200 / 200 | 0 | 97 / 97 | 56 / 56 | 47 / 47 |
+| seed 0, stopped at $`55°`$ | 71 / 200 | 128 | 64 / 97 | 6 / 56 | 1 / 47 |
+| seed 1, reached $`145°`$ | **153 / 200** | 47 | 97 / 97 | 51 / 56 | 5 / 47 |
+| seed 2, reached $`155°`$ | 121 / 200 | 79 | 87 / 97 | 30 / 56 | 4 / 47 |
+
+Seed 2 reached $`155°`$ at 13 million steps, then lost it: by the end it
+docked in only 25 % of its test attempts from the outer band, and the start
+angle, which never narrows, overstates it.
+
+An agent that docks only from some starts would look cheap or fast next to a
+procedure that also flies the hard ones, so the costs are compared on the very
+starts each agent docks:
+
+| on the starts it docks | agent | V-bar, $`\tau = 100\ \text{s}`$ | V-bar, $`\tau = 200\ \text{s}`$ |
+| --- | --- | --- | --- |
+| seed 0, 71 starts | 1.12 m/s, 860 s | 1.00 m/s, 1300 s | 0.87 m/s, 1660 s |
+| seed 1, 153 starts | 1.45 m/s, 980 s | 1.14 m/s, 1340 s | 0.98 m/s, 1730 s |
+| seed 2, 121 starts | 0.75 m/s, 1890 s | 1.08 m/s, 1320 s | 0.92 m/s, 1700 s |
+
+The seeds found different trades. Seeds 0 and 1 are faster than the procedure
+on every start they dock, by about 400 s in the median, and spend more fuel. Seed 2 is
+cheaper on every one, by about 20 % against the slower procedure, and 190 s
+slower. None is both, and none is as reliable.
 
 ### Robustness across training seeds
 
@@ -649,9 +727,15 @@ two results mirror each other. Against the LQR, the agent won because it
 learned a constraint a quadratic cost cannot express, a limit on the speed at
 docking, by adjusting how it arrived. The corridor asks for more than an
 adjustment: from behind the station the chaser must go around it, a different
-manoeuvre, which a curriculum reached step by step up to 90° and no further.
-The knowledge that solves it, stop on the V-bar and then advance, sits in a
-few lines of the classical procedure.
+manoeuvre, which a curriculum on the cone reached step by step up to 90° and
+no further. Two curricula in sequence did better, and taught more. Starting in
+front of the port was not enough: holding the corridor needs a steady sideways
+thrust against the Coriolis term, a skill of its own that the agent learns only
+once it can dock. With that learned first, two seeds of three went around the
+station, but none from directly behind it, and none reliably: 153 of 200 at
+best, with a cost that trades time against fuel differently on each seed. The
+knowledge that solves the whole corridor, stop on the V-bar and then advance,
+still sits in a few lines of the classical procedure.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -683,8 +767,10 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 
 ### Usage
 
-Every parameter lives in `configs/ppo_default.yaml`. Each script needs no
-arguments for the default run and lists its options with `--help`.
+Every parameter lives in `configs/ppo_default.yaml`, and in
+`configs/ppo_corridor.yaml` for the oriented target and its curricula. Each
+script needs no arguments for the default run and lists its options with
+`--help`.
 
 | script | what it does |
 | --- | --- |
@@ -694,6 +780,8 @@ arguments for the default run and lists its options with `--help`.
 | `fuel_study.py` | the agent over a grid of discounts and fuel weights, or of fuel budgets with a Lagrange multiplier, optionally with an engine switch, several seeds, in parallel: a table, a plot and a JSON file |
 | `fuel_summary.py` | the default agent and the best of each fuel study in one plot, from the saved results |
 | `cone_summary.py` | the approach cone narrowing during training, from the saved results |
+| `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
+| `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -710,6 +798,10 @@ caffeinate -ims python scripts/fuel_study.py --gammas 0.999 --budgets 0.75 0.6 \
     --engine-switch --timesteps 8000000                # with the engine switch
 python scripts/fuel_summary.py                         # the fuel story in one plot
 python scripts/cone_summary.py                         # the cone curriculum in one plot
+caffeinate -ims python scripts/train.py --config configs/ppo_corridor.yaml --no-render \
+    --seed 1 --output models/corridor_seed1.zip        # the corridor, about 100 min
+python scripts/corridor_eval.py --models models/corridor_seed1.zip
+python scripts/curriculum_summary.py --collect runs/<run directory>/
 ```
 
 As a library:
@@ -739,7 +831,7 @@ Orbital_Rendezvous/
 ├── pyproject.toml          # metadata, dependencies, ruff and pytest config
 ├── configs/
 │   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
-│   └── ppo_corridor.yaml   # the same, with the keep-out sphere and approach cone
+│   └── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -748,7 +840,7 @@ Orbital_Rendezvous/
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
-│   ├── callbacks.py        # SB3 callbacks: window, GIFs, curriculum, fuel budget
+│   ├── callbacks.py        # SB3 callbacks: window, GIFs, curricula, Lagrange multipliers
 │   ├── training.py         # builds and trains PPO from a configuration
 │   ├── study.py            # one run of the fuel study, and the aggregation
 │   └── utils.py            # YAML config into the dataclasses, with checks
@@ -758,8 +850,10 @@ Orbital_Rendezvous/
 │   ├── play.py             # agent against LQR, side by side, same start
 │   ├── fuel_study.py       # grid of discounts, fuel weights or budgets, in parallel
 │   ├── fuel_summary.py     # the fuel story in one plot, from saved results
-│   └── cone_summary.py     # the cone curriculum in one plot, from saved results
-├── tests/                  # 100 tests, one file per module
+│   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
+│   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
+│   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
+├── tests/                  # 113 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -816,6 +910,18 @@ would catch them.
   violation; the price of a violation waits for docking and relaxes when
   docking is lost; the cone narrows only once mastered, never below its final
   angle.
+- **Curriculum on starts.** With every direction allowed, a seed selects
+  exactly the start it selected before the option existed, redrawn with
+  gymnasium's generator, so every earlier model and number still holds; a
+  narrower range keeps every start inside it, on both sides of the axis; the
+  starts widen only once mastered, mastery is tested on the outer band, and
+  the second curriculum waits for the first to finish; the Coriolis term
+  pushes a chaser coasting down the V-bar out of the cone, while the thrust
+  $`2\,n\,v_c\,m`$ keeps it in and docks it, which is the reason phase 1
+  exists; dockings are counted by the direction the attempt started from, not
+  where it was after one step; and the corridor configuration trains with
+  phase 1 under way from the first episode, while saving the full task and the
+  seed actually used.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are
@@ -853,6 +959,8 @@ How the project was built, step by step, including the runs that failed, is in
    Reinforcement Learning*, Proc. ICML (2018)
 10. C. Tessler, D. J. Mankowitz & S. Mannor, *Reward Constrained Policy
     Optimization*, Proc. ICLR (2019)
+11. C. Florensa, D. Held, M. Wulfmeier, M. Zhang & P. Abbeel, *Reverse
+    Curriculum Generation for Reinforcement Learning*, Proc. CoRL (2017)
 
 ## License
 

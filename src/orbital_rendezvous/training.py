@@ -8,6 +8,8 @@ configuration.
 from __future__ import annotations
 
 import copy
+import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -63,8 +65,11 @@ def build_model(config: dict[str, Any], seed: int, run_dir: Path) -> PPO:
         raise ValueError("only PPO is supported")
 
     run_dir.mkdir(parents=True, exist_ok=True)
+    # The seed actually used, which a command-line override may have changed.
+    saved = copy.deepcopy(config)
+    saved["training"]["seed"] = seed
     with open(run_dir / "config.yaml", "w") as handle:
-        yaml.safe_dump(config, handle, sort_keys=False)
+        yaml.safe_dump(saved, handle, sort_keys=False)
 
     set_random_seed(seed)
     vec_env = make_vec_env(
@@ -95,8 +100,40 @@ def train(
     callbacks: list[BaseCallback] | None = None,
     checkpoints: bool = True,
 ) -> PPO:
-    """Train, save the model to ``output`` and return it."""
+    """Train, save the model to ``output`` and return it.
+
+    With ``training.start_curriculum`` the history of its stages is also saved
+    to ``curriculum.json`` in the run directory.
+    """
+    starts = config["training"].get("start_curriculum")
+    stages: dict[str, Any] = {}
+    if starts:
+        from .callbacks import ConeCurriculum, StartCurriculum
+
+        env_config, reward_config = build_configs(config)
+        front = replace(env_config, start_angle_range_deg=(0.0, starts["start_deg"]))
+        rule = dict(step_deg=starts["step_deg"], success_threshold=starts["threshold"])
+        if starts.get("cone_start_deg") is not None:
+            # Phase 1: learn to dock, then narrow the cone, from in front of the port.
+            stages["cone"] = ConeCurriculum(
+                lambda: RendezvousEnv(front, reward_config),
+                final_deg=env_config.approach_cone_deg,
+                start_deg=starts["cone_start_deg"],
+                **rule,
+            )
+        # Phase 2: the final cone, starts widened towards the back of the station.
+        stages["starts"] = StartCurriculum(
+            lambda: RendezvousEnv(env_config, reward_config),
+            start_deg=starts["start_deg"],
+            after=stages.get("cone"),
+            **rule,
+        )
+        callbacks = [*(callbacks or []), *stages.values()]
     model = build_model(config, seed, run_dir)
+    if stages:
+        # Before the first reset, which `learn` does before any callback runs,
+        # so that the first episodes too start in the first stage.
+        model.get_env().env_method("set_start_angles", 0.0, starts["start_deg"])
     curriculum = config["training"].get("fuel_curriculum")
     if curriculum:
         from .callbacks import FuelCurriculum
@@ -116,4 +153,7 @@ def train(
     model.learn(total_timesteps=total_timesteps, callback=CallbackList(every + (callbacks or [])))
     output.parent.mkdir(parents=True, exist_ok=True)
     model.save(output)
+    if stages:
+        with open(run_dir / "curriculum.json", "w") as handle:
+            json.dump({name: c.history for name, c in stages.items()}, handle, indent=1)
     return model

@@ -189,6 +189,26 @@ manoeuvre that a start behind the station needs, going around it. Helping it
 with a clever potential did more harm than good twice. On the full corridor,
 the classical procedure wins: the knowledge that solves it fits in a few lines.
 
+## Step 15 — Two curricula for the corridor
+
+- [x] `start_angle_range_deg` option: starts drawn within an angle of the docking axis; with every direction allowed, a seed selects the same start as before, so every earlier result holds
+- [x] Curriculum logic shared in `MasteryCurriculum`; `StartCurriculum` widens the starts, tested on the outer 30° of the range only
+- [x] Attempt 1, the start curriculum alone at a 15° cone, 8 million steps, two seeds: **no docking in 27 000 episodes** per seed, not even from in front of the port
+- [x] Diagnosis: the Coriolis term $`2n|\dot{y}|`$ pushes an approach along the V-bar out of the cone; the default agent, from the front, docks 0 times in 100 with a 15° cone and 83 with a 60° cone
+- [x] Fix: the two curricula in sequence, the cone narrowed on front starts first (`after=`), then the starts widened; `training.start_curriculum` in `configs/ppo_corridor.yaml`
+- [x] Result, 32 million steps, three seeds: the cone reaches 15° on 3 / 3 seeds in 1.6–2.0 million steps; the starts reach 145°, 155° and 55°; 153, 121 and 71 dockings in 200 against 200 for the V-bar procedure
+- [x] `corridor_eval.py`: dockings by direction of the start, and costs compared with the V-bar procedure on the starts each agent docks
+- [x] `curriculum_summary.py` and `assets/start_curriculum.json`; the run's `config.yaml` now records the seed actually used
+
+*Lesson.* The premise of the plan was wrong: a start inside the cone does not
+make the straight approach easy, because in orbit the approach is not straight.
+Holding the corridor against the Coriolis term was a skill of its own, and
+Step 14's curriculum, restricted to starts in front of the port, taught it on
+every seed. Going around the station was then learned in small steps of the
+start, up to 145–155° on two seeds of three, but not from directly behind, and
+twice as much training did not move it. On the starts they dock, the agents are
+faster or cheaper than the procedure, never both, and never as reliable.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -216,14 +236,17 @@ is finding a slow approach reliably.
 
 ### 2. The oriented target, if taken further
 
-Step 14 stopped at a cone of 90°: the agent does not learn to go around the
-station.
+Step 15 held the corridor on every seed and went around the station on two of
+three, to 145–155°, but never from directly behind it.
 
-- [ ] A hybrid: the V-bar procedure to the hold point, the agent for the final
-  approach along the corridor, where learned control has already shown its
-  worth.
-- [ ] A curriculum on the starting points instead of the cone: first in front
-  of the station, then further and further behind.
+- [ ] Residual learning on the V-bar procedure: the thrust is the procedure's
+  plus a learned correction, so training starts at 200 / 200 with no violation
+  and the stay-put trap cannot arise: the question becomes how much learning
+  can improve a safe classical procedure.
+- [ ] A hybrid: an agent to the hold point, where 90 % of the procedure's fuel
+  is spent, and the procedure along the corridor, where it spends 0.10 m/s.
+- [ ] More seeds, and a mastery test on the whole range as well as the outer
+  band, since one seed in three stopped at 55° and one lost its last stage.
 - [ ] Imitation of the V-bar procedure as a starting policy, refined with RL.
 
 ### 3. Three dimensions

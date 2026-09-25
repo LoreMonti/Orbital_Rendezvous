@@ -1,0 +1,196 @@
+{
+ "description": "Oriented target: keep-out sphere of 20 m, approach cone of 15 degrees. 200 held-out starts in every direction; costs are medians over the dockings; sectors are start angles from the docking axis.",
+ "sectors_deg": [
+  0.0,
+  45.0,
+  90.0,
+  135.0,
+  180.0
+ ],
+ "results": {
+  "V-bar procedure, tau = 100 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.2307316768740946,
+   "time_median": 1400.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "V-bar procedure, tau = 200 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0570284400676986,
+   "time_median": 1775.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "corridor_seed0": {
+   "docked": 71,
+   "attempts": 200,
+   "violations": 128,
+   "delta_v_median": 1.1225468701254098,
+   "time_median": 860.0,
+   "docked_by_sector": [
+    [
+     39,
+     41
+    ],
+    [
+     25,
+     56
+    ],
+    [
+     6,
+     56
+    ],
+    [
+     1,
+     47
+    ]
+   ]
+  },
+  "corridor_seed1": {
+   "docked": 153,
+   "attempts": 200,
+   "violations": 47,
+   "delta_v_median": 1.4514706220527558,
+   "time_median": 980.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     51,
+     56
+    ],
+    [
+     5,
+     47
+    ]
+   ]
+  },
+  "corridor_seed2": {
+   "docked": 121,
+   "attempts": 200,
+   "violations": 79,
+   "delta_v_median": 0.7524911621304302,
+   "time_median": 1890.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     46,
+     56
+    ],
+    [
+     30,
+     56
+    ],
+    [
+     4,
+     47
+    ]
+   ]
+  }
+ },
+ "same_starts": {
+  "corridor_seed0": {
+   "starts": 71,
+   "agent": {
+    "delta_v_median": 1.1225468701254098,
+    "time_median": 860.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0008112181905224,
+    "time_median": 1300.0,
+    "agent_cheaper": 0.4507042253521127,
+    "agent_faster": 1.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.8701450431264234,
+    "time_median": 1660.0,
+    "agent_cheaper": 0.22535211267605634,
+    "agent_faster": 1.0
+   }
+  },
+  "corridor_seed1": {
+   "starts": 153,
+   "agent": {
+    "delta_v_median": 1.4514706220527558,
+    "time_median": 980.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.1357933398789555,
+    "time_median": 1340.0,
+    "agent_cheaper": 0.24836601307189543,
+    "agent_faster": 1.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.978017897692972,
+    "time_median": 1730.0,
+    "agent_cheaper": 0.11764705882352941,
+    "agent_faster": 1.0
+   }
+  },
+  "corridor_seed2": {
+   "starts": 121,
+   "agent": {
+    "delta_v_median": 0.7524911621304302,
+    "time_median": 1890.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0770045300799684,
+    "time_median": 1320.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.0
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9165623925022425,
+    "time_median": 1700.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.18181818181818182
+   }
+  }
+ }
+}
