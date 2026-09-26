@@ -1,0 +1,156 @@
+{
+ "description": "Choosing the waypoint with the same frozen pilots, on 200 held-out starts of the oriented target.",
+ "pilots": {
+  "go_to": "models/goto_menu_seed0_best.zip",
+  "final": "models/final_approach_seed1_best.zip"
+ },
+ "results": {
+  "rule (V-bar plan)": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9290842894499948,
+   "time_median": 1760.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_seed0_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.909296812693389,
+   "time_median": 2170.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_seed1_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9194136800836223,
+   "time_median": 2180.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_seed2_best": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.924162221294142,
+   "time_median": 2160.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "oracle (best of the menu)": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9027875674233832,
+   "time_median": 2090.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  }
+ },
+ "agreement_with_rule": {
+  "planner_seed0_best": {
+   "behind": 71,
+   "same_side_as_rule": 66,
+   "direct": 0
+  },
+  "planner_seed1_best": {
+   "behind": 71,
+   "same_side_as_rule": 66,
+   "direct": 0
+  },
+  "planner_seed2_best": {
+   "behind": 71,
+   "same_side_as_rule": 66,
+   "direct": 0
+  },
+  "oracle (best of the menu)": {
+   "behind": 71,
+   "same_side_as_rule": 62,
+   "direct": 39
+  }
+ }
+}

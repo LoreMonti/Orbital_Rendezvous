@@ -24,11 +24,14 @@ its own leg, as in its training.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
+import gymnasium as gym
 import numpy as np
 
 from .baselines import side_waypoint
 from .env import EnvConfig, RendezvousEnv, goto_observation
+from .rewards import Outcome
 
 Policy = Callable[[np.ndarray], np.ndarray]
 FINAL_LOW = RendezvousEnv().observation_space.low
@@ -54,6 +57,7 @@ class HierarchicalPilot:
         hold_distance: float = 30.0,
         pass_radius: float = 5.0,
         waypoint_distance: float = 50.0,
+        planner: Callable[[np.ndarray], np.ndarray | None] | None = None,
     ) -> None:
         self.go_to, self.final = go_to, final
         self.go_to_config, self.final_config = go_to_config, final_config
@@ -64,6 +68,10 @@ class HierarchicalPilot:
         self.hold_radius = go_to_config.docking_radius
         self.hold_speed = go_to_config.docking_speed
         self.waypoint_distance = waypoint_distance
+        # The waypoint for a start state, or None to fly straight to the hold
+        # point: by default the V-bar procedure's rule.
+        self.planner = planner or (lambda state: side_waypoint(
+            state[:2], self.hold, self.keep_out, self.waypoint_distance))
         self.reset(np.zeros(4))
 
     @classmethod
@@ -77,7 +85,7 @@ class HierarchicalPilot:
         )
 
     def reset(self, state: np.ndarray) -> None:
-        waypoint = side_waypoint(state[:2], self.hold, self.keep_out, self.waypoint_distance)
+        waypoint = self.planner(state)
         self.plan = ([waypoint] if waypoint is not None else []) + [self.hold]
         self.leg = 0
         self.phase = "fly"
@@ -111,3 +119,85 @@ class HierarchicalPilot:
         observation = np.append(state / scale, self._elapsed(env.steps, cfg)).astype(np.float32)
         # Clipped to the bounds of the environment it was trained in.
         return self.final(np.clip(observation, FINAL_LOW, FINAL_HIGH))
+
+
+class PlannerEnv(gym.Env):
+    """Choose the waypoint of an approach from a menu; frozen pilots fly the rest.
+
+    One step per episode, a contextual bandit: the agent sees the start state
+    and picks action 0, straight to the hold point, or ``k``, through waypoint
+    ``k - 1`` of ``menu``; a `HierarchicalPilot` with that one-waypoint plan
+    then flies the whole approach in the inner corridor environment. The
+    reward is ``success_bonus`` on docking, ``failure_penalty`` otherwise,
+    timeout included, less ``fuel_weight`` per m/s of delta-v.
+
+    The choice is discrete on purpose: behind the station the best side jumps
+    at 180 degrees, and a categorical policy makes that jump where two of its
+    smooth scores cross, while a continuous output would have to pass through
+    straight ahead.
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(
+        self,
+        corridor: RendezvousEnv,
+        pilot: HierarchicalPilot,
+        menu: np.ndarray,
+        fuel_weight: float = 10.0,
+    ) -> None:
+        super().__init__()
+        self.corridor, self.pilot, self.menu = corridor, pilot, np.asarray(menu, dtype=float)
+        self.fuel_weight = fuel_weight
+        self.config = corridor.config
+        self.action_space = gym.spaces.Discrete(1 + len(self.menu))
+        self.observation_space = gym.spaces.Box(
+            np.array([-2.0, -2.0, -20.0, -20.0], dtype=np.float32),
+            np.array([2.0, 2.0, 20.0, 20.0], dtype=np.float32),
+        )
+        self.steps = 0
+
+    @property
+    def state(self) -> np.ndarray:
+        return self.corridor.state
+
+    def waypoint(self, action: int) -> np.ndarray | None:
+        return None if action == 0 else self.menu[action - 1]
+
+    def _observation(self) -> np.ndarray:
+        cfg = self.config
+        scale = np.array([cfg.max_distance, cfg.max_distance,
+                          cfg.velocity_scale, cfg.velocity_scale])
+        obs = (self.corridor.state / scale).astype(np.float32)
+        return np.clip(obs, self.observation_space.low, self.observation_space.high)
+
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        super().reset(seed=seed)
+        self.corridor.reset(seed=seed, options=options)
+        self.steps = 0
+        return self._observation(), {}
+
+    def fly(self, action: int) -> dict[str, Any]:
+        """The whole approach through the chosen waypoint; the last step's info, with totals."""
+        chosen = self.waypoint(int(action))
+        self.pilot.planner = lambda state: chosen
+        obs, delta_v, violated, done = self.corridor._observation(), 0.0, False, False
+        while not done:
+            obs, _, terminated, truncated, info = self.corridor.step(self.pilot(self.corridor, obs))
+            delta_v += info["delta_v"]
+            violated = violated or info.get("keep_out_violated", False)
+            done = terminated or truncated
+        info = dict(info, delta_v=delta_v, keep_out_violated=violated, choice=int(action))
+        return info
+
+    def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        info = self.fly(action)
+        docked = info["outcome"] is Outcome.DOCKED
+        reward = (self.corridor.reward_config.success_bonus if docked
+                  else self.corridor.reward_config.failure_penalty)
+        reward -= self.fuel_weight * info["delta_v"]
+        self.steps = self.corridor.steps
+        info["is_success"] = docked
+        return self._observation(), float(reward), True, False, info

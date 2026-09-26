@@ -30,7 +30,9 @@ used.*
   Asked to dock through a port, along a narrow approach corridor, a single
   agent docks at best 153 times in 200; two learned pilots flying the plan of
   the classical V-bar procedure dock **200 times in 200**, with no violation,
-  on all nine pairings of trained seeds, at much the procedure's cost.
+  on all nine pairings of trained seeds, at much the procedure's cost; and a
+  learned planner that chooses their waypoint, in place of the procedure's
+  rule, still docks 200 times in 200, with 1 to 2 % less fuel.
 
 ## Contents
 
@@ -762,6 +764,73 @@ percent better at equal time at most. Down the corridor the learned pilot is
 differ far more than seeds of the final approach, so the choice of go-to
 pilot sets the cost of the whole approach.
 
+### A learned planner
+
+The pilots made the approach reliable by leaving the plan to a rule. The way
+back to a fully learned system takes the plan back one decision at a time,
+checking at each step that the approach stays reliable, so that a failure
+points to the decision that caused it. The first decision is the rule's own:
+where to put the waypoint, if any.
+
+The choice of side jumps at $`180°`$, and it would jump for a planner too, if
+it output the waypoint as a continuous angle. The planner therefore chooses
+from a **menu**, 16 directions around the station at 40 and 60 m plus
+straight to the hold point, 33 choices, with a categorical policy
+
+```math
+\pi(k \mid \mathbf{s}_0) = \frac{e^{f_k(\mathbf{s}_0)}}{\sum_j e^{f_j(\mathbf{s}_0)}},
+\qquad k^* = \arg\max_k f_k(\mathbf{s}_0)
+```
+
+Each score $`f_k`$ is a smooth function of the start, but the choice $`k^*`$
+jumps where two scores cross: a discrete choice can make the jump that a
+continuous output cannot.
+
+The planner takes one decision per approach, from the start state
+$`\mathbf{s}_0`$; the frozen pilots then fly the whole approach, and the
+planner is paid at the end,
+
+```math
+R(k;\ \mathbf{s}_0) = 100\cdot\mathbb{1}[\text{docked}] - 100\cdot\mathbb{1}[\text{not docked}] - w_f\,\Delta v
+```
+
+a timeout counting as a failure, so that it cannot win by waiting. It is a
+contextual bandit, one step per episode, trained with PPO on 60 000
+approaches. The go-to pilot was retrained with the whole menu among its goals,
+and still reaches 100 % on validation on three seeds of three, within 0.5
+million steps; seed 0, fixed as the planner's pilot before any test, still
+docks 200 times in 200 with the rule's plan.
+
+Before training the planner, an **oracle** measured the room there is: from
+each of the 200 test starts it flies all 33 choices and keeps the best, docking
+first, then the least $`\Delta v`$. No planner choosing from this menu, with
+these pilots, can do better. It beats the rule by 3 % of fuel and no more:
+0.90 against 0.93 m/s, with the go-to pilot of seed 0. Where the rule goes
+around the station, the oracle goes around the other side on 9 starts in 71,
+the asymmetry of the Coriolis term, worth little.
+
+The first planner, with $`w_f = 10`$, docked every time and settled on two
+choices of the 33, spending 8 to 15 % more than the rule. Between a good choice
+and a safe but mediocre one lie about 0.17 m/s, which at $`w_f = 10`$ is worth
+1.7 points of reward, against 200 between docking and failing: once two
+choices never failed, the gradient left to refine them was lost in the noise.
+With $`w_f = 50`$ the same difference is worth 8.5 points, and on three seeds:
+
+| planner, same pilots | docked | violations | $`\Delta v`$, median | time, median |
+| --- | --- | --- | --- | --- |
+| rule of the V-bar procedure | 200 / 200 | 0 | 0.93 m/s | 1760 s |
+| learned, $`w_f = 10`$ (two seeds) | 200 / 200 | 0 | 1.00–1.07 m/s | 2310 s |
+| **learned, $`w_f = 50`$ (three seeds)** | **200 / 200** | **0** | **0.91–0.92 m/s** | 2160–2180 s |
+| oracle, best of the menu | 200 / 200 | 0 | 0.90 m/s | 2090 s |
+
+Each learned planner docks from every start, uses five or six choices of the
+menu, goes around on the rule's side on 66 starts of 71 and on the other side
+on the rest, and spends within 0.02 m/s of the oracle: it took nearly all the
+room the rule left. It is 400 s slower, as the oracle is, because the reward
+counts fuel and not time. It never flies straight to the hold point, but
+through a point 60 m out on the docking axis instead, which amounts to the
+same.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -838,9 +907,14 @@ plan decides what a smooth network cannot, the side to go around, and each
 pilot learns one fixed task and is frozen at its best, so nothing learned is
 lost. What the pilots do not do is beat the procedure clearly on cost: to the
 hold point they land on much the same trade-off as its LQR, and down the
-corridor they buy speed with fuel. Two things also remain hand-written, the
-waypoints and the handover, so this is learned control inside a classical
-plan, not a learned plan.
+corridor they buy speed with fuel. A learned planner then took back the first
+decision of the plan, where to put the waypoint, and kept the approach at 200
+in 200, choosing within 0.02 m/s of the best choice there was. It did so only
+once fuel weighed enough in its reward to be worth refining: at a fifth of the
+weight it settled on two safe choices and stopped. What remains hand-written
+is the menu of waypoints, the sequence waypoint, hold point, corridor, and the
+handover, so the system is still a learned plan inside a classical frame, one
+decision further along the way to a fully learned one.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -875,7 +949,8 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor.yaml` for the oriented target and its curricula, and in
 `configs/ppo_goto.yaml` and `configs/ppo_final_approach.yaml` for its two
-learned pilots. Each
+learned pilots, `configs/ppo_goto_menu.yaml` and `configs/ppo_planner.yaml`
+for the learned planner. Each
 script needs no arguments for the default run and lists its options with
 `--help`.
 
@@ -890,6 +965,7 @@ script needs no arguments for the default run and lists its options with
 | `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 | `pilots_summary.py` | the two learned pilots: a few approaches next to the V-bar procedure's, and the cost of every pairing, from the saved results |
+| `planner_eval.py` | ways of choosing the waypoint with the same pilots: the procedure's rule, learned planners and the oracle, on the 200 unseen starts |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -918,6 +994,11 @@ python scripts/corridor_eval.py --go-to models/goto_seed0_best.zip \
     --final models/final_approach_seed0_best.zip --results assets/pilots_evaluation.json
 python scripts/pilots_summary.py --go-to models/goto_seed0_best.zip \
     --final models/final_approach_seed0_best.zip
+caffeinate -ims python scripts/train.py --config configs/ppo_goto_menu.yaml --no-render \
+    --output models/goto_menu_seed0.zip                # the go-to pilot with the menu
+caffeinate -ims python scripts/train.py --config configs/ppo_planner.yaml --no-render \
+    --output models/planner_seed0.zip                  # the planner, about 40 min
+python scripts/planner_eval.py --planner models/planner_seed0_best.zip --oracle
 ```
 
 As a library:
@@ -949,13 +1030,15 @@ Orbital_Rendezvous/
 │   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
 │   ├── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
 │   ├── ppo_goto.yaml       # the go-to pilot: fly to a goal point and stop
-│   └── ppo_final_approach.yaml  # the final-approach pilot: down the corridor
+│   ├── ppo_final_approach.yaml  # the final-approach pilot: down the corridor
+│   ├── ppo_goto_menu.yaml  # the go-to pilot, with the planner's menu among its goals
+│   └── ppo_planner.yaml    # the learned planner, choosing the waypoint from the menu
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API, and GoToEnv
 │   ├── rewards.py          # potential-based shaping, fuel and terminal terms
 │   ├── baselines.py        # LQR, two-impulse transfer, V-bar procedure and its planner
-│   ├── hierarchy.py        # the V-bar plan flown by two learned pilots
+│   ├── hierarchy.py        # the learned pilots, and the planner's environment
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
@@ -972,8 +1055,9 @@ Orbital_Rendezvous/
 │   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
 │   ├── curriculum_summary.py  # the corridor curricula in one plot, from the runs
-│   └── pilots_summary.py   # the two learned pilots in one figure
-├── tests/                  # 126 tests, one file per module or feature
+│   ├── pilots_summary.py   # the two learned pilots in one figure
+│   └── planner_eval.py     # rule, learned planners and oracle, same pilots
+├── tests/                  # 135 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -1052,6 +1136,14 @@ would catch them.
   speed, hands over only close to the hold point and slow, and restarts the
   clock of each leg; and the best model is kept on more dockings, or on less
   fuel at equal dockings, never merely the last.
+- **Learned planner.** The menu rings the station evenly, starting on the
+  docking axis, and adding it to the goals leaves the pilot of Step 16
+  untouched; the planner's environment flies exactly the waypoint chosen, or
+  none, and a custom planner replaces the rule; the reward is $`+100`$ only for
+  a docking and $`-100`$ for anything else, a timeout included, less the fuel,
+  so that waiting never pays; its observation is the start state; and a
+  planner configuration builds its environment from saved pilots and trains
+  with its best model kept.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are

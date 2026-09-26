@@ -1,0 +1,112 @@
+# Configuration for Step 17: the learned planner. For each approach it chooses
+# the waypoint, from a menu, that two frozen pilots then fly: the go-to pilot
+# to the waypoint and the hold point, the final-approach pilot down the
+# corridor. The environment is the oriented target of configs/ppo_corridor.yaml.
+# Lengths are in metres, velocities in m/s, times in seconds.
+
+environment:
+  # Target orbit: circular, low Earth orbit at 400 km altitude.
+  # The mean motion is n = sqrt(mu / a^3).
+  semi_major_axis: 6.778e+6        # m; YAML needs the explicit sign to read a float
+  mu: 3.986004418e+14         # m^3/s^2
+
+  # Chaser spacecraft.
+  mass: 500.0
+  max_thrust: 1.0          # N, per axis limit on the commanded thrust
+  # Minimum thruster level, as a fraction of max_thrust: weaker commands leave
+  # the thruster off. 0 for the default agent; the fuel study uses it so that
+  # exploration noise around zero does not burn fuel.
+  thrust_deadzone: 0.0
+  # An engine switch as a third action: the engine fires only when it is
+  # positive, so coasting is free even under exploration noise. Off for the
+  # default agent.
+  engine_switch: false
+
+  # Keep-out sphere around the station, entered only inside an approach cone
+  # around the docking axis +y (the V-bar). 0 turns it off, as for the default
+  # agent; configs/ppo_corridor.yaml turns it on.
+  keep_out_radius: 20.0        # m
+  approach_cone_deg: 15.0      # half-angle of the cone
+
+  # Integration.
+  # One decision every 10 s. The propagation is exact for any step, so this
+  # only sets how often the agent acts; it also makes the discount horizon,
+  # 1 / (1 - gamma) = 100 steps, span the ~1000 s an approach takes.
+  time_step: 10.0          # s, one environment step
+  max_episode_steps: 300   # 3000 s
+
+  # Initial condition: the chaser starts somewhere on this annulus,
+  # with a small random relative velocity.
+  initial_radius_range: [80.0, 200.0]
+  # Angle between the start and the docking axis +y, drawn in this range on a
+  # random side of the axis. [0, 180] is every direction; the start curriculum
+  # of configs/ppo_corridor.yaml narrows it at first, then widens it.
+  start_angle_range_deg: [0.0, 180.0]
+  initial_velocity_scale: 0.05
+
+  # Terminal conditions.
+  docking_radius: 1.0          # m, close enough to count as a rendezvous
+  docking_speed: 0.05          # m/s, and slow enough not to crash into it
+  max_distance: 500.0          # m, beyond this the episode is a failure
+
+  # Observation normalisation: velocities are divided by this, positions by
+  # max_distance, so every component the agent sees is of order one.
+  velocity_scale: 0.5          # m/s
+
+rewards:
+  # Potential-based shaping, F = gamma Phi(s') - Phi(s), with
+  # Phi = -w_r r / r_max - w_v max(0, |v| - v_max(r)) / v_ref
+  # and the glide slope v_max(r) = docking_speed + r / approach_time.
+  distance_weight: 20.0
+  speed_weight: 10.0
+  approach_time: 200.0         # s
+  gamma: 0.99                  # must equal training.gamma
+  fuel_weight: 2.0             # per m/s of delta-v spent: a real cost, not shaping
+  success_bonus: 100.0
+  failure_penalty: -100.0
+
+training:
+  algorithm: PPO
+  # One step per episode: a timestep is a whole approach, flown by the pilots.
+  total_timesteps: 60_000
+  seed: 0
+  n_envs: 8
+  policy: MlpPolicy
+  policy_kwargs:
+    net_arch: [64, 64]
+  learning_rate: 3.0e-4
+  n_steps: 32                  # 256 approaches per update
+  batch_size: 64
+  gamma: 0.99                  # irrelevant with one step, but must equal rewards.gamma
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01               # keeps trying the 33 choices early on
+  fuel_curriculum: null
+  start_curriculum: null
+  best_model: {evaluate_every: 10, episodes: 50}
+
+planner:
+  # The frozen pilots, trained with these configurations.
+  go_to: models/goto_menu_seed0_best.zip
+  go_to_config: configs/ppo_goto_menu.yaml
+  final: models/final_approach_seed1_best.zip
+  final_config: configs/ppo_final_approach.yaml
+  # The menu: action 0 flies straight to the hold point, action k through
+  # waypoint k - 1, 16 directions around the station at 40 and 60 m.
+  menu_radii: [40.0, 60.0]     # m
+  menu_directions: 16
+  # Reward: +100 on docking, -100 otherwise, less this per m/s of delta-v.
+  # At 10 per m/s the planner settled on two safe choices and spent 8-15 %
+  # more than the rule: 0.17 m/s between a good and a mediocre choice was
+  # worth 1.7 points against 200 between docking and failing. At 50 it is
+  # worth 8.5, and the planner refines its choices.
+  fuel_weight: 50.0
+
+live_view:
+  enabled: true
+  episode_stride: 500          # replay one attempt every N; ~40 over a full run
+  trail_length: 300            # how many past positions to keep on screen
+  # With --record, the replays kept for the training GIF: the first at or after
+  # each of these episode counts (wandering, learning, mostly docking), plus the
+  # last one of the run.
+  record_at: [500, 1500, 2500]

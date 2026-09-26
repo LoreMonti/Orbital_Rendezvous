@@ -322,6 +322,28 @@ class GoToConfig:
     moving_start_fraction: float = 0.3
     moving_start_offset: float = 5.0
     moving_start_speed: float = 0.3
+    # The menu of waypoints a learned planner chooses from (`waypoint_menu`),
+    # added to ``goals``: ``menu_directions`` around the station at each of
+    # ``menu_radii``. Empty for the pilot of Step 16.
+    menu_radii: tuple[float, ...] = ()
+    menu_directions: int = 16
+
+    def all_goals(self) -> np.ndarray:
+        """The goal points: ``goals``, then the menu."""
+        points = [np.asarray(self.goals, dtype=float).reshape(-1, 2)]
+        if self.menu_radii:
+            points.append(waypoint_menu(self.menu_radii, self.menu_directions))
+        return np.vstack(points)
+
+
+def waypoint_menu(radii: tuple[float, ...], directions: int) -> np.ndarray:
+    """Waypoints around the station: ``directions`` evenly spaced angles at each radius.
+
+    Angles are measured from the docking axis +y, the first on it; rows run
+    through the angles of the first radius, then of the next.
+    """
+    angles = np.radians(np.arange(directions) * 360.0 / directions)
+    return np.array([[r * np.sin(a), r * np.cos(a)] for r in radii for a in angles])
 
 
 def goto_observation(
@@ -386,11 +408,12 @@ class GoToEnv(RendezvousEnv):
     ) -> tuple[np.ndarray, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         cfg, rng = self.goal_config, self.np_random
-        self.goal = np.array(cfg.goals[rng.integers(len(cfg.goals))], dtype=float)
+        goals = cfg.all_goals()
+        self.goal = goals[rng.integers(len(goals))].copy()
         self.goal += rng.uniform(-cfg.goal_jitter, cfg.goal_jitter, size=2)
         if rng.random() < cfg.moving_start_fraction:
             # A handover at a waypoint: near one, still moving.
-            waypoint = np.array(cfg.goals[rng.integers(len(cfg.goals))], dtype=float)
+            waypoint = goals[rng.integers(len(goals))]
             offset = rng.uniform(-cfg.moving_start_offset, cfg.moving_start_offset, size=2)
             heading = rng.uniform(0.0, 2.0 * np.pi)
             speed = rng.uniform(0.0, cfg.moving_start_speed)

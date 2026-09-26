@@ -227,6 +227,23 @@ With both, the same PPO that could not hold the corridor from behind docks
 every time. On cost it matches the classical procedure rather than beating
 it, so the win is reliability with learned control, not a better controller.
 
+## Step 17 — A learned planner
+
+- [x] `waypoint_menu`: 16 directions around the station at 40 and 60 m; the go-to pilot retrained with the menu among its goals (`configs/ppo_goto_menu.yaml`), 100 % on validation on 3 / 3 seeds, 200 / 200 with the rule's plan
+- [x] `PlannerEnv`: one step per approach, a discrete choice from the menu, since the best side jumps at 180°; the frozen pilots fly the rest; $`+100`$ for a docking, $`-100`$ otherwise, less $`w_f\,\Delta v`$
+- [x] `planner_eval.py`: the rule, learned planners and an oracle that flies all 33 choices from every start
+- [x] Oracle: 0.90 m/s against 0.93 for the rule, 3 % of room and no more
+- [x] First planner, $`w_f = 10`$, two seeds: 200 / 200, but two choices of 33 and 8–15 % more fuel than the rule
+- [x] With $`w_f = 50`$, three seeds: 200 / 200, no violation, 0.91–0.92 m/s, within 0.02 m/s of the oracle, five or six choices, 400 s slower since time is not in the reward
+
+*Lesson.* The discrete choice made the jump that stopped the single agent,
+and the planner kept the approach at 200 in 200 from its first run. What it
+did not do at first was refine: a reward in which fuel was worth a hundredth
+of docking let it stop at the first two choices that never failed. The oracle,
+computed before any training, said how much there was to win, 3 %, and so how
+to read the result: the learned planner matches the rule and takes the little
+the rule leaves, it does not find a better plan.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -257,9 +274,19 @@ is finding a slow approach reliably.
 Step 16 docks every time with two learned pilots on the V-bar procedure's
 plan, at much the procedure's cost.
 
-- [ ] A learned high-level policy choosing the waypoints (hierarchical RL), on
-  top of the frozen pilots, for a fully learned system. The pilots now reach
-  99 % and more, so a failure of the new level would point to that level.
+- [ ] Back to a fully learned system, one piece at a time, each checked to
+  keep 200 / 200 before the next, so that a failure points to the piece that
+  caused it:
+  - [x] Step 17: a learned planner chooses the waypoint from a menu, a
+    discrete choice, since behind the station the best side jumps; 200 / 200,
+    within 0.02 m/s of an oracle that flies every choice;
+  - [ ] Step 18: it also chooses how many waypoints, one at a time, at each
+    arrival deciding on another waypoint or the hold point;
+  - [ ] Step 19: it also chooses when to move on to the next waypoint (the
+    termination of an option);
+  - [ ] Step 20: distillation, one network trained to imitate the whole
+    system flight by flight (DAgger), with a discrete choice of side next to
+    its continuous thrust, so that it need not jump either.
 - [ ] Pilots trained for fuel: the go-to pilot with the engine switch and the
   fuel budget of Step 13, since it spends most of the fuel and sits on the
   procedure's trade-off; the final approach with a fuel weight, since it buys
