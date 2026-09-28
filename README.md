@@ -910,6 +910,38 @@ planner shows is that the decision can be learned, and learned to the best
 possible, once it is taught from every choice rather than from the one it
 happened to try.
 
+### More waypoints?
+
+The next decision to take back from the plan was how many waypoints to fly:
+at each arrival, another waypoint from the menu or on to the hold point. The
+value of a choice would then include the choices after it,
+
+```math
+Q(\mathbf{s}_i, k) = c(\mathbf{s}_i, k) + \min_{k'} Q(\mathbf{s}_{i+1}, k')
+```
+
+with $`c`$ the cost of the leg to waypoint $`k`$ and $`\mathbf{s}_{i+1}`$ the
+state on arrival: a sequence of options [12] rather than a single choice.
+Before building it, a beam search measured what more waypoints could win. From
+each of the 200 test starts it flew every plan with no waypoint or one, then
+extended the three cheapest that docked by every other waypoint, twice: 219
+flights per start instead of $`33^3 \approx 36\,000`$.
+
+| best plan with at most | docked | $`J`$, median | plans with 0 / 1 / 2 / 3 waypoints |
+| --- | --- | --- | --- |
+| one waypoint | 200 / 200 | 63.59 | 151 / 49 / — / — |
+| two waypoints | 200 / 200 | 63.59 | 151 / 49 / 0 / — |
+| three waypoints | 200 / 200 | 63.59 | 151 / 49 / 0 / 0 |
+
+On no start does a second or third waypoint lower the cost, not even from
+behind the station. With a single keep-out sphere and a single corridor, one
+point beside the sphere is all a way around needs, which is also why the
+V-bar procedure holds at one point only. A planner that learned how many
+waypoints to fly would learn a constant, always to stop, so Step 18 ends with
+the measurement and was not built. The beam can miss a plan whose first
+waypoint is not among its three best, so the result is a strong indication
+rather than a proof.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -1049,6 +1081,7 @@ script needs no arguments for the default run and lists its options with
 | `pilots_summary.py` | the two learned pilots: a few approaches next to the V-bar procedure's, and the cost of every pairing, from the saved results |
 | `planner_eval.py` | ways of choosing the waypoint with the same pilots: the procedure's rule, learned planners and the oracle, on the 200 unseen starts |
 | `imitate_oracle.py` | the planner taught the oracle's ranking: every choice flown from 4000 training starts, in parallel, then a supervised fit with the risk of failure priced in |
+| `plan_search.py` | whether more waypoints pay: a beam search over plans of up to three waypoints on the 200 unseen starts |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -1085,6 +1118,7 @@ python scripts/planner_eval.py --planner models/planner_seed0_best.zip --oracle
 caffeinate -ims python scripts/imitate_oracle.py --output models/planner_oracle_seed0.zip
 python scripts/planner_eval.py --config configs/ppo_planner_relative.yaml \
     --planner models/planner_oracle_seed0.zip --oracle
+python scripts/plan_search.py                          # more waypoints? about 10 min
 ```
 
 As a library:
@@ -1125,7 +1159,7 @@ Orbital_Rendezvous/
 │   ├── env.py              # RendezvousEnv, the Gymnasium API, and GoToEnv
 │   ├── rewards.py          # potential-based shaping, fuel and terminal terms
 │   ├── baselines.py        # LQR, two-impulse transfer, V-bar procedure and its planner
-│   ├── hierarchy.py        # the learned pilots, the planner's environment, the oracle
+│   ├── hierarchy.py        # learned pilots, planner's environment, oracle, beam search
 │   ├── imitation.py        # the planner fitted to the oracle's ranking
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
@@ -1145,8 +1179,9 @@ Orbital_Rendezvous/
 │   ├── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 │   ├── pilots_summary.py   # the two learned pilots in one figure
 │   ├── planner_eval.py     # rule, learned planners and oracle, same pilots
-│   └── imitate_oracle.py   # label every choice, then fit the planner to them
-├── tests/                  # 146 tests, one file per module or feature
+│   ├── imitate_oracle.py   # label every choice, then fit the planner to them
+│   └── plan_search.py      # beam search over plans of several waypoints
+├── tests/                  # 148 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -1240,7 +1275,11 @@ would catch them.
   near-ties, as the temperature says; the fit learns a choice that jumps, as
   the side behind the station does; and the expected-cost term, with a failure
   priced in, moves probability away from a failing choice the targets alone
-  cannot tell apart, towards the optimum computed by hand.
+  cannot tell apart, towards the optimum computed by hand. A planner may
+  return several waypoints, always followed by the hold point; the beam search
+  extends only its cheapest plans that dock, finds the best plan among those
+  it flies, and, as it should, never flies a plan whose first waypoint falls
+  outside the beam.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are
@@ -1280,6 +1319,9 @@ How the project was built, step by step, including the runs that failed, is in
     Optimization*, Proc. ICLR (2019)
 11. C. Florensa, D. Held, M. Wulfmeier, M. Zhang & P. Abbeel, *Reverse
     Curriculum Generation for Reinforcement Learning*, Proc. CoRL (2017)
+12. R. S. Sutton, D. Precup & S. Singh, *Between MDPs and semi-MDPs: A
+    framework for temporal abstraction in reinforcement learning*, Artif.
+    Intell. **112**, 181 (1999)
 
 ## License
 

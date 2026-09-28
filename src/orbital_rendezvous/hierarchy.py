@@ -57,7 +57,7 @@ class HierarchicalPilot:
         hold_distance: float = 30.0,
         pass_radius: float = 5.0,
         waypoint_distance: float = 50.0,
-        planner: Callable[[np.ndarray], np.ndarray | None] | None = None,
+        planner: Callable[[np.ndarray], np.ndarray | list | None] | None = None,
     ) -> None:
         self.go_to, self.final = go_to, final
         self.go_to_config, self.final_config = go_to_config, final_config
@@ -68,8 +68,8 @@ class HierarchicalPilot:
         self.hold_radius = go_to_config.docking_radius
         self.hold_speed = go_to_config.docking_speed
         self.waypoint_distance = waypoint_distance
-        # The waypoint for a start state, or None to fly straight to the hold
-        # point: by default the V-bar procedure's rule.
+        # The waypoint for a start state, a list of them, or None to fly
+        # straight to the hold point: by default the V-bar procedure's rule.
         self.planner = planner or (lambda state: side_waypoint(
             state[:2], self.hold, self.keep_out, self.waypoint_distance))
         self.reset(np.zeros(4))
@@ -85,8 +85,14 @@ class HierarchicalPilot:
         )
 
     def reset(self, state: np.ndarray) -> None:
-        waypoint = self.planner(state)
-        self.plan = ([waypoint] if waypoint is not None else []) + [self.hold]
+        plan = self.planner(state)
+        if plan is None:
+            waypoints = []
+        elif isinstance(plan, list):
+            waypoints = [np.asarray(w, dtype=float) for w in plan]
+        else:
+            waypoints = [plan]
+        self.plan = waypoints + [self.hold]
         self.leg = 0
         self.phase = "fly"
         self.leg_start = 0
@@ -249,3 +255,41 @@ def oracle_costs(env: PlannerEnv, seed: int) -> tuple[np.ndarray, np.ndarray, np
         info = env.fly(action)
         costs[action], docked[action] = env.cost(info), info["outcome"] is Outcome.DOCKED
     return obs, costs, docked
+
+
+def beam_search(
+    env: PlannerEnv, seed: int, width: int = 3, depth: int = 3
+) -> dict[tuple, dict[str, Any]]:
+    """Plans of up to ``depth`` waypoints from the menu, flown from the start ``seed`` selects.
+
+    Every one-waypoint plan and the plan with none are flown; then only the
+    ``width`` cheapest plans that dock are extended by every other waypoint of
+    the menu, and so on: ``1 + m + 2 w (m - 1)`` flights for ``m`` waypoints
+    at depth 3, instead of ``m^3``. Returns each plan flown, a tuple of
+    waypoints, with its cost ``J``, whether it docked, its time and delta-v.
+    """
+    menu = [tuple(float(c) for c in w) for w in env.menu]
+
+    def fly(plan: tuple) -> dict[str, Any]:
+        env.reset(seed=seed)
+        info = env._fly(lambda state: [np.array(w) for w in plan])
+        return {"cost": env.cost(info), "docked": info["outcome"] is Outcome.DOCKED,
+                "time": info["time"], "delta_v": info["delta_v"]}
+
+    flown = {(): fly(())}
+    level = [(w,) for w in menu]
+    for plan in level:
+        flown[plan] = fly(plan)
+    for _ in range(depth - 1):
+        kept = sorted((p for p in level if flown[p]["docked"]),
+                      key=lambda p: flown[p]["cost"])[:width]
+        level = [p + (w,) for p in kept for w in menu if w != p[-1]]
+        for plan in level:
+            flown[plan] = fly(plan)
+    return flown
+
+
+def best_plan(flown: dict[tuple, dict[str, Any]], max_waypoints: int) -> tuple[tuple, dict]:
+    """The cheapest plan that docks among those with at most ``max_waypoints`` waypoints."""
+    candidates = [(p, v) for p, v in flown.items() if len(p) <= max_waypoints]
+    return min(candidates, key=lambda pv: (not pv[1]["docked"], pv[1]["cost"]))

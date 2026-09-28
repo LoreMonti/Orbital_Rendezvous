@@ -269,6 +269,16 @@ hugs the edge of what is allowed, so imitation alone learned to cut corners;
 pricing a failure into the fit, as a reward would, taught it to keep a margin
 at almost no cost.
 
+## Step 18 — More waypoints? Measured, not built
+
+- [x] A planner may return several waypoints; `beam_search`: plans of up to three waypoints, only the three cheapest that dock extended at each level, 219 flights per start instead of about 36 000
+- [x] `plan_search.py` on the 200 test starts: the best plan never has a second or third waypoint, not even from behind the station; 151 plans fly straight to the hold point, 49 through one waypoint
+- [x] Not built: a planner choosing how many waypoints would learn a constant; distillation (Step 20) removes the remaining rules at once instead
+
+*Lesson.* The cheap measurement came first again, and this time it said stop.
+One sphere and one corridor need one point to go around; the idea of learning
+the length of the plan was sound, but the problem gives it nothing to learn.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -305,10 +315,11 @@ plan, at much the procedure's cost.
   - [x] Step 17: a learned planner chooses the waypoint from a menu, a
     discrete choice, since behind the station the best side jumps; 200 / 200,
     and taught from the oracle (17c) at the best cost the menu allows;
-  - [ ] Step 18: it also chooses how many waypoints, one at a time, at each
-    arrival deciding on another waypoint or the hold point;
-  - [ ] Step 19: it also chooses when to move on to the next waypoint (the
-    termination of an option);
+  - [x] Step 18: how many waypoints; measured first, and more than one never
+    pays, so not built;
+  - [ ] Step 19, optional: when to move on to the next waypoint (the
+    termination of an option); distillation makes it unnecessary for a fully
+    learned system, since the student has no thresholds;
   - [ ] Step 20: distillation, one network trained to imitate the whole
     system flight by flight (DAgger), with a discrete choice of side next to
     its continuous thrust, so that it need not jump either.

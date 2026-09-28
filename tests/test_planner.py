@@ -163,3 +163,38 @@ def test_the_planner_trains_and_keeps_its_best_model(planner_config, tmp_path):
     train(planner_config, 0, 16, tmp_path / "run", tmp_path / "planner.zip", checkpoints=False)
     assert (tmp_path / "planner_best.zip").exists()
     assert len(json.loads((tmp_path / "run" / "best_model.json").read_text())) == 2
+
+
+def test_a_planner_can_return_several_waypoints():
+    pilot = still_pilot()
+    pilot.planner = lambda state: [np.array([-60.0, 0.0]), np.array([-40.0, 20.0])]
+    pilot(type("Env", (), {"state": np.array([0.0, -150.0, 0.0, 0.0]), "steps": 0})(), None)
+    assert len(pilot.plan) == 3
+    np.testing.assert_array_equal(pilot.plan[1], [-40.0, 20.0])
+    np.testing.assert_array_equal(pilot.plan[2], [0.0, 30.0])      # always ending at the hold
+
+
+def test_the_beam_search_extends_only_the_cheapest_plans_and_finds_the_best():
+    from orbital_rendezvous.hierarchy import beam_search, best_plan
+
+    env = planner_env()
+    menu = [tuple(w) for w in env.menu]
+    good = (menu[1], menu[20])          # the one two-waypoint plan that is cheaper
+    hidden = (menu[3], menu[20])        # as cheap, but after a first waypoint outside the beam
+
+    def fake_fly(planner):
+        plan = tuple(tuple(w) for w in planner(None))
+        cost = 60.0 + 2.0 * len(plan) + 0.1 * (menu.index(plan[0]) if plan else 0)
+        if plan in (good, hidden):
+            cost = 55.0
+        return {"outcome": Outcome.DOCKED, "delta_v": 0.0, "time": cost / 0.01}
+
+    env._fly = fake_fly
+    env.time_weight, env.fuel_weight = 0.01, 0.0
+    flown = beam_search(env, seed=0, width=3, depth=2)
+    # None, 32 single waypoints, then 3 of them each extended by the 31 others.
+    assert len(flown) == 1 + 32 + 3 * 31
+    plan, value = best_plan(flown, 2)
+    assert plan == good and value["cost"] == pytest.approx(55.0)
+    assert best_plan(flown, 1)[0] == ()                            # without it: straight ahead
+    assert hidden not in flown       # the price of the beam: only the 3 cheapest are extended
