@@ -6,11 +6,12 @@ Three planners on the 200 held-out starts of the oriented target:
   the side of the start, only if the straight way to the hold point crosses it;
 - the learned planner, if given: a policy choosing from the menu;
 - the oracle, with ``--oracle``: every choice of the menu flown from every
-  start and the best one kept, docking first, then least delta-v. No planner
-  choosing from this menu, with these pilots, can do better, so it measures
-  how much room the rule leaves.
+  start and the best one kept, docking first, then the least cost of the
+  configuration, ``J = fuel_weight * delta_v + time_weight * T``. No planner
+  choosing from this menu, with these pilots, can do better on that cost, so
+  it measures how much room the rule leaves.
 
-Prints dockings, violations, median delta-v and time, dockings by start angle,
+Prints dockings, violations, median delta-v, time and cost, dockings by start angle,
 and how often the learned planner and the oracle choose the rule's side.
 
 Usage:
@@ -47,9 +48,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def summary(outcomes, delta_vs, times, violated, runs_for_sectors) -> dict:
+def summary(outcomes, delta_vs, times, violated, runs_for_sectors, weights) -> dict:
     docked = np.array([o is Outcome.DOCKED for o in outcomes])
+    costs = weights[0] * np.array(delta_vs) + weights[1] * np.array(times)
     return {
+        "cost_median": float(np.median(costs[docked])) if docked.any() else None,
         "docked": int(docked.sum()),
         "attempts": len(outcomes),
         "violations": int(np.sum(violated)),
@@ -64,7 +67,7 @@ def row(name: str, s: dict) -> str:
             if s["docked"] else f"{'-':>9s} {'-':>8s}")
     sectors = "  ".join(f"{d:>3d}/{n:<3d}" for d, n in s["docked_by_sector"])
     return (f"{name:<30s} {s['docked']:>3d}/{s['attempts']:<3d} {s['violations']:>5d}  "
-            f"{cost}   {sectors}")
+            f"{cost}  {s['cost_median']:6.1f}   {sectors}")
 
 
 def side(waypoint) -> int:
@@ -81,13 +84,14 @@ def main() -> None:
         config["planner"]["final"] = args.final
     env = make_env(config)
     seeds = list(range(HELD_OUT_SEED, HELD_OUT_SEED + args.episodes))
-    rule = env.pilot.planner
+    rule = env.rule
+    weights = (env.fuel_weight, env.time_weight)
     results, choices = {}, {}
 
     runs = evaluate(env.corridor, env.pilot, seeds)
     results["rule (V-bar plan)"] = summary(
         [r.outcome for r in runs], [r.delta_v for r in runs], [r.time for r in runs],
-        [r.violated for r in runs], runs)
+        [r.violated for r in runs], runs, weights)
     rule_sides = []
     for seed in seeds:
         env.corridor.reset(seed=seed)
@@ -101,7 +105,8 @@ def main() -> None:
                         seeds)
         name = Path(path).stem
         results[name] = summary([r.outcome for r in runs], [r.delta_v for r in runs],
-                                [r.time for r in runs], [r.violated for r in runs], runs)
+                                [r.time for r in runs], [r.violated for r in runs], runs,
+                                weights)
         picks = []
         for seed in seeds:
             obs, _ = env.reset(seed=seed)
@@ -115,7 +120,7 @@ def main() -> None:
             for action in range(env.action_space.n):
                 env.reset(seed=seed)
                 info = env.fly(action)
-                flights.append((info["outcome"] is not Outcome.DOCKED, info["delta_v"],
+                flights.append((info["outcome"] is not Outcome.DOCKED, env.cost(info),
                                 action, info, env.corridor.steps))
             best.append(min(flights, key=lambda f: (f[0], f[1])))
         starts = []
@@ -125,15 +130,17 @@ def main() -> None:
         oracle_runs = [type("Run", (), {"start": s, "outcome": f[3]["outcome"]})
                        for s, f in zip(starts, best, strict=True)]
         results["oracle (best of the menu)"] = summary(
-            [f[3]["outcome"] for f in best], [f[1] for f in best],
+            [f[3]["outcome"] for f in best], [f[3]["delta_v"] for f in best],
             [f[4] * env.config.time_step for f in best],
-            [f[3]["keep_out_violated"] for f in best], oracle_runs)
+            [f[3]["keep_out_violated"] for f in best], oracle_runs, weights)
         choices["oracle (best of the menu)"] = [f[2] for f in best]
 
     labels = "  ".join(f"{f'{a:.0f}-{b:.0f}°':>7s}"
                        for a, b in zip(SECTORS[:-1], SECTORS[1:], strict=True))
-    print(f"{'':<58s}   docked, by start angle from the docking axis")
-    print(f"{'planner':<30s} {'docked':>7s} {'viol.':>5s}  {'Δv':>9s} {'time':>8s}   {labels}")
+    print(f"cost J = {weights[0]:g} per m/s of delta-v + {weights[1]:g} per s of flight")
+    print(f"{'':<66s}   docked, by start angle from the docking axis")
+    print(f"{'planner':<30s} {'docked':>7s} {'viol.':>5s}  {'Δv':>9s} {'time':>8s}  {'J':>6s}   "
+          f"{labels}")
     for name, s in results.items():
         print(row(name, s))
     agreement = {}

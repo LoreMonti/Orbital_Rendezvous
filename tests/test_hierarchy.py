@@ -176,6 +176,22 @@ def test_the_pilot_goes_straight_to_the_hold_point_from_the_front():
     assert len(pilot.plan) == 1
 
 
+def test_best_model_can_count_time_in_its_tie_break(tmp_path):
+    best = BestModel(lambda: None, tmp_path / "best.zip", time_weight=2e-4)
+    runs = [SimpleNamespace(outcome=Outcome.DOCKED, delta_v=0.9, time=2000.0),
+            SimpleNamespace(outcome=Outcome.DOCKED, delta_v=1.0, time=1000.0)]
+    import orbital_rendezvous.evaluation as evaluation
+    original = evaluation.evaluate
+    evaluation.evaluate = lambda env, controller, seeds: runs
+    try:
+        best._env, best.model = object(), SimpleNamespace(predict=None)
+        success, cost = best.measure()
+    finally:
+        evaluation.evaluate = original
+    # 0.9 + 0.4 and 1.0 + 0.2: the median of 1.3 and 1.2.
+    assert success == 1.0 and cost == pytest.approx(1.25)
+
+
 def test_best_model_keeps_the_best_not_the_last(tmp_path):
     best = BestModel(lambda: None, tmp_path / "best.zip", evaluate_every=1)
     saved = []

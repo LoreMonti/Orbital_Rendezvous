@@ -562,8 +562,9 @@ class BestModel(BaseCallback):
     stage a curriculum has reached, from validation starts: seeds of their own,
     apart from both the training starts and the held-out starts of the final
     evaluation, so that choosing the best does not peek at the test. The
-    policy that docks most often is saved to ``path``, the one spending less
-    fuel on a tie. PPO can learn a manoeuvre and later lose it; the curricula
+    policy that docks most often is saved to ``path``, the cheaper one on a
+    tie: less delta-v, plus ``time_weight`` m/s per second of flight when time
+    counts too. PPO can learn a manoeuvre and later lose it; the curricula
     of Step 15 did, twice.
     """
 
@@ -574,11 +575,13 @@ class BestModel(BaseCallback):
         evaluate_every: int = 25,
         episodes: int = 50,
         first_seed: int = 90_000,
+        time_weight: float = 0.0,
         verbose: int = 0,
     ) -> None:
         super().__init__(verbose)
         self.make_env = make_env
         self.path = path
+        self.time_weight = time_weight
         self.evaluate_every = evaluate_every
         self.seeds = range(first_seed, first_seed + episodes)
         self.best: tuple[float, float] | None = None
@@ -587,7 +590,7 @@ class BestModel(BaseCallback):
         self._rollouts = 0
 
     def measure(self) -> tuple[float, float]:
-        """Docking rate, and median delta-v of the dockings, of the deterministic policy."""
+        """Docking rate, and median cost of the dockings, of the deterministic policy."""
         from .evaluation import evaluate
 
         if self._env is None:
@@ -595,7 +598,8 @@ class BestModel(BaseCallback):
         runs = evaluate(
             self._env, lambda e, obs: self.model.predict(obs, deterministic=True)[0], self.seeds
         )
-        docked = [r.delta_v for r in runs if r.outcome is Outcome.DOCKED]
+        docked = [r.delta_v + self.time_weight * r.time for r in runs
+                  if r.outcome is Outcome.DOCKED]
         return len(docked) / len(runs), float(np.median(docked)) if docked else float("inf")
 
     @staticmethod

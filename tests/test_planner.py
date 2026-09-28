@@ -81,10 +81,51 @@ def test_the_reward_is_docking_or_not_less_the_fuel():
     for outcome, expected in ((Outcome.DOCKED, 100.0 - 10 * 0.8),
                               (Outcome.KEEP_OUT, -100.0 - 10 * 0.8),
                               (Outcome.TIMEOUT, -100.0 - 10 * 0.8)):
-        env.fly = lambda action, o=outcome: {"outcome": o, "delta_v": 0.8}
+        env.fly = lambda action, o=outcome: {"outcome": o, "delta_v": 0.8, "time": 1500.0}
         _, reward, terminated, _, info = env.step(3)
         assert reward == pytest.approx(expected) and terminated
         assert info["is_success"] is (outcome is Outcome.DOCKED)
+
+
+def test_time_counts_in_the_cost_when_weighted():
+    env = planner_env()
+    env.time_weight = 0.01
+    env.reset(seed=0)
+    env.fly = lambda action: {"outcome": Outcome.DOCKED, "delta_v": 0.8, "time": 1500.0}
+    _, reward, _, _, _ = env.step(3)
+    assert reward == pytest.approx(100.0 - 10 * 0.8 - 0.01 * 1500.0)
+
+
+def test_the_relative_reward_is_measured_against_the_rule_from_the_same_start():
+    env = planner_env(max_steps=5)
+    env.relative, env.time_weight = True, 0.01
+    env.reset(seed=3)
+    start = env.state.copy()
+    seen = []
+    env.fly = lambda action: {"outcome": Outcome.DOCKED, "delta_v": 0.8, "time": 1500.0}
+
+    def rule_flight(state):
+        seen.append(state.copy())
+        return {"outcome": Outcome.DOCKED, "delta_v": 1.0, "time": 1200.0}
+
+    env.fly_rule = rule_flight
+    _, reward, _, _, info = env.step(3)
+    np.testing.assert_array_equal(seen[0], start)          # the rule flies the same start
+    # Docked, plus J_rule - J = (10 + 12) - (8 + 15) = -1: worse than the rule by 1.
+    assert reward == pytest.approx(100.0 - 1.0)
+    assert info["rule_cost"] == pytest.approx(22.0)
+
+
+def test_the_rule_replay_starts_where_the_choice_did():
+    env = planner_env(max_steps=5)
+    env.reset(seed=3)
+    start = env.state.copy()
+    env.fly(7)
+    assert not np.array_equal(env.state, start)
+    env.fly_rule(start)
+    # The pilot's plan was rebuilt from that start with the rule, not the choice.
+    assert env.corridor.steps == 5
+    assert env.pilot.planner is env.rule
 
 
 def test_the_observation_is_the_start_state():

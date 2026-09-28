@@ -92,7 +92,8 @@ def make_env(config: dict[str, Any]):
         pilot.keep_out = env_config.keep_out_radius
         menu = waypoint_menu(tuple(planner["menu_radii"]), planner["menu_directions"])
         return PlannerEnv(RendezvousEnv(env_config, reward_config), pilot, menu,
-                          planner["fuel_weight"])
+                          planner["fuel_weight"], planner.get("time_weight", 0.0),
+                          planner.get("relative", False))
     goal_config = build_goal_config(config)
     if goal_config is not None:
         return GoToEnv(env_config, reward_config, goal_config)

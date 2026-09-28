@@ -244,6 +244,31 @@ computed before any training, said how much there was to win, 3 %, and so how
 to read the result: the learned planner matches the rule and takes the little
 the rule leaves, it does not find a better plan.
 
+### Step 17b — Time in the cost, the rule as a baseline
+
+- [x] Flaw of the Step 17 planner: in front of the port a detour through a point 60 m out on the axis, nearly free in fuel, 580 s longer
+- [x] Cost $`J = 50\,\Delta v + 0.01\,T`$ in the reward, the oracle and the choice of the best model; with it the oracle flies straight to the hold point from 151 starts and beats the rule by 1 %
+- [x] Reward relative to the rule flown from the same start, $`J_\text{rule} - J`$ (`configs/ppo_planner_relative.yaml`)
+- [x] Result, two seeds: 199 and 200 of 200, $`J`$ 68.8 and 66.4, worse than the rule; each planner fixed its choices within 13 000 approaches
+
+*Lesson.* The diagnosis was half right. The reward was noisy, but the
+obstacle was exploration: once only a few safe choices were ever tried, no
+reward, however clean, could show that the others were cheaper.
+
+### Step 17c — Learning the planner from the oracle
+
+- [x] `oracle_costs`: every choice flown from a start; `imitate_oracle.py` labels 4000 training starts in parallel and reuses the labels
+- [x] `imitation.py`: soft targets on the cost saved, failures at zero; the same network as the PPO planner, saved and evaluated as one
+- [x] Result: straight ahead on 152 starts, $`J`$ 63.3, but 197 of 200: three corners cut too close to the sphere, each with a wider choice that docks as its second
+- [x] Fix: the expected cost of the choice added to the loss, a failure priced at 200; $`\lambda`$ = 0, 1, 5, 20 gave 197, 198, 199, 200 dockings
+- [x] With $`\lambda = 20`$, three seeds: **200 of 200, no violation, $`J`$ 63.6, the oracle's cost**, 1715 s against 1760 for the rule
+
+*Lesson.* On a discrete decision whose options a simulator can fly, learning
+from the whole search beat learning from trials. The oracle's cheapest choice
+hugs the edge of what is allowed, so imitation alone learned to cut corners;
+pricing a failure into the fit, as a reward would, taught it to keep a margin
+at almost no cost.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -279,7 +304,7 @@ plan, at much the procedure's cost.
   caused it:
   - [x] Step 17: a learned planner chooses the waypoint from a menu, a
     discrete choice, since behind the station the best side jumps; 200 / 200,
-    within 0.02 m/s of an oracle that flies every choice;
+    and taught from the oracle (17c) at the best cost the menu allows;
   - [ ] Step 18: it also chooses how many waypoints, one at a time, at each
     arrival deciding on another waypoint or the hold point;
   - [ ] Step 19: it also chooses when to move on to the next waypoint (the

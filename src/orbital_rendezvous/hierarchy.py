@@ -127,9 +127,17 @@ class PlannerEnv(gym.Env):
     One step per episode, a contextual bandit: the agent sees the start state
     and picks action 0, straight to the hold point, or ``k``, through waypoint
     ``k - 1`` of ``menu``; a `HierarchicalPilot` with that one-waypoint plan
-    then flies the whole approach in the inner corridor environment. The
-    reward is ``success_bonus`` on docking, ``failure_penalty`` otherwise,
-    timeout included, less ``fuel_weight`` per m/s of delta-v.
+    then flies the whole approach in the inner corridor environment.
+
+    The reward is ``success_bonus`` on docking, ``failure_penalty`` otherwise,
+    timeout included, less the cost of the approach,
+    ``J = fuel_weight * delta_v + time_weight * T``. With ``relative``, the
+    V-bar procedure's rule is flown from the same start too, and the reward
+    counts ``J_rule - J`` instead of ``-J``: how much better than the rule the
+    choice did from here. The cost of an approach depends mostly on where it
+    starts, a tenth of a m/s between starts against a hundredth between
+    choices; measured against the rule, the start cancels and what is left is
+    the choice.
 
     The choice is discrete on purpose: behind the station the best side jumps
     at 180 degrees, and a categorical policy makes that jump where two of its
@@ -145,10 +153,14 @@ class PlannerEnv(gym.Env):
         pilot: HierarchicalPilot,
         menu: np.ndarray,
         fuel_weight: float = 10.0,
+        time_weight: float = 0.0,
+        relative: bool = False,
     ) -> None:
         super().__init__()
         self.corridor, self.pilot, self.menu = corridor, pilot, np.asarray(menu, dtype=float)
-        self.fuel_weight = fuel_weight
+        self.fuel_weight, self.time_weight, self.relative = fuel_weight, time_weight, relative
+        # The pilot's own planner, the procedure's rule, before any choice replaces it.
+        self.rule = pilot.planner
         self.config = corridor.config
         self.action_space = gym.spaces.Discrete(1 + len(self.menu))
         self.observation_space = gym.spaces.Box(
@@ -163,6 +175,10 @@ class PlannerEnv(gym.Env):
 
     def waypoint(self, action: int) -> np.ndarray | None:
         return None if action == 0 else self.menu[action - 1]
+
+    def cost(self, info: dict[str, Any]) -> float:
+        """``J = fuel_weight * delta_v + time_weight * T`` of a flown approach."""
+        return self.fuel_weight * info["delta_v"] + self.time_weight * info["time"]
 
     def _observation(self) -> np.ndarray:
         cfg = self.config
@@ -179,25 +195,57 @@ class PlannerEnv(gym.Env):
         self.steps = 0
         return self._observation(), {}
 
-    def fly(self, action: int) -> dict[str, Any]:
-        """The whole approach through the chosen waypoint; the last step's info, with totals."""
-        chosen = self.waypoint(int(action))
-        self.pilot.planner = lambda state: chosen
+    def _fly(self, planner) -> dict[str, Any]:
+        """The whole approach from the current start with ``planner``, with totals."""
+        self.pilot.planner = planner
         obs, delta_v, violated, done = self.corridor._observation(), 0.0, False, False
         while not done:
             obs, _, terminated, truncated, info = self.corridor.step(self.pilot(self.corridor, obs))
             delta_v += info["delta_v"]
             violated = violated or info.get("keep_out_violated", False)
             done = terminated or truncated
-        info = dict(info, delta_v=delta_v, keep_out_violated=violated, choice=int(action))
-        return info
+        time = self.corridor.steps * self.config.time_step
+        return dict(info, delta_v=delta_v, keep_out_violated=violated, time=time)
+
+    def fly(self, action: int) -> dict[str, Any]:
+        """The whole approach through the chosen waypoint."""
+        chosen = self.waypoint(int(action))
+        return dict(self._fly(lambda state: chosen), choice=int(action))
+
+    def fly_rule(self, start: np.ndarray) -> dict[str, Any]:
+        """The same approach from ``start`` with the procedure's rule."""
+        self.corridor.state, self.corridor.steps = start.copy(), 0
+        return self._fly(self.rule)
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        start = self.corridor.state.copy()
         info = self.fly(action)
         docked = info["outcome"] is Outcome.DOCKED
         reward = (self.corridor.reward_config.success_bonus if docked
                   else self.corridor.reward_config.failure_penalty)
-        reward -= self.fuel_weight * info["delta_v"]
-        self.steps = self.corridor.steps
+        reward -= self.cost(info)
+        steps, final = self.corridor.steps, self.corridor.state.copy()
+        if self.relative:
+            rule = self.fly_rule(start)
+            reward += self.cost(rule)
+            info["rule_cost"] = self.cost(rule)
+            # The episode's record is the chosen approach, not the rule's replay.
+            self.corridor.state, self.corridor.steps = final, steps
+        self.steps = steps
         info["is_success"] = docked
         return self._observation(), float(reward), True, False, info
+
+
+def oracle_costs(env: PlannerEnv, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Every choice of the menu flown from the start ``seed`` selects.
+
+    Returns the planner's observation of that start, the cost ``J`` of each
+    choice, and whether each one docked: the full information a bandit only
+    sees one arm of, which the simulator can give for all of them.
+    """
+    costs, docked = np.zeros(env.action_space.n), np.zeros(env.action_space.n, dtype=bool)
+    for action in range(env.action_space.n):
+        obs, _ = env.reset(seed=seed)
+        info = env.fly(action)
+        costs[action], docked[action] = env.cost(info), info["outcome"] is Outcome.DOCKED
+    return obs, costs, docked

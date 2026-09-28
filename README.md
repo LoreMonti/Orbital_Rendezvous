@@ -32,7 +32,8 @@ used.*
   the classical V-bar procedure dock **200 times in 200**, with no violation,
   on all nine pairings of trained seeds, at much the procedure's cost; and a
   learned planner that chooses their waypoint, in place of the procedure's
-  rule, still docks 200 times in 200, with 1 to 2 % less fuel.
+  rule, still docks 200 times in 200 and, taught from every choice, matches
+  the best choice there is, 1 % cheaper and 45 s quicker than the rule.
 
 ## Contents
 
@@ -831,6 +832,84 @@ counts fuel and not time. It never flies straight to the hold point, but
 through a point 60 m out on the docking axis instead, which amounts to the
 same.
 
+### Learning the planner from the oracle
+
+The learned planner had one visible flaw: in front of the port, where the rule
+flies straight to the hold point, it went through a point 60 m out on the axis
+instead, almost free in fuel but ten minutes longer. Its reward did not count
+time. The cost of an approach became
+
+```math
+J = w_f\,\Delta v + w_t\,T, \qquad w_f = 50\ \text{per m/s}, \quad w_t = 0.01\ \text{per s}
+```
+
+so that the ten-minute detour costs 5.8, as 0.12 m/s would. With time counted,
+the oracle flies straight to the hold point from 151 starts of 200, and beats
+the rule by about 1 % of $`J`$: 63.6 against 64.4.
+
+A second change aimed at the noise of the reward. The cost of an approach
+depends mostly on its start, a few tenths of a m/s between a near and a far
+one, against a few hundredths between choices from the same start. The rule
+was therefore flown from the same start too, and the planner rewarded for
+$`J_\text{rule} - J`$, the cost saved against it, in which the start cancels.
+On two seeds this did not help: one planner docked 199 times in 200, the other
+200, at $`J`$ of 68.8 and 66.4, both worse than the rule. The validation
+curves showed why. Each planner committed to a few choices within the first
+13 000 approaches and never tried the others again: early on only docking
+matters, and a policy that has become nearly deterministic on the safe
+choices no longer explores. The noise was real, but exploration was the
+obstacle.
+
+A bandit sees one choice per approach, the one it tried; a simulator can fly
+them all. The planner was then **taught the oracle's ranking** instead: for
+4000 training starts, seeds apart from both validation and test, every choice
+was flown and its cost recorded, about 20 minutes on four processes, and the
+same network was fitted to soft targets
+
+```math
+p_k = \frac{e^{-(J_k - J_\text{min})/T}}{\sum_j e^{-(J_j - J_\text{min})/T}}, \qquad p_k = 0 \text{ if choice } k \text{ does not dock}
+```
+
+with $`T = 1`$, so that near-ties share the target rather than one being
+picked by noise. This is supervised learning from a search, not reinforcement
+learning, and it reproduced the oracle's choices, straight ahead on 152
+starts, but docked only 197 times in 200. The three failures were all behind
+the station, and all the same: the cheapest choice that docks is often the one
+that passes closest to the keep-out sphere, the planner learned to cut that
+corner, and near the edge a small error is a violation. In each case a choice
+a little wider, which docks, was its second.
+
+The fix prices a failure into the fit, as the bandit's reward does. The loss
+charges the expected cost of the policy's choice,
+
+```math
+\mathcal{L} = -\sum_k p_k \log \pi_k + \lambda \sum_k \pi_k\,\frac{J_k + C\,\mathbb{1}[k \text{ fails}]}{C}, \qquad C = 200
+```
+
+so that probability on a choice that fails costs far more than a little fuel
+saves, and near the edge the planner learns to keep a margin:
+
+| planner, same pilots, cost $`J`$ | docked | violations | time, median | $`J`$, median | straight to the hold point |
+| --- | --- | --- | --- | --- | --- |
+| rule of the V-bar procedure | 200 / 200 | 0 | 1760 s | 64.4 | — |
+| PPO, fuel only ($`w_f = 50`$) | 200 / 200 | 0 | 2170 s | 67.4 | 0 |
+| PPO, time and the rule as baseline | 199–200 / 200 | 0–1 | 2075–2150 s | 66.4–68.8 | 0–44 |
+| oracle's ranking, $`\lambda = 0`$ | 197 / 200 | 3 | 1700 s | 63.3 | 152 |
+| $`\lambda = 1`$ | 198 / 200 | 2 | 1710 s | 63.4 | 151 |
+| $`\lambda = 5`$ | 199 / 200 | 1 | 1710 s | 63.6 | 150 |
+| **$`\lambda = 20`$, three seeds** | **200 / 200** | **0** | **1715 s** | **63.6** | 149 |
+| oracle, best of the menu | 200 / 200 | 0 | 1710 s | 63.6 | 151 |
+
+With $`\lambda = 20`$ the planner docks every time, flies straight ahead
+wherever that is safe, and matches the oracle's cost: the best any choice from
+this menu, with these pilots, could do, 1 % and 45 s better than the rule. The
+three seeds give identical results, since the seed only changes the network's
+initial weights and the split of the labels, not the labels themselves. The
+margin over the rule is small because the rule is nearly optimal; what the
+planner shows is that the decision can be learned, and learned to the best
+possible, once it is taught from every choice rather than from the one it
+happened to try.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -909,9 +988,12 @@ lost. What the pilots do not do is beat the procedure clearly on cost: to the
 hold point they land on much the same trade-off as its LQR, and down the
 corridor they buy speed with fuel. A learned planner then took back the first
 decision of the plan, where to put the waypoint, and kept the approach at 200
-in 200, choosing within 0.02 m/s of the best choice there was. It did so only
-once fuel weighed enough in its reward to be worth refining: at a fifth of the
-weight it settled on two safe choices and stopped. What remains hand-written
+in 200. Trained by trial and error it settled early on a few safe choices and
+stopped exploring, even with time in its cost and the rule as its baseline;
+taught instead the ranking of every choice, which a simulator can fly, and
+charged for the risk of a failure, it matched the best choice there was. On a
+discrete decision whose options can all be simulated, learning from the full
+search beat learning from trials. What remains hand-written
 is the menu of waypoints, the sequence waypoint, hold point, corridor, and the
 handover, so the system is still a learned plan inside a classical frame, one
 decision further along the way to a fully learned one.
@@ -949,8 +1031,8 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor.yaml` for the oriented target and its curricula, and in
 `configs/ppo_goto.yaml` and `configs/ppo_final_approach.yaml` for its two
-learned pilots, `configs/ppo_goto_menu.yaml` and `configs/ppo_planner.yaml`
-for the learned planner. Each
+learned pilots, `configs/ppo_goto_menu.yaml`, `configs/ppo_planner.yaml` and
+`configs/ppo_planner_relative.yaml` for the learned planner. Each
 script needs no arguments for the default run and lists its options with
 `--help`.
 
@@ -966,6 +1048,7 @@ script needs no arguments for the default run and lists its options with
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 | `pilots_summary.py` | the two learned pilots: a few approaches next to the V-bar procedure's, and the cost of every pairing, from the saved results |
 | `planner_eval.py` | ways of choosing the waypoint with the same pilots: the procedure's rule, learned planners and the oracle, on the 200 unseen starts |
+| `imitate_oracle.py` | the planner taught the oracle's ranking: every choice flown from 4000 training starts, in parallel, then a supervised fit with the risk of failure priced in |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -999,6 +1082,9 @@ caffeinate -ims python scripts/train.py --config configs/ppo_goto_menu.yaml --no
 caffeinate -ims python scripts/train.py --config configs/ppo_planner.yaml --no-render \
     --output models/planner_seed0.zip                  # the planner, about 40 min
 python scripts/planner_eval.py --planner models/planner_seed0_best.zip --oracle
+caffeinate -ims python scripts/imitate_oracle.py --output models/planner_oracle_seed0.zip
+python scripts/planner_eval.py --config configs/ppo_planner_relative.yaml \
+    --planner models/planner_oracle_seed0.zip --oracle
 ```
 
 As a library:
@@ -1032,13 +1118,15 @@ Orbital_Rendezvous/
 │   ├── ppo_goto.yaml       # the go-to pilot: fly to a goal point and stop
 │   ├── ppo_final_approach.yaml  # the final-approach pilot: down the corridor
 │   ├── ppo_goto_menu.yaml  # the go-to pilot, with the planner's menu among its goals
-│   └── ppo_planner.yaml    # the learned planner, choosing the waypoint from the menu
+│   ├── ppo_planner.yaml    # the learned planner, choosing the waypoint from the menu
+│   └── ppo_planner_relative.yaml  # the same, paid for time, against the rule
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API, and GoToEnv
 │   ├── rewards.py          # potential-based shaping, fuel and terminal terms
 │   ├── baselines.py        # LQR, two-impulse transfer, V-bar procedure and its planner
-│   ├── hierarchy.py        # the learned pilots, and the planner's environment
+│   ├── hierarchy.py        # the learned pilots, the planner's environment, the oracle
+│   ├── imitation.py        # the planner fitted to the oracle's ranking
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
@@ -1056,8 +1144,9 @@ Orbital_Rendezvous/
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
 │   ├── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 │   ├── pilots_summary.py   # the two learned pilots in one figure
-│   └── planner_eval.py     # rule, learned planners and oracle, same pilots
-├── tests/                  # 135 tests, one file per module or feature
+│   ├── planner_eval.py     # rule, learned planners and oracle, same pilots
+│   └── imitate_oracle.py   # label every choice, then fit the planner to them
+├── tests/                  # 146 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -1143,7 +1232,15 @@ would catch them.
   a docking and $`-100`$ for anything else, a timeout included, less the fuel,
   so that waiting never pays; its observation is the start state; and a
   planner configuration builds its environment from saved pilots and trains
-  with its best model kept.
+  with its best model kept. Time enters the cost only when weighted, and the
+  relative reward is $`J_\text{rule} - J`$ with the rule flown from exactly
+  the same start; the best model can break ties on the same cost.
+- **Learning from the oracle.** The oracle flies every choice from the same
+  start; the targets never favour a choice that fails and share weight between
+  near-ties, as the temperature says; the fit learns a choice that jumps, as
+  the side behind the station does; and the expected-cost term, with a failure
+  priced in, moves probability away from a failing choice the targets alone
+  cannot tell apart, towards the optimum computed by hand.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are

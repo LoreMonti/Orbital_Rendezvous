@@ -1,0 +1,192 @@
+{
+ "description": "Choosing the waypoint with the same frozen pilots, on 200 held-out starts of the oriented target.",
+ "pilots": {
+  "go_to": "models/goto_menu_seed0_best.zip",
+  "final": "models/final_approach_seed1_best.zip"
+ },
+ "results": {
+  "rule (V-bar plan)": {
+   "cost_median": 64.38231428333503,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9290842894499948,
+   "time_median": 1760.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_seed0_best": {
+   "cost_median": 67.3584153201544,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.909296812693389,
+   "time_median": 2170.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_oracle_seed0": {
+   "cost_median": 63.59334571443398,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9275240266611519,
+   "time_median": 1715.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_oracle_seed1": {
+   "cost_median": 63.59334571443398,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9275240266611519,
+   "time_median": 1715.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "planner_oracle_seed2": {
+   "cost_median": 63.59334571443398,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9275240266611519,
+   "time_median": 1715.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "oracle (best of the menu)": {
+   "cost_median": 63.59334571443398,
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9275240266611519,
+   "time_median": 1710.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  }
+ },
+ "agreement_with_rule": {
+  "planner_seed0_best": {
+   "behind": 71,
+   "same_side_as_rule": 66,
+   "direct": 0
+  },
+  "planner_oracle_seed0": {
+   "behind": 71,
+   "same_side_as_rule": 44,
+   "direct": 149
+  },
+  "planner_oracle_seed1": {
+   "behind": 71,
+   "same_side_as_rule": 44,
+   "direct": 149
+  },
+  "planner_oracle_seed2": {
+   "behind": 71,
+   "same_side_as_rule": 44,
+   "direct": 149
+  },
+  "oracle (best of the menu)": {
+   "behind": 71,
+   "same_side_as_rule": 41,
+   "direct": 151
+  }
+ }
+}
