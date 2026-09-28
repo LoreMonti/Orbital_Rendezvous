@@ -21,6 +21,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path as _Path
+
+# The study's package, next to this folder: experiments/teacher_student/teacher_student.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+# Default paths are relative to the repository root, where the scripts are run.
+STUDY = "experiments/teacher_student"
+
 import argparse
 import json
 from pathlib import Path
@@ -29,7 +37,8 @@ import numpy as np
 
 from orbital_rendezvous.evaluation import HELD_OUT_SEED, docked_by_sector, evaluate
 from orbital_rendezvous.rewards import Outcome
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
 
 SECTORS = (0.0, 45.0, 90.0, 135.0, 180.0)
 
@@ -38,13 +47,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", default="configs/ppo_planner.yaml")
+    parser.add_argument("--config", default=f"{STUDY}/configs/ppo_planner.yaml")
     parser.add_argument("--go-to", default=None, help="Overrides planner.go_to.")
     parser.add_argument("--final", default=None, help="Overrides planner.final.")
     parser.add_argument("--planner", nargs="*", default=[], help="Learned planners.")
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--episodes", type=int, default=200)
-    parser.add_argument("--results", default="assets/planner_evaluation.json")
+    parser.add_argument("--results", default=f"{STUDY}/assets/planner_evaluation.json")
     return parser.parse_args()
 
 

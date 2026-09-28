@@ -38,8 +38,9 @@ import numpy as np
 import torch
 from torch import nn
 
+from orbital_rendezvous.rewards import Outcome
+
 from .hierarchy import HierarchicalPilot, PlannerEnv
-from .rewards import Outcome
 
 MODES = ("straight", "around +x", "around -x")
 

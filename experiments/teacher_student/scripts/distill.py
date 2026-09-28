@@ -3,7 +3,7 @@
 The teacher, the system of Step 17c, flies training starts (seeds apart from
 validation and test), a share of them with noise added to the thrust it
 applies but not to the labels it gives; the flights are saved and reused. The
-student, a single network with two heads (see `orbital_rendezvous.distillation`),
+student, a single network with two heads (see `teacher_student.distillation`),
 is then fitted to them, and every few epochs flown on 50 validation starts;
 the student that docks most often, cheaper on a tie, is saved. Evaluate it
 with ``corridor_eval.py --student``.
@@ -15,6 +15,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path as _Path
+
+# The study's package, next to this folder: experiments/teacher_student/teacher_student.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+# Default paths are relative to the repository root, where the scripts are run.
+STUDY = "experiments/teacher_student"
+
 import argparse
 import json
 import time
@@ -23,10 +31,11 @@ from pathlib import Path
 
 import numpy as np
 
-from orbital_rendezvous.distillation import load_flights, save_flights
 from orbital_rendezvous.evaluation import evaluate
 from orbital_rendezvous.rewards import Outcome
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
+from teacher_student.distillation import load_flights, save_flights
 
 _ENV = None
 _PILOT = None
@@ -36,7 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", default="configs/ppo_planner_relative.yaml",
+    parser.add_argument("--config", default=f"{STUDY}/configs/ppo_planner_relative.yaml",
                         help="The teacher's pilots and menu, and the weights of the cost J.")
     parser.add_argument("--planner", default="models/planner_oracle_seed0.zip",
                         help="The teacher's planner, from Step 17c.")
@@ -65,7 +74,7 @@ def _init(config_path: str, planner_path: str) -> None:
     global _ENV, _PILOT
     from stable_baselines3 import PPO
 
-    from orbital_rendezvous.distillation import learned_planner
+    from teacher_student.distillation import learned_planner
 
     _ENV = make_env(load_config(config_path))
     _PILOT = _ENV.pilot
@@ -73,7 +82,7 @@ def _init(config_path: str, planner_path: str) -> None:
 
 
 def _fly(task: tuple[int, float, float]) -> dict:
-    from orbital_rendezvous.distillation import teacher_flight
+    from teacher_student.distillation import teacher_flight
 
     seed, noise, radius = task
     rng = np.random.default_rng([seed, int(1000 * noise)])
@@ -99,7 +108,7 @@ def flights(args) -> list[dict]:
 
 def main() -> None:
     args = parse_args()
-    from orbital_rendezvous.distillation import (
+    from teacher_student.distillation import (
         MODES,
         Student,
         StudentPilot,

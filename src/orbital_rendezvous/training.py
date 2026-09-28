@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -57,8 +58,13 @@ def with_overrides(
     return config
 
 
-def build_model(config: dict[str, Any], seed: int, run_dir: Path) -> PPO:
-    """PPO on parallel environments, logging to ``run_dir``."""
+def build_model(
+    config: dict[str, Any],
+    seed: int,
+    run_dir: Path,
+    env_factory: Callable[[dict[str, Any]], Any] = make_env,
+) -> PPO:
+    """PPO on parallel environments built by ``env_factory(config)``, logging to ``run_dir``."""
     build_configs(config)   # validates the configuration before anything is written
     training = config["training"]
     if training.get("algorithm", "PPO") != "PPO":
@@ -73,7 +79,7 @@ def build_model(config: dict[str, Any], seed: int, run_dir: Path) -> PPO:
 
     set_random_seed(seed)
     vec_env = make_vec_env(
-        lambda: make_env(config),
+        lambda: env_factory(config),
         n_envs=training["n_envs"],
         seed=seed,
         monitor_dir=str(run_dir / "monitor"),
@@ -99,6 +105,7 @@ def train(
     output: Path,
     callbacks: list[BaseCallback] | None = None,
     checkpoints: bool = True,
+    env_factory: Callable[[dict[str, Any]], Any] = make_env,
 ) -> PPO:
     """Train, save the model to ``output`` and return it.
 
@@ -106,6 +113,8 @@ def train(
     to ``curriculum.json`` in the run directory. With ``training.best_model``
     the best policy on validation starts is saved next to ``output`` as
     ``<name>_best.zip``, and its measurements to ``best_model.json``.
+    ``env_factory`` builds the environment from the configuration: the
+    package's own by default, another for a study built on the package.
     """
     starts = config["training"].get("start_curriculum")
     stages: dict[str, Any] = {}
@@ -132,7 +141,7 @@ def train(
             **rule,
         )
         callbacks = [*(callbacks or []), *stages.values()]
-    model = build_model(config, seed, run_dir)
+    model = build_model(config, seed, run_dir, env_factory)
     if stages:
         # Before the first reset, which `learn` does before any callback runs,
         # so that the first episodes too start in the first stage.
@@ -151,7 +160,7 @@ def train(
         from .callbacks import BestModel
 
         # Saved next to the final model: models/x.zip and models/x_best.zip.
-        best = BestModel(lambda: make_env(config), output.with_name(output.stem + "_best.zip"),
+        best = BestModel(lambda: env_factory(config), output.with_name(output.stem + "_best.zip"),
                          **config["training"]["best_model"])
         callbacks = [*(callbacks or []), best]
     every = [

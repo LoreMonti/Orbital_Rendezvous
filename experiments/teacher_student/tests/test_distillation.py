@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from orbital_rendezvous import EnvConfig, RendezvousEnv
-from orbital_rendezvous.distillation import (
+from teacher_student.distillation import (
     Student,
     StudentPilot,
     load_flights,
@@ -23,8 +23,8 @@ from orbital_rendezvous.distillation import (
     teacher_flight,
     train_student,
 )
-from orbital_rendezvous.env import waypoint_menu
-from orbital_rendezvous.hierarchy import HierarchicalPilot, PlannerEnv
+from teacher_student.goto import waypoint_menu
+from teacher_student.hierarchy import HierarchicalPilot, PlannerEnv
 
 
 def test_the_mode_is_the_side_of_the_waypoint():

@@ -1,8 +1,7 @@
-# Configuration for Step 17b: the learned planner of Step 17, paid for time as
-# well as fuel, and measured against the V-bar procedure's rule from the same
-# start. For each approach it chooses the waypoint, from a menu, that two
-# frozen pilots then fly. The environment is the oriented target of
-# configs/ppo_corridor.yaml.
+# Configuration for Step 17: the learned planner. For each approach it chooses
+# the waypoint, from a menu, that two frozen pilots then fly: the go-to pilot
+# to the waypoint and the hold point, the final-approach pilot down the
+# corridor. The environment is the oriented target of configs/ppo_corridor.yaml.
 # Lengths are in metres, velocities in m/s, times in seconds.
 
 environment:
@@ -84,16 +83,14 @@ training:
   ent_coef: 0.01               # keeps trying the 33 choices early on
   fuel_curriculum: null
   start_curriculum: null
-  # Ties broken on the same cost as the reward: time_weight / fuel_weight m/s
-  # per second of flight.
-  best_model: {evaluate_every: 10, episodes: 50, time_weight: 2.0e-4}
+  best_model: {evaluate_every: 10, episodes: 50}
 
 planner:
   # The frozen pilots, trained with these configurations.
   go_to: models/goto_menu_seed0_best.zip
-  go_to_config: configs/ppo_goto_menu.yaml
+  go_to_config: experiments/teacher_student/configs/ppo_goto_menu.yaml
   final: models/final_approach_seed1_best.zip
-  final_config: configs/ppo_final_approach.yaml
+  final_config: experiments/teacher_student/configs/ppo_final_approach.yaml
   # The menu: action 0 flies straight to the hold point, action k through
   # waypoint k - 1, 16 directions around the station at 40 and 60 m.
   menu_radii: [40.0, 60.0]     # m
@@ -104,14 +101,6 @@ planner:
   # worth 1.7 points against 200 between docking and failing. At 50 it is
   # worth 8.5, and the planner refines its choices.
   fuel_weight: 50.0
-  # And this per second of flight: a detour of 580 s costs 5.8, as 0.12 m/s.
-  # Without it the planner flew a detour in front of the port, nearly free in
-  # fuel and ten minutes longer.
-  time_weight: 0.01
-  # Reward the cost saved against the rule flown from the same start, J_rule -
-  # J, rather than -J: the start sets most of the cost, the choice a little,
-  # and measured against the rule the start cancels.
-  relative: true
 
 live_view:
   enabled: true

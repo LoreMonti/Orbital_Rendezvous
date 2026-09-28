@@ -15,6 +15,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path as _Path
+
+# The study's package, next to this folder: experiments/teacher_student/teacher_student.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+# Default paths are relative to the repository root, where the scripts are run.
+STUDY = "experiments/teacher_student"
+
 import argparse
 import json
 from multiprocessing import Pool
@@ -23,8 +31,9 @@ from pathlib import Path
 import numpy as np
 
 from orbital_rendezvous.evaluation import HELD_OUT_SEED, start_angle
-from orbital_rendezvous.hierarchy import beam_search, best_plan
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
+from teacher_student.hierarchy import beam_search, best_plan
 
 _ENV = None
 
@@ -33,13 +42,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", default="configs/ppo_planner_relative.yaml",
+    parser.add_argument("--config", default=f"{STUDY}/configs/ppo_planner_relative.yaml",
                         help="Pilots, menu and the weights of the cost J.")
     parser.add_argument("--episodes", type=int, default=200)
     parser.add_argument("--width", type=int, default=3)
     parser.add_argument("--depth", type=int, default=3)
     parser.add_argument("--jobs", type=int, default=4)
-    parser.add_argument("--results", default="assets/plan_search.json")
+    parser.add_argument("--results", default=f"{STUDY}/assets/plan_search.json")
     return parser.parse_args()
 
 

@@ -44,6 +44,13 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# The study's scripts put their own package on the path before importing it.
+"experiments/teacher_student/scripts/*" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["orbital_rendezvous", "teacher_student"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "experiments/teacher_student/tests"]
 addopts = "-q"

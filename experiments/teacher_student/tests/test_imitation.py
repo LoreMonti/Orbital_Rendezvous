@@ -13,9 +13,9 @@ import torch
 from stable_baselines3 import PPO
 
 from orbital_rendezvous import EnvConfig, RendezvousEnv
-from orbital_rendezvous.env import waypoint_menu
-from orbital_rendezvous.hierarchy import HierarchicalPilot, PlannerEnv, oracle_costs
-from orbital_rendezvous.imitation import expected_costs, imitate, soft_targets
+from teacher_student.goto import waypoint_menu
+from teacher_student.hierarchy import HierarchicalPilot, PlannerEnv, oracle_costs
+from teacher_student.imitation import expected_costs, imitate, soft_targets
 
 
 def test_targets_never_favour_a_choice_that_fails():

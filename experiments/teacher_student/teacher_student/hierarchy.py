@@ -29,9 +29,11 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 
-from .baselines import side_waypoint
-from .env import EnvConfig, RendezvousEnv, goto_observation
-from .rewards import Outcome
+from orbital_rendezvous.baselines import side_waypoint
+from orbital_rendezvous.env import EnvConfig, RendezvousEnv
+from orbital_rendezvous.rewards import Outcome
+
+from .goto import goto_observation
 
 Policy = Callable[[np.ndarray], np.ndarray]
 FINAL_LOW = RendezvousEnv().observation_space.low

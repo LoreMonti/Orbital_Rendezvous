@@ -209,7 +209,11 @@ start, up to 145–155° on two seeds of three, but not from directly behind, an
 twice as much training did not move it. On the starts they dock, the agents are
 faster or cheaper than the procedure, never both, and never as reliable.
 
-## Step 16 — Two learned pilots on the classical plan
+## Steps 16–20 — A side study: learning from a teacher
+
+- [x] **Set aside** in [`experiments/teacher_student`](experiments/teacher_student), with its code, configurations, tests and results: it answered whether a network can fly the corridor (596 of 600 by imitation), not whether reinforcement learning can discover it alone, the question of this project
+
+### Step 16 — Two learned pilots on the classical plan
 
 - [x] Diagnosis of the Step 15 agents behind the station: from 160–180° they fail 18 times in 18, the best one flying straight into the back of the sphere, and they only ever go around on the side they start from
 - [x] Hypothesis: the optimal action jumps between the two sides at 180°, which a continuous network cannot do
@@ -227,7 +231,7 @@ With both, the same PPO that could not hold the corridor from behind docks
 every time. On cost it matches the classical procedure rather than beating
 it, so the win is reliability with learned control, not a better controller.
 
-## Step 17 — A learned planner
+### Step 17 — A learned planner
 
 - [x] `waypoint_menu`: 16 directions around the station at 40 and 60 m; the go-to pilot retrained with the menu among its goals (`configs/ppo_goto_menu.yaml`), 100 % on validation on 3 / 3 seeds, 200 / 200 with the rule's plan
 - [x] `PlannerEnv`: one step per approach, a discrete choice from the menu, since the best side jumps at 180°; the frozen pilots fly the rest; $`+100`$ for a docking, $`-100`$ otherwise, less $`w_f\,\Delta v`$
@@ -244,7 +248,7 @@ computed before any training, said how much there was to win, 3 %, and so how
 to read the result: the learned planner matches the rule and takes the little
 the rule leaves, it does not find a better plan.
 
-### Step 17b — Time in the cost, the rule as a baseline
+#### Step 17b — Time in the cost, the rule as a baseline
 
 - [x] Flaw of the Step 17 planner: in front of the port a detour through a point 60 m out on the axis, nearly free in fuel, 580 s longer
 - [x] Cost $`J = 50\,\Delta v + 0.01\,T`$ in the reward, the oracle and the choice of the best model; with it the oracle flies straight to the hold point from 151 starts and beats the rule by 1 %
@@ -255,7 +259,7 @@ the rule leaves, it does not find a better plan.
 obstacle was exploration: once only a few safe choices were ever tried, no
 reward, however clean, could show that the others were cheaper.
 
-### Step 17c — Learning the planner from the oracle
+#### Step 17c — Learning the planner from the oracle
 
 - [x] `oracle_costs`: every choice flown from a start; `imitate_oracle.py` labels 4000 training starts in parallel and reuses the labels
 - [x] `imitation.py`: soft targets on the cost saved, failures at zero; the same network as the PPO planner, saved and evaluated as one
@@ -269,7 +273,7 @@ hugs the edge of what is allowed, so imitation alone learned to cut corners;
 pricing a failure into the fit, as a reward would, taught it to keep a margin
 at almost no cost.
 
-## Step 18 — More waypoints? Measured, not built
+### Step 18 — More waypoints? Measured, not built
 
 - [x] A planner may return several waypoints; `beam_search`: plans of up to three waypoints, only the three cheapest that dock extended at each level, 219 flights per start instead of about 36 000
 - [x] `plan_search.py` on the 200 test starts: the best plan never has a second or third waypoint, not even from behind the station; 151 plans fly straight to the hold point, 49 through one waypoint
@@ -279,7 +283,7 @@ at almost no cost.
 One sphere and one corridor need one point to go around; the idea of learning
 the length of the plan was sound, but the problem gives it nothing to learn.
 
-## Step 20 — One network again: distillation
+### Step 20 — One network again: distillation
 
 - [x] Steps 18 and 19 set aside: distillation removes the remaining rules at once, since the student has no menu, sequence or thresholds
 - [x] `distillation.py`: the teacher is the system of Step 17c; its flights record the student's observations and the teacher's commands as labels, with noise on the thrust applied but not on the labels (DART)
@@ -323,37 +327,20 @@ is finding a slow approach reliably.
 
 ### 2. The oriented target, if taken further
 
-Step 16 docks every time with two learned pilots on the V-bar procedure's
-plan, at much the procedure's cost.
+Reinforcement learning from scratch reached 153 of 200 (Step 15). The side
+study located what stops it: behind the station the best side jumps, which a
+continuous policy cannot do, and PPO loses manoeuvres it has learned; starts
+on one side only, which remove the jump, went to 175° before the stage was
+lost. Each has a remedy that stays within reinforcement learning.
 
-- [ ] Back to a fully learned system, one piece at a time, each checked to
-  keep 200 / 200 before the next, so that a failure points to the piece that
-  caused it:
-  - [x] Step 17: a learned planner chooses the waypoint from a menu, a
-    discrete choice, since behind the station the best side jumps; 200 / 200,
-    and taught from the oracle (17c) at the best cost the menu allows;
-  - [x] Step 18: how many waypoints; measured first, and more than one never
-    pays, so not built;
-  - [ ] Step 19, optional: when to move on to the next waypoint (the
-    termination of an option); distillation makes it unnecessary for a fully
-    learned system, since the student has no thresholds;
-  - [x] Step 20: distillation, one network trained to imitate the whole
-    system flight by flight, with a discrete choice of side next to its
-    continuous thrust; 596 of 600 over three seeds.
-- [ ] The last dockings: fine-tune the student with RL, starting from its
-  weights and kept at its best, to recover the one to three dockings in 200
-  it still loses in the last metre; or query the teacher from the states the
-  student visits (DAgger) rather than from noise alone.
-- [ ] Pilots trained for fuel: the go-to pilot with the engine switch and the
-  fuel budget of Step 13, since it spends most of the fuel and sits on the
-  procedure's trade-off; the final approach with a fuel weight, since it buys
-  speed with fuel.
-- [ ] Residual learning on the V-bar procedure: the thrust is the procedure's
-  plus a learned correction, a second way to put learning inside a safe plan,
-  to compare with the pilots.
-- [ ] A single agent, if taken up again: a mastery test on the whole range,
-  more seeds, and the side of approach as an input, so that the network does
-  not have to jump.
+- [ ] A policy with a discrete choice of side, taken by the policy itself at
+  the start and kept, next to its continuous thrust, with the two curricula of
+  Step 15.
+- [ ] The best policy on validation kept (`BestModel`), and a learning rate
+  that decays, so that a stage reached is not lost.
+- [ ] If successes stay too rare: an off-policy algorithm with Hindsight
+  Experience Replay, which relabels each failed approach as a success towards
+  the point it reached.
 
 ### 3. Three dimensions
 

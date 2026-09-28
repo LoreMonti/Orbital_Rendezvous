@@ -15,13 +15,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from orbital_rendezvous import EnvConfig, GoToConfig, GoToEnv, Outcome, RendezvousEnv
+from orbital_rendezvous import EnvConfig, Outcome, RendezvousEnv
 from orbital_rendezvous.baselines import side_waypoint
-from orbital_rendezvous.callbacks import BestModel
-from orbital_rendezvous.env import goto_observation
-from orbital_rendezvous.hierarchy import HierarchicalPilot
 from orbital_rendezvous.training import train
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
+from teacher_student.goto import GoToConfig, GoToEnv, goto_observation
+from teacher_student.hierarchy import HierarchicalPilot
 
 CONFIGS = Path(__file__).parents[1] / "configs"
 GOTO = EnvConfig(docking_radius=2.0, docking_speed=0.04)
@@ -174,37 +174,6 @@ def test_the_pilot_goes_straight_to_the_hold_point_from_the_front():
     pilot, _ = fake_pilot()
     pilot(SimpleNamespace(state=np.array([20.0, 150.0, 0.0, 0.0]), steps=0), None)
     assert len(pilot.plan) == 1
-
-
-def test_best_model_can_count_time_in_its_tie_break(tmp_path):
-    best = BestModel(lambda: None, tmp_path / "best.zip", time_weight=2e-4)
-    runs = [SimpleNamespace(outcome=Outcome.DOCKED, delta_v=0.9, time=2000.0),
-            SimpleNamespace(outcome=Outcome.DOCKED, delta_v=1.0, time=1000.0)]
-    import orbital_rendezvous.evaluation as evaluation
-    original = evaluation.evaluate
-    evaluation.evaluate = lambda env, controller, seeds: runs
-    try:
-        best._env, best.model = object(), SimpleNamespace(predict=None)
-        success, cost = best.measure()
-    finally:
-        evaluation.evaluate = original
-    # 0.9 + 0.4 and 1.0 + 0.2: the median of 1.3 and 1.2.
-    assert success == 1.0 and cost == pytest.approx(1.25)
-
-
-def test_best_model_keeps_the_best_not_the_last(tmp_path):
-    best = BestModel(lambda: None, tmp_path / "best.zip", evaluate_every=1)
-    saved = []
-    best.model = SimpleNamespace(save=lambda path: saved.append(best.num_timesteps),
-                                 logger=SimpleNamespace(record=lambda k, v: None))
-    readings = iter([(0.6, 1.0), (0.9, 1.2), (0.9, 1.1), (0.4, 0.8), (0.9, 1.3)])
-    best.measure = lambda: next(readings)
-    for step in range(5):
-        best.num_timesteps = step
-        best._on_rollout_end()
-    # Saved when docking improved, and on a tie only with less fuel.
-    assert saved == [0, 1, 2]
-    assert best.best == (0.9, 1.1)
 
 
 @pytest.mark.parametrize("name, kind", [("ppo_goto", GoToEnv), ("ppo_final_approach",

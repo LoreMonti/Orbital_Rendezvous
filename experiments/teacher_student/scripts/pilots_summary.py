@@ -15,6 +15,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path as _Path
+
+# The study's package, next to this folder: experiments/teacher_student/teacher_student.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+# Default paths are relative to the repository root, where the scripts are run.
+STUDY = "experiments/teacher_student"
+
 import argparse
 import json
 from pathlib import Path
@@ -30,11 +38,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--go-to", default="models/goto_seed1_best.zip")
     parser.add_argument("--final", default="models/final_approach_seed1_best.zip")
     parser.add_argument("--pilot-configs", nargs=2,
-                        default=["configs/ppo_goto.yaml", "configs/ppo_final_approach.yaml"])
+                        default=[f"{STUDY}/configs/ppo_goto.yaml",
+                                 f"{STUDY}/configs/ppo_final_approach.yaml"])
     parser.add_argument("--angles", nargs="*", type=float, default=[178.0, 150.0, 115.0, 30.0],
                         help="Start angles from the docking axis of the approaches drawn.")
-    parser.add_argument("--results", default="assets/pilots_evaluation.json")
-    parser.add_argument("--plot", default="assets/pilots.png")
+    parser.add_argument("--results", default=f"{STUDY}/assets/pilots_evaluation.json")
+    parser.add_argument("--plot", default=f"{STUDY}/assets/pilots.png")
     return parser.parse_args()
 
 
@@ -49,8 +58,9 @@ def main() -> None:
     from orbital_rendezvous.baselines import VbarApproach
     from orbital_rendezvous.evaluation import HELD_OUT_SEED, rollout, start_angle
     from orbital_rendezvous.game_view import AMBER, BLUE, GREEN, GRID, MUTED, PANEL, RED, TEXT
-    from orbital_rendezvous.hierarchy import HierarchicalPilot
-    from orbital_rendezvous.utils import build_configs, load_config, make_env
+    from orbital_rendezvous.utils import build_configs, load_config
+    from teacher_student.config import make_env
+    from teacher_student.hierarchy import HierarchicalPilot
 
     env = make_env(load_config(args.config))
     cfg = env.config

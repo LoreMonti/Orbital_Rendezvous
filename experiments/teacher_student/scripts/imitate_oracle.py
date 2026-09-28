@@ -6,7 +6,7 @@ every choice of the menu is flown by the frozen pilots and its cost
 planner's categorical policy, the same network as the PPO planner's, is then
 fitted to soft targets that favour the cheapest choices that dock, with a
 term charging the expected cost of its choice, a failure priced as in the
-reward (see `orbital_rendezvous.imitation`), and saved as a Stable-Baselines3 model, to be
+reward (see `teacher_student.imitation`), and saved as a Stable-Baselines3 model, to be
 evaluated with `planner_eval.py` like any other planner.
 
 The labels are saved and reused: a second run with other training settings
@@ -20,6 +20,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path as _Path
+
+# The study's package, next to this folder: experiments/teacher_student/teacher_student.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+# Default paths are relative to the repository root, where the scripts are run.
+STUDY = "experiments/teacher_student"
+
 import argparse
 import json
 import time
@@ -28,8 +36,9 @@ from pathlib import Path
 
 import numpy as np
 
-from orbital_rendezvous.hierarchy import oracle_costs
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
+from teacher_student.hierarchy import oracle_costs
 
 _ENV = None
 
@@ -38,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", default="configs/ppo_planner_relative.yaml",
+    parser.add_argument("--config", default=f"{STUDY}/configs/ppo_planner_relative.yaml",
                         help="Pilots, menu and the weights of the cost J.")
     parser.add_argument("--starts", type=int, default=4000)
     parser.add_argument("--first-seed", type=int, default=50_000,
@@ -94,7 +103,7 @@ def main() -> None:
     args = parse_args()
     from stable_baselines3 import PPO
 
-    from orbital_rendezvous.imitation import expected_costs, imitate, soft_targets
+    from teacher_student.imitation import expected_costs, imitate, soft_targets
 
     config = load_config(args.config)
     observations, costs, docked = labels(args)

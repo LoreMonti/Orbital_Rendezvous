@@ -13,11 +13,12 @@ import numpy as np
 import pytest
 from stable_baselines3 import PPO
 
-from orbital_rendezvous import EnvConfig, GoToConfig, GoToEnv, Outcome, RendezvousEnv
-from orbital_rendezvous.env import waypoint_menu
-from orbital_rendezvous.hierarchy import HierarchicalPilot, PlannerEnv
+from orbital_rendezvous import EnvConfig, Outcome, RendezvousEnv
 from orbital_rendezvous.training import train
-from orbital_rendezvous.utils import load_config, make_env
+from orbital_rendezvous.utils import load_config
+from teacher_student.config import make_env
+from teacher_student.goto import GoToConfig, GoToEnv, waypoint_menu
+from teacher_student.hierarchy import HierarchicalPilot, PlannerEnv
 
 CONFIGS = Path(__file__).parents[1] / "configs"
 STRICT = EnvConfig(keep_out_radius=20.0, approach_cone_deg=15.0)
@@ -160,7 +161,8 @@ def test_the_planner_trains_and_keeps_its_best_model(planner_config, tmp_path):
     planner_config["environment"]["max_episode_steps"] = 20   # short approaches, for speed
     planner_config["training"].update(n_envs=2, n_steps=4, batch_size=8,
                                       best_model={"evaluate_every": 1, "episodes": 2})
-    train(planner_config, 0, 16, tmp_path / "run", tmp_path / "planner.zip", checkpoints=False)
+    train(planner_config, 0, 16, tmp_path / "run", tmp_path / "planner.zip", checkpoints=False,
+          env_factory=make_env)
     assert (tmp_path / "planner_best.zip").exists()
     assert len(json.loads((tmp_path / "run" / "best_model.json").read_text())) == 2
 
@@ -175,7 +177,7 @@ def test_a_planner_can_return_several_waypoints():
 
 
 def test_the_beam_search_extends_only_the_cheapest_plans_and_finds_the_best():
-    from orbital_rendezvous.hierarchy import beam_search, best_plan
+    from teacher_student.hierarchy import beam_search, best_plan
 
     env = planner_env()
     menu = [tuple(w) for w in env.menu]
