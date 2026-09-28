@@ -21,6 +21,7 @@ pilot are tested together as well as apart.
 Usage:
     python scripts/corridor_eval.py --models models/corridor_seed0.zip models/corridor_seed1.zip
     python scripts/corridor_eval.py --models models/corridor_seed*.zip --episodes 50
+    python scripts/corridor_eval.py --student models/student_seed0.pt
     python scripts/corridor_eval.py --go-to models/goto_seed*_best.zip \
         --final models/final_approach_seed*_best.zip
 """
@@ -50,6 +51,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--config", default="configs/ppo_corridor.yaml")
     parser.add_argument("--models", nargs="*", default=[], help="Trained agents to evaluate.")
+    parser.add_argument("--student", nargs="*", default=[], help="Distilled students (.pt).")
     parser.add_argument("--go-to", nargs="*", default=[], help="Trained go-to pilots.")
     parser.add_argument("--final", nargs="*", default=[], help="Trained final-approach pilots.")
     parser.add_argument("--pilot-configs", nargs=2, metavar=("GO_TO", "FINAL"),
@@ -93,6 +95,12 @@ def main() -> None:
     for path in args.models:
         model = PPO.load(path)
         runs = evaluate(env, lambda e, obs, m=model: m.predict(obs, deterministic=True)[0], seeds)
+        agents[Path(path).stem] = runs
+        results[Path(path).stem] = summary(runs)
+    for path in args.student:
+        from orbital_rendezvous.distillation import StudentPilot, load_student
+
+        runs = evaluate(env, StudentPilot(load_student(path)), seeds)
         agents[Path(path).stem] = runs
         results[Path(path).stem] = summary(runs)
     configs = [build_configs(load_config(c))[0] for c in args.pilot_configs]

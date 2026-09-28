@@ -33,7 +33,9 @@ used.*
   on all nine pairings of trained seeds, at much the procedure's cost; and a
   learned planner that chooses their waypoint, in place of the procedure's
   rule, still docks 200 times in 200 and, taught from every choice, matches
-  the best choice there is, 1 % cheaper and 45 s quicker than the rule.
+  the best choice there is. Distilled into **one network** with the inputs
+  and outputs of the default agent, the whole system docks through the port
+  **596 times in 600** over three seeds, on less fuel than the procedure.
 
 ## Contents
 
@@ -942,6 +944,69 @@ the measurement and was not built. The beam can miss a plan whose first
 waypoint is not among its three best, so the result is a strong indication
 rather than a proof.
 
+### One network again: distillation
+
+Two steps back towards a fully learned system had each taken one decision
+from the plan. What was left, the menu, the sequence waypoint, hold point,
+corridor, and the thresholds of the handover, went all at once: the whole
+system of Step 17c became a teacher, and a single network, the **student**,
+learned to fly as it does [13]. The student has the observation and the
+action of the default agent, five numbers in and two thrusts out, and nothing
+hand-written around it.
+
+The teacher flew 4000 training starts three times: without noise, with
+Gaussian noise of 0.02 of full thrust on the thrust it applied, and with noise
+of 0.1 beyond 40 m from the station. The labels are always the teacher's own
+commands, so the noisy flights show states off the teacher's path together
+with the way back to it, which a student that errs a little will need [14].
+Near the port the corridor leaves no room for noise: with 0.05 everywhere the
+teacher itself failed one flight in four, and the data would have lacked the
+last metres, hence the radius. Of the 12 000 flights, 11 829 docked, about
+2.2 million steps in all.
+
+A student that simply regressed the teacher's thrust would meet the old
+obstacle behind the station, where the teacher goes around one side or the
+other and a continuous fit would average them into flying straight at it. The
+student therefore has **two heads** on a shared trunk of 256 × 256 units: a
+mode head choosing among three, straight to the hold point or around on the
+$`+x`$ or $`-x`$ side, once at the start and kept for the whole approach, and
+a thrust head that sees the mode:
+
+```math
+\mathcal{L} = \frac{\sum_t w_t\,\big\|\pi_\theta(\mathbf{o}_t, m) - \mathbf{a}_t\big\|^2}{\sum_t w_t} - \beta\,\overline{\log p_\theta(m^\text{teacher} \mid \mathbf{s}_0)},
+\qquad w_t = 1 + 9\cdot\mathbb{1}[r_t \lt 20\ \text{m}]
+```
+
+with $`\beta = 1`$. The mode is chosen as the argmax of three smooth scores, so
+it can jump; given the mode, the thrust never has to.
+
+A first student, with every step weighted alike, docked 180 times in 200, and
+its docking rate on validation swung between 0 and 84 % from one epoch to the
+next. All twenty failures ended about 1 m from the port, slow, and a few tens
+of centimetres off the axis, where the cone is $`\pm 1 \cdot \tan 15° \approx
+\pm 0.27\ \text{m}`$ wide: an error in thrust that is harmless 150 m out is
+fatal there. Weighting the steps within the keep-out sphere ten times more,
+letting the learning rate decay along a cosine from $`10^{-3}`$ to
+$`10^{-5}`$ over 60 epochs, and keeping the student that flies best on
+validation, checked at every epoch in the second half, steadied it at 94 to
+100 % on validation. On the 200 test starts, three seeds:
+
+| on the 200 test starts | docked | violations | $`\Delta v`$, median | time, median | from $`135\text{–}180°`$ |
+| --- | --- | --- | --- | --- | --- |
+| V-bar procedure, two tunings | 200 / 200 | 0 | 1.06–1.23 m/s | 1400–1775 s | 47 / 47 |
+| teacher, planner and pilots (Step 17c) | 200 / 200 | 0 | 0.93 m/s | 1715 s | 47 / 47 |
+| single agent trained from scratch (Step 15) | 153 / 200 | 47 | 1.45 m/s | 980 s | 5 / 47 |
+| student, every step alike (one seed) | 180 / 200 | 20 | 0.91 m/s | 1700 s | 36 / 47 |
+| **student, three seeds** | **199, 197, 200** | **1, 3, 0** | **0.92 m/s** | 1690–1720 s | 46, 45, 47 |
+
+One network, with the inputs and outputs of the default agent, docks through
+the port 596 times in 600 from starts in every direction, and on every start
+it docks it spends less fuel than either tuning of the procedure. It keeps
+the teacher's cost, not quite its reliability: one to three dockings in 200
+are still lost in the last metre. Training the same network from scratch had
+reached 153; learning from a teacher that already solved the problem is what
+closed the gap.
+
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -1025,10 +1090,18 @@ stopped exploring, even with time in its cost and the rule as its baseline;
 taught instead the ranking of every choice, which a simulator can fly, and
 charged for the risk of a failure, it matched the best choice there was. On a
 discrete decision whose options can all be simulated, learning from the full
-search beat learning from trials. What remains hand-written
-is the menu of waypoints, the sequence waypoint, hold point, corridor, and the
-handover, so the system is still a learned plan inside a classical frame, one
-decision further along the way to a fully learned one.
+search beat learning from trials. Distillation then removed what remained
+hand-written, the menu, the sequence and the thresholds, at once: a single
+network imitating the whole system docks 596 times in 600, where the same
+network trained from scratch reached 153 in 200. The lesson of the corridor
+is less about the network than about the curriculum it is given. Learning by
+trial and error found the corridor but not the way around the station;
+learning from a teacher that already solved it, with a discrete choice where
+the behaviour must jump and extra weight where precision matters, did. It
+keeps the teacher's cost but not quite its reliability, one to three dockings
+in 200 lost in the last metre, and the teacher itself was built on a
+classical plan, so the knowledge of the V-bar procedure is still in the
+chain, only no longer written into the controller.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
@@ -1082,6 +1155,7 @@ script needs no arguments for the default run and lists its options with
 | `planner_eval.py` | ways of choosing the waypoint with the same pilots: the procedure's rule, learned planners and the oracle, on the 200 unseen starts |
 | `imitate_oracle.py` | the planner taught the oracle's ranking: every choice flown from 4000 training starts, in parallel, then a supervised fit with the risk of failure priced in |
 | `plan_search.py` | whether more waypoints pay: a beam search over plans of up to three waypoints on the 200 unseen starts |
+| `distill.py` | the whole system distilled into one network: the teacher's flights, with noise, in parallel, then the two-headed student, kept at its best on validation |
 
 ```bash
 python scripts/train.py                                # train, with the window
@@ -1119,6 +1193,8 @@ caffeinate -ims python scripts/imitate_oracle.py --output models/planner_oracle_
 python scripts/planner_eval.py --config configs/ppo_planner_relative.yaml \
     --planner models/planner_oracle_seed0.zip --oracle
 python scripts/plan_search.py                          # more waypoints? about 10 min
+caffeinate -ims python scripts/distill.py --output models/student_seed0.pt   # about 10 min
+python scripts/corridor_eval.py --student models/student_seed0.pt
 ```
 
 As a library:
@@ -1161,6 +1237,7 @@ Orbital_Rendezvous/
 │   ├── baselines.py        # LQR, two-impulse transfer, V-bar procedure and its planner
 │   ├── hierarchy.py        # learned pilots, planner's environment, oracle, beam search
 │   ├── imitation.py        # the planner fitted to the oracle's ranking
+│   ├── distillation.py     # the teacher's flights and the two-headed student
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
@@ -1180,8 +1257,9 @@ Orbital_Rendezvous/
 │   ├── pilots_summary.py   # the two learned pilots in one figure
 │   ├── planner_eval.py     # rule, learned planners and oracle, same pilots
 │   ├── imitate_oracle.py   # label every choice, then fit the planner to them
-│   └── plan_search.py      # beam search over plans of several waypoints
-├── tests/                  # 148 tests, one file per module or feature
+│   ├── plan_search.py      # beam search over plans of several waypoints
+│   └── distill.py          # distil the whole system into one network
+├── tests/                  # 157 tests, one file per module or feature
 ├── models/                 # trained models, git-ignored
 └── assets/                 # the GIFs, the plot and the evaluation numbers
 ```
@@ -1280,6 +1358,15 @@ would catch them.
   extends only its cheapest plans that dock, finds the best plan among those
   it flies, and, as it should, never flies a plan whose first waypoint falls
   outside the beam.
+- **Distillation.** The labels are the teacher's own commands whatever noise
+  is applied to its flight, and no noise enters within its radius of the
+  station; the mode is the side of the teacher's waypoint; the student's
+  thrust stays within the thruster's range, it keeps the mode it chose at the
+  start, and it learns both a choice that jumps and the thrust for each
+  side; steps near the station get their extra weight; training returns the
+  student that flew best, not the last; and saved flights come back as views
+  of one array read once, the fix for a loader that re-read the whole file for
+  every flight and exhausted the computer's memory.
 - **Fuel study.** The fuel weight follows its schedule inside every environment
   and ends at its target; the two discounts stay equal whatever the
   configuration; only the fuel term changes when the weight does; and costs are
@@ -1322,6 +1409,9 @@ How the project was built, step by step, including the runs that failed, is in
 12. R. S. Sutton, D. Precup & S. Singh, *Between MDPs and semi-MDPs: A
     framework for temporal abstraction in reinforcement learning*, Artif.
     Intell. **112**, 181 (1999)
+13. A. A. Rusu et al., *Policy Distillation*, Proc. ICLR (2016)
+14. M. Laskey, J. Lee, R. Fox, A. Dragan & K. Goldberg, *DART: Noise Injection
+    for Robust Imitation Learning*, Proc. CoRL (2017)
 
 ## License
 

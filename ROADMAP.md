@@ -279,6 +279,23 @@ at almost no cost.
 One sphere and one corridor need one point to go around; the idea of learning
 the length of the plan was sound, but the problem gives it nothing to learn.
 
+## Step 20 — One network again: distillation
+
+- [x] Steps 18 and 19 set aside: distillation removes the remaining rules at once, since the student has no menu, sequence or thresholds
+- [x] `distillation.py`: the teacher is the system of Step 17c; its flights record the student's observations and the teacher's commands as labels, with noise on the thrust applied but not on the labels (DART)
+- [x] Noise of 0.2 everywhere: the teacher docked 8 flights in 40; of 0.05: one in four failed. Noise of 0.1 only beyond 40 m, and 0.02 everywhere: 11 829 of 12 000 docked
+- [x] Student with two heads on a shared trunk: a mode, straight or around either side, chosen once and kept, and a thrust that sees the mode
+- [x] First student: 180 of 200, all twenty failures in the last metre, validation swinging between 0 and 84 %
+- [x] Fix: steps within 20 m weigh ten times more, a cosine decay of the learning rate, the best student on validation kept; 94–100 % on validation
+- [x] The first run of the fix froze the computer: the loader re-read the whole file of flights for every one of 12 000 flights, and two runs in parallel asked for hundreds of gigabytes. Arrays are now read once (`load_flights`), and a run peaks at 0.54 GB
+- [x] Result, three seeds, run in parallel: **199, 197 and 200 of 200**, 596 of 600, 0.92 m/s in 1690–1720 s, cheaper than the procedure on every docked start
+
+*Lesson.* The same network that could not learn the corridor from scratch
+learned it from a teacher, once it was given a discrete choice where the
+behaviour jumps and weight where precision matters. And a memory bug is a
+bug like any other: measure a run's peak on a short trial before launching
+long or parallel ones.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -320,9 +337,13 @@ plan, at much the procedure's cost.
   - [ ] Step 19, optional: when to move on to the next waypoint (the
     termination of an option); distillation makes it unnecessary for a fully
     learned system, since the student has no thresholds;
-  - [ ] Step 20: distillation, one network trained to imitate the whole
-    system flight by flight (DAgger), with a discrete choice of side next to
-    its continuous thrust, so that it need not jump either.
+  - [x] Step 20: distillation, one network trained to imitate the whole
+    system flight by flight, with a discrete choice of side next to its
+    continuous thrust; 596 of 600 over three seeds.
+- [ ] The last dockings: fine-tune the student with RL, starting from its
+  weights and kept at its best, to recover the one to three dockings in 200
+  it still loses in the last metre; or query the teacher from the states the
+  student visits (DAgger) rather than from noise alone.
 - [ ] Pilots trained for fuel: the go-to pilot with the engine switch and the
   fuel budget of Step 13, since it spends most of the fuel and sits on the
   procedure's trade-off; the final approach with a fuel weight, since it buys

@@ -1,0 +1,196 @@
+{
+ "description": "Oriented target: keep-out sphere of 20 m, approach cone of 15 degrees. 200 held-out starts in every direction; costs are medians over the dockings; sectors are start angles from the docking axis.",
+ "sectors_deg": [
+  0.0,
+  45.0,
+  90.0,
+  135.0,
+  180.0
+ ],
+ "results": {
+  "V-bar procedure, tau = 100 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.2307316768740946,
+   "time_median": 1400.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "V-bar procedure, tau = 200 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0570284400676986,
+   "time_median": 1775.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "student_seed0": {
+   "docked": 199,
+   "attempts": 200,
+   "violations": 1,
+   "delta_v_median": 0.9200930309935265,
+   "time_median": 1690.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     46,
+     47
+    ]
+   ]
+  },
+  "student_seed1": {
+   "docked": 197,
+   "attempts": 200,
+   "violations": 3,
+   "delta_v_median": 0.9200448172843151,
+   "time_median": 1720.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     55,
+     56
+    ],
+    [
+     45,
+     47
+    ]
+   ]
+  },
+  "student_seed2": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 0.9231172301086368,
+   "time_median": 1690.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  }
+ },
+ "same_starts": {
+  "student_seed0": {
+   "starts": 199,
+   "agent": {
+    "delta_v_median": 0.9200930309935265,
+    "time_median": 1690.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.22487328399647,
+    "time_median": 1400.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.020100502512562814
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0546220644038675,
+    "time_median": 1770.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.6683417085427136
+   }
+  },
+  "student_seed1": {
+   "starts": 197,
+   "agent": {
+    "delta_v_median": 0.9200448172843151,
+    "time_median": 1720.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.22487328399647,
+    "time_median": 1400.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.015228426395939087
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0546220644038675,
+    "time_median": 1770.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.5583756345177665
+   }
+  },
+  "student_seed2": {
+   "starts": 200,
+   "agent": {
+    "delta_v_median": 0.9231172301086368,
+    "time_median": 1690.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.2307316768740946,
+    "time_median": 1400.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.015
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0570284400676986,
+    "time_median": 1775.0,
+    "agent_cheaper": 1.0,
+    "agent_faster": 0.715
+   }
+  }
+ }
+}
