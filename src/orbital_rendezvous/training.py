@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import copy
 import json
+import zipfile
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import yaml
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
@@ -27,6 +28,20 @@ from .utils import build_configs, make_env
 PPO_KEYS = (
     "learning_rate", "n_steps", "batch_size", "gamma", "gae_lambda", "clip_range", "ent_coef",
 )
+# SAC is off-policy: a replay buffer, and one or more gradient steps per step
+# of the environments. Its settings, where they differ from PPO's.
+SAC_KEYS = (
+    "learning_rate", "buffer_size", "learning_starts", "batch_size", "tau", "gamma",
+    "train_freq", "gradient_steps", "ent_coef",
+)
+ALGORITHMS = {"PPO": (PPO, PPO_KEYS), "SAC": (SAC, SAC_KEYS)}
+
+
+def load_model(path):
+    """A saved PPO or SAC model, whichever the file holds, read from its policy class."""
+    with zipfile.ZipFile(path) as archive:
+        module = json.loads(archive.read("data"))["policy_class"].get("__module__", "")
+    return (SAC if ".sac." in module else PPO).load(path, device="cpu")
 
 
 def with_overrides(
@@ -63,12 +78,14 @@ def build_model(
     seed: int,
     run_dir: Path,
     env_factory: Callable[[dict[str, Any]], Any] = make_env,
-) -> PPO:
-    """PPO on parallel environments built by ``env_factory(config)``, logging to ``run_dir``."""
+):
+    """PPO or SAC on parallel environments from ``env_factory(config)``, logging to ``run_dir``."""
     build_configs(config)   # validates the configuration before anything is written
     training = config["training"]
-    if training.get("algorithm", "PPO") != "PPO":
-        raise ValueError("only PPO is supported")
+    algorithm = training.get("algorithm", "PPO")
+    if algorithm not in ALGORITHMS:
+        raise ValueError(f"unknown algorithm {algorithm!r}; known: {sorted(ALGORITHMS)}")
+    cls, keys = ALGORITHMS[algorithm]
 
     run_dir.mkdir(parents=True, exist_ok=True)
     # The seed actually used, which a command-line override may have changed.
@@ -85,13 +102,16 @@ def build_model(
         monitor_dir=str(run_dir / "monitor"),
         monitor_kwargs={"info_keywords": ("is_success",)},
     )
-    model = PPO(
+    settings = {key: training[key] for key in keys}
+    if isinstance(settings.get("train_freq"), list):
+        settings["train_freq"] = tuple(settings["train_freq"])
+    model = cls(
         training["policy"],
         vec_env,
         policy_kwargs=training.get("policy_kwargs"),
         seed=seed,
         verbose=0,
-        **{key: training[key] for key in PPO_KEYS},
+        **settings,
     )
     model.set_logger(configure(str(run_dir), ["csv"]))
     return model
@@ -106,11 +126,12 @@ def train(
     callbacks: list[BaseCallback] | None = None,
     checkpoints: bool = True,
     env_factory: Callable[[dict[str, Any]], Any] = make_env,
-) -> PPO:
+):
     """Train, save the model to ``output`` and return it.
 
-    With ``training.start_curriculum`` the history of its stages is also saved
-    to ``curriculum.json`` in the run directory. With ``training.best_model``
+    With ``training.start_curriculum`` or ``training.reverse_curriculum`` the
+    history of its stages is also saved to ``curriculum.json`` in the run
+    directory. With ``training.best_model``
     the best policy on validation starts is saved next to ``output`` as
     ``<name>_best.zip``, and its measurements to ``best_model.json``.
     ``env_factory`` builds the environment from the configuration: the
@@ -141,8 +162,44 @@ def train(
             **rule,
         )
         callbacks = [*(callbacks or []), *stages.values()]
+    reverse = config["training"].get("reverse_curriculum")
+    if reverse:
+        from .callbacks import ReverseCurriculum
+
+        env_config, reward_config = build_configs(config)
+        first = (reverse["min_radius"], *reverse["stages"][0])
+        if reverse.get("cone_start_deg") is not None:
+            from .callbacks import ConeCurriculum
+
+            def first_stage() -> RendezvousEnv:
+                env = RendezvousEnv(env_config, reward_config)
+                env.set_start_region(*first)
+                return env
+
+            # The approach cone opened at first and narrowed on the first stage's
+            # starts, as in phase 1 of Step 15, before any start moves out.
+            stages["cone"] = ConeCurriculum(
+                first_stage, final_deg=env_config.approach_cone_deg,
+                start_deg=reverse["cone_start_deg"], step_deg=10.0,
+                success_threshold=reverse["threshold"],
+                evaluate_every=reverse.get("evaluate_every", 10),
+            )
+        stages["reverse"] = ReverseCurriculum(
+            lambda: RendezvousEnv(env_config, reward_config),
+            stages=reverse["stages"],
+            min_radius=reverse["min_radius"],
+            band=reverse.get("band", 0.3),
+            frontier_fraction=reverse.get("frontier_fraction", 0.0),
+            success_threshold=reverse["threshold"],
+            evaluate_every=reverse.get("evaluate_every", 10),
+            after=stages.get("cone"),
+        )
+        callbacks = [*(callbacks or []), *[stages[k] for k in ("cone", "reverse") if k in stages]]
     model = build_model(config, seed, run_dir, env_factory)
-    if stages:
+    if reverse:
+        # Before the first reset, so that the first episodes start at the first stage.
+        model.get_env().env_method("set_start_region", *stages["reverse"].region(0))
+    if starts:
         # Before the first reset, which `learn` does before any callback runs,
         # so that the first episodes too start in the first stage.
         model.get_env().env_method("set_start_angles", 0.0, starts["start_deg"])

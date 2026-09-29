@@ -67,6 +67,7 @@ class RewardConfig:
     gamma: float = 0.99
     success_bonus: float = 100.0
     failure_penalty: float = -100.0
+    timeout_reward: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,8 @@ class Scales:
     time_step: float
     keep_out_radius: float = 0.0
     approach_cone_deg: float = 15.0
+    shaping_radius_margin: float = 0.0
+    shaping_cone_margin_deg: float = 0.0
 
 
 def in_approach_cone(position: np.ndarray, cone_deg: float) -> bool:
@@ -119,10 +122,21 @@ def path_length(position: np.ndarray, scales: Scales) -> float:
     Otherwise around the sphere to the nearer edge of the cone's mouth, the arc
     of the rim inside the cone, then along the cone to the target:
     ``sqrt(r^2 - R^2) + R dphi + R`` when the rim is in the way.
+
+    That shortest path hugs the sphere and enters the cone at its very edge,
+    and an agent drawn along it cut the corner: its violations sat on the rim,
+    about 19 m out and 22 degrees off the axis. With margins the path is
+    measured around a sphere ``shaping_radius_margin`` larger, to a mouth
+    ``shaping_cone_margin_deg`` narrower, so that it keeps clear of the edge;
+    from inside the true cone the straight way stays, since it is legal.
+    The rule itself, the sphere and the cone that end an attempt, is unchanged,
+    and so, the potential being a potential, is the optimal policy.
     """
-    radius, cone = scales.keep_out_radius, scales.approach_cone_deg
-    if not radius or in_approach_cone(position, cone):
+    # Inside the true cone the straight way in is legal: no margin applies.
+    if not scales.keep_out_radius or in_approach_cone(position, scales.approach_cone_deg):
         return float(np.hypot(*position))
+    radius = scales.keep_out_radius + scales.shaping_radius_margin
+    cone = max(1.0, scales.approach_cone_deg - scales.shaping_cone_margin_deg)
     edges = [radius * np.array([np.sin(a), np.cos(a)]) for a in np.radians([cone, -cone])]
     return min(_around_disc(position, edge, radius) for edge in edges) + radius
 
@@ -165,13 +179,18 @@ def step_reward(
 
 
 def terminal_reward(outcome: Outcome | None, config: RewardConfig) -> float:
-    """Bonus on docking, penalty on a crash or a runaway, zero otherwise.
+    """Bonus on docking, penalty on a crash or a runaway, ``timeout_reward`` on a timeout.
 
-    A timeout is not penalised: it is a truncation, not a failure, and the
-    agent should not learn to fear the clock itself.
+    By default a timeout is not penalised: the agent should not learn to fear
+    the clock itself. On the oriented target it can be made a failure: there,
+    near a narrow corridor, a policy that cannot dock yet meets violations far
+    more often than dockings, and with a free timeout it learns to fly away and
+    wait; not docking is then a failure like the others.
     """
     if outcome is Outcome.DOCKED:
         return config.success_bonus
     if outcome in (Outcome.CRASHED, Outcome.ESCAPED, Outcome.KEEP_OUT):
         return config.failure_penalty
+    if outcome is Outcome.TIMEOUT:
+        return config.timeout_reward
     return 0.0

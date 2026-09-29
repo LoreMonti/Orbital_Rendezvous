@@ -46,7 +46,10 @@ between the start and the docking axis +y is drawn in the range, on either side
 of the axis at random. The default, 0 to 180 degrees, is every direction, drawn
 exactly as without the option; `callbacks.StartCurriculum` widens a narrower
 range as the agent masters it, from starts in front of the port to starts
-behind the station.
+behind the station. Starting inside the keep-out sphere, a start is kept
+within ``inner_start_angle_deg`` of the axis, inside the approach cone, so that
+it is not a violation before the first thrust; `callbacks.ReverseCurriculum`
+starts close to the port and moves the starts out.
 """
 
 from __future__ import annotations
@@ -91,6 +94,10 @@ class EnvConfig:
     keep_out_mode: str = "terminal"
     keep_out_weight: float = 0.0
     start_angle_range_deg: tuple[float, float] = (0.0, 180.0)
+    inner_start_angle_deg: float = 10.0
+    start_speed_radius: float = 15.0
+    shaping_radius_margin: float = 0.0
+    shaping_cone_margin_deg: float = 0.0
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -154,9 +161,14 @@ class RendezvousEnv(gym.Env):
             time_step=self.config.time_step,
             keep_out_radius=self.config.keep_out_radius,
             approach_cone_deg=self.config.approach_cone_deg,
+            shaping_radius_margin=self.config.shaping_radius_margin,
+            shaping_cone_margin_deg=self.config.shaping_cone_margin_deg,
         )
         self.state = np.zeros(4)
         self.steps = 0
+        # A share of the starts drawn from the newest part of a curriculum's
+        # stage: (fraction, (radius low, radius high), (angle low, angle high)).
+        self.frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None
         # Where the shaping pulls to: the target at the origin here, a point
         # to reach in a subclass (the go-to pilot of experiments/teacher_student).
         self.goal = np.zeros(2)
@@ -169,6 +181,23 @@ class RendezvousEnv(gym.Env):
     def set_start_angles(self, low: float, high: float) -> None:
         """Change the range of start angles from the docking axis, for a curriculum on starts."""
         self.config = replace(self.config, start_angle_range_deg=(low, high))
+
+    def set_start_region(
+        self,
+        radius_low: float,
+        radius_high: float,
+        angle_high: float,
+        frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None,
+    ) -> None:
+        """Change the distance and the largest angle of the starts, for a reverse curriculum.
+
+        With ``frontier = (fraction, radii, angles)``, that fraction of the starts
+        is drawn from the given distances and angles instead, the newest part of
+        a stage, where the agent has had the least practice.
+        """
+        self.config = replace(self.config, initial_radius_range=(radius_low, radius_high),
+                              start_angle_range_deg=(0.0, angle_high))
+        self.frontier = frontier
 
     def set_keep_out_weight(self, weight: float) -> None:
         """Change the cost of a step in the forbidden zone, in penalty mode."""
@@ -211,6 +240,9 @@ class RendezvousEnv(gym.Env):
     ) -> tuple[np.ndarray, dict[str, Any]]:
         super().reset(seed=seed)
         cfg = self.config
+        if self.frontier is not None and self.np_random.random() < self.frontier[0]:
+            cfg = replace(cfg, initial_radius_range=self.frontier[1],
+                          start_angle_range_deg=self.frontier[2])
         radius = self.np_random.uniform(*cfg.initial_radius_range)
         low, high = cfg.start_angle_range_deg
         if (low, high) == (0.0, 180.0):
@@ -223,7 +255,22 @@ class RendezvousEnv(gym.Env):
             angle = np.radians(self.np_random.uniform(low, high))
             side = 1.0 if self.np_random.random() < 0.5 else -1.0
             position = radius * np.array([side * np.sin(angle), np.cos(angle)])
+        if cfg.keep_out_radius and radius < cfg.keep_out_radius:
+            # Inside the keep-out sphere a start must lie in the approach cone,
+            # or the attempt would be a violation before the first thrust:
+            # within inner_start_angle_deg of the axis. Starts outside the
+            # sphere, all of them by default, draw nothing more.
+            limit = min(cfg.inner_start_angle_deg, cfg.approach_cone_deg)
+            if np.degrees(np.arctan2(abs(position[0]), position[1])) > limit:
+                angle = np.radians(self.np_random.uniform(0.0, limit))
+                side = 1.0 if self.np_random.random() < 0.5 else -1.0
+                position = radius * np.array([side * np.sin(angle), np.cos(angle)])
         velocity = self.np_random.normal(0.0, cfg.initial_velocity_scale, size=2)
+        # Closer than start_speed_radius the random velocity shrinks with the
+        # distance, so that the time to drift out of the approach cone,
+        # r tan(cone) / v, stays the same whatever the start: about eight
+        # decisions. Starts further out, all of them by default, are unchanged.
+        velocity *= min(1.0, float(np.hypot(*position)) / cfg.start_speed_radius)
         self.state = np.append(position, velocity)
         self.steps = 0
         return self._observation(), self._info(None, np.zeros(2))

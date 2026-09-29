@@ -300,6 +300,23 @@ behaviour jumps and weight where precision matters. And a memory bug is a
 bug like any other: measure a run's peak on a short trial before launching
 long or parallel ones.
 
+## Step 21 — Back to RL from scratch: a reverse curriculum *(under way)*
+
+- [x] `ReverseCurriculum`: starts a few metres from the port first, then further out and further round, the smallest distance kept at 2 m; `set_start_region`; inside the keep-out sphere a start lies in the cone
+- [x] First run: stuck at the first stage for 20 million steps. The starts kept the task's random velocity, about 6 cm/s, and left a cone 1 m wide in one or two steps; even an LQR docked 50 times in 200. Fix: the start velocity shrinks with the distance within 15 m, $`\mathbf{v}_0 \min(1, r_0/15\ \text{m})`$, so that drifting out of the cone takes about eight steps from anywhere; a simple controller then docks 172–188 in 200 on the first stages
+- [x] Second run: the agent flew 125 m away from the port and waited out the episode: near a narrow cone violations came far more often than dockings
+- [x] A timeout priced as a failure (`timeout_reward`): never docked, stopped at 5 million steps
+- [x] The approach cone opened on the first stage and narrowed, as in Step 15: the cone reaches 15° in 1.2–1.6 million steps, the first stages follow
+- [x] Eight stages: stuck at 40 m and 45° (from 10° in one stage) at 75–80 %. Twenty-one stages, 10° at a time: through 35° in 2–3 million steps, stuck again at 45°, 75 %
+- [x] Violations on the rim, 19 m out, 22° off the axis. A shaping path with a margin (a sphere of 25 m, a mouth of 7°): still 75 %. Half the starts from the stage's frontier: 70 %, and one seed collapsed. A slower glide slope, $`\tau = 400\ \text{s}`$: 75–85 %, and the chaser still reached the rim at 0.20 m/s, too fast to turn into the cone with a 2 mm/s² thruster
+- [ ] SAC in place of PPO (`configs/sac_corridor_reverse.yaml`), with the same task and curricula: under way
+
+*Lesson so far.* Check that the first stage of a curriculum is solvable, by a
+simple controller, before training on it. The cone opened first is again what
+lets the agent learn to dock under the rule. The wall at 45° held against four
+changes to the curriculum and the reward; its cause is physical, an arrival
+too fast to turn, and the shaping could not move it.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:

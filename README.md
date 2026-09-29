@@ -785,7 +785,9 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 ### Usage
 
 Every parameter lives in `configs/ppo_default.yaml`, and in
-`configs/ppo_corridor.yaml` for the oriented target and its curricula. Each
+`configs/ppo_corridor.yaml` for the oriented target and its curricula;
+`configs/ppo_corridor_reverse.yaml` and `configs/sac_corridor_reverse.yaml`
+hold the reverse curriculum of Step 21, still under way (see the ROADMAP). Each
 script needs no arguments for the default run and lists its options with
 `--help`. The side study has its own scripts and instructions in its folder.
 
@@ -848,7 +850,9 @@ Orbital_Rendezvous/
 ├── pyproject.toml          # metadata, dependencies, ruff and pytest config
 ├── configs/
 │   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
-│   └── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
+│   ├── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
+│   ├── ppo_corridor_reverse.yaml  # Step 21: starts next to the port first, then further out
+│   └── sac_corridor_reverse.yaml  # the same with SAC in place of PPO
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -870,7 +874,7 @@ Orbital_Rendezvous/
 │   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
 │   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
-├── tests/                  # 115 tests, one file per module or feature
+├── tests/                  # 133 tests, one file per module or feature
 ├── experiments/
 │   └── teacher_student/    # a side study, set aside: its own code, tests and results
 ├── models/                 # trained models, git-ignored
@@ -944,6 +948,15 @@ would catch them.
   where it was after one step; and the corridor configuration trains with
   phase 1 under way from the first episode, while saving the full task and the
   seed actually used.
+- **Reverse curriculum.** Every earlier start is unchanged, seed for seed,
+  and far from the station so is every start velocity; inside the keep-out
+  sphere a start lies in the approach cone, and close to the port its random
+  velocity shrinks with the distance; each stage keeps to its distances and
+  angle, advances only once mastered, is tested on its outer band and can
+  draw part of its starts from its newest part; the approach cone can open
+  first on the first stage; a timeout can be made a failure; the shaping
+  path can keep a margin from the rim, while the straight way stays inside the
+  cone; and SAC trains on the same task and is loaded back as SAC.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

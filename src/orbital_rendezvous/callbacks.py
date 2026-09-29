@@ -554,6 +554,77 @@ class StartCurriculum(MasteryCurriculum):
         self.logger.record("starts/max_angle_deg", self.value)
 
 
+class ReverseCurriculum(MasteryCurriculum):
+    """Start next to the port and move the starts out as the agent masters them.
+
+    The rule is the final one from the first episode: keep-out sphere and
+    approach cone as in the task. What changes is where the chaser starts:
+    stage ``k`` of ``stages``, a list of ``(largest distance, largest angle
+    from the docking axis)``, draws starts between ``min_radius`` and that
+    distance and within that angle, the first a few metres from the port and
+    inside the cone, the last the task itself (Florensa et al., 2017). The
+    smallest distance never grows, so the easy starts keep coming and the
+    last metre is not forgotten while the long approaches are learned.
+
+    Mastery is measured on the outer ``band`` of the stage's distances, the
+    part that is new, and the stage advances at ``success_threshold``. With
+    ``frontier_fraction``, that share of the training starts comes from the
+    newest part of the stage, the outer band of distances and the angles added
+    since the last stage: drawn uniformly over the whole stage, the hard
+    starts were a tenth of the practice, and the policy stopped improving on
+    them.
+    """
+
+    key = "stage"
+    prefix = "reverse"
+
+    def __init__(
+        self,
+        make_env: Callable[[], RendezvousEnv],
+        stages: Sequence[tuple[float, float]],
+        min_radius: float = 2.0,
+        band: float = 0.3,
+        frontier_fraction: float = 0.0,
+        first_seed: int = 85_000,
+        **kwargs,
+    ) -> None:
+        super().__init__(make_env, 0.0, first_seed=first_seed, **kwargs)
+        self.stages = [tuple(map(float, stage)) for stage in stages]
+        self.min_radius = min_radius
+        self.band = band
+        self.frontier_fraction = frontier_fraction
+        self.final_deg = float(len(self.stages) - 1)
+
+    def region(self, stage: float) -> tuple[float, float, float]:
+        """Smallest and largest distance, and largest angle, of the starts of a stage."""
+        radius, angle = self.stages[int(stage)]
+        return self.min_radius, radius, angle
+
+    def frontier(self, stage: float) -> tuple[float, tuple[float, float], tuple[float, float]]:
+        """The newest part of a stage: its outer band of distances, and the angles it added."""
+        low, high, angle = self.region(stage)
+        previous = self.stages[int(stage) - 1][1] if stage >= 1 else 0.0
+        angles = (previous, angle) if angle > previous else (0.0, angle)
+        return self.frontier_fraction, (max(low, (1.0 - self.band) * high), high), angles
+
+    def advanced(self, stage: float, success: float) -> float:
+        """The next stage if the agent mastered this one, never beyond the last."""
+        if success >= self.success_threshold:
+            return min(self.final_deg, stage + 1.0)
+        return stage
+
+    def _configure(self, env: RendezvousEnv) -> None:
+        low, high, angle = self.region(self.value)
+        env.set_start_region(max(low, (1.0 - self.band) * high), high, angle)
+
+    def _apply(self) -> None:
+        low, high, angle = self.region(self.value)
+        frontier = self.frontier(self.value) if self.frontier_fraction else None
+        self.training_env.env_method("set_start_region", low, high, angle, frontier)
+        self.logger.record("reverse/stage", self.value)
+        self.logger.record("reverse/max_radius", high)
+
+
 class BestModel(BaseCallback):
     """Keep the best policy seen during training, not the last one.
 

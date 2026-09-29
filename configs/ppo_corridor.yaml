@@ -43,6 +43,13 @@ environment:
   # random side of the axis. [0, 180] is every direction; the start curriculum
   # of configs/ppo_corridor.yaml narrows it at first, then widens it.
   start_angle_range_deg: [0.0, 180.0]
+  # Inside the keep-out sphere, a start stays this close to the docking axis.
+  inner_start_angle_deg: 10.0
+  # Closer than this, the random start velocity shrinks with the distance.
+  start_speed_radius: 15.0     # m
+  # Margins of the shaping path around the keep-out sphere; none by default.
+  shaping_radius_margin: 0.0
+  shaping_cone_margin_deg: 0.0
   initial_velocity_scale: 0.05
 
   # Terminal conditions.
@@ -65,6 +72,7 @@ rewards:
   fuel_weight: 2.0             # per m/s of delta-v spent: a real cost, not shaping
   success_bonus: 100.0
   failure_penalty: -100.0
+  timeout_reward: 0.0           # a timeout is not a failure by default
 
 training:
   algorithm: PPO

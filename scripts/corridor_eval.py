@@ -24,12 +24,12 @@ import json
 from pathlib import Path
 
 import numpy as np
-from stable_baselines3 import PPO
 
 from orbital_rendezvous import RendezvousEnv
 from orbital_rendezvous.baselines import VbarApproach
 from orbital_rendezvous.evaluation import HELD_OUT_SEED, docked_by_sector, evaluate
 from orbital_rendezvous.rewards import Outcome
+from orbital_rendezvous.training import load_model
 from orbital_rendezvous.utils import build_configs, load_config
 
 SECTORS = (0.0, 45.0, 90.0, 135.0, 180.0)
@@ -78,7 +78,7 @@ def main() -> None:
         vbar[name] = evaluate(env, VbarApproach(env, approach_time=tau), seeds)
         results[name] = summary(vbar[name])
     for path in args.models:
-        model = PPO.load(path)
+        model = load_model(path)
         runs = evaluate(env, lambda e, obs, m=model: m.predict(obs, deterministic=True)[0], seeds)
         agents[Path(path).stem] = runs
         results[Path(path).stem] = summary(runs)
