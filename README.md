@@ -790,8 +790,9 @@ Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor.yaml` for the oriented target and its curricula;
 `configs/ppo_corridor_reverse.yaml` and `configs/sac_corridor_reverse.yaml`
 hold the reverse curriculum of Step 21, and `configs/ppo_corridor_graded.yaml`
-and `configs/ppo_corridor_gamma.yaml` the two variants of Step 22, still under
-way (see the ROADMAP). Each
+and `configs/ppo_corridor_gamma.yaml` the two variants of Step 22, and
+`configs/ppo_corridor_mirror.yaml` the mirror of Step 23, still under way (see
+the ROADMAP). Each
 script needs no arguments for the default run and lists its options with
 `--help`. The side study has its own scripts and instructions in its folder.
 
@@ -858,7 +859,8 @@ Orbital_Rendezvous/
 │   ├── ppo_corridor_reverse.yaml  # Step 21: starts next to the port first, then further out
 │   ├── sac_corridor_reverse.yaml  # the same with SAC in place of PPO
 │   ├── ppo_corridor_graded.yaml   # Step 22: failures graded by how close they came
-│   └── ppo_corridor_gamma.yaml    # Step 22: a discount of 0.995
+│   ├── ppo_corridor_gamma.yaml    # Step 22: a discount of 0.995
+│   └── ppo_corridor_mirror.yaml   # Step 23: starts on the side x > 0 shown as in a mirror
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -966,6 +968,14 @@ would catch them.
   first on the first stage; a timeout can be made a failure; the shaping
   path can keep a margin from the rim, while the straight way stays inside the
   cone; and SAC trains on the same task and is loaded back as SAC.
+- **Mirror.** Off, nothing changes; on, every start outside the keep-out
+  sphere is shown on the side $`x \le 0`$, with $`x`$ and $`\dot{x}`$ flipped
+  only on the mirrored side; the radial thrust is flipped back, so a command
+  towards the axis pushes the chaser towards the axis on both sides; two
+  mirrored starts look the same to the agent; the side is kept when the
+  chaser crosses the axis; and inside the sphere observations and rewards
+  equal those without the mirror bit for bit, seed for seed and action for
+  action, so the first stages of a curriculum train exactly as before.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

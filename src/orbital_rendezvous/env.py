@@ -14,6 +14,25 @@ thrust is exactly zero whatever the noise on the other two components, so
 coasting costs nothing even while exploring; on, the thrust stays continuous
 with no minimum level, keeping the fine control a minimum level would lose.
 
+Optionally, a mirror: with ``mirror_symmetry`` every episode that starts
+outside the keep-out sphere is shown to the agent as if it had started on the
+side ``x <= 0``. Such a start with ``x > 0`` has ``x``, ``vx`` and the radial
+thrust ``u_x`` flipped in sign for the whole episode. Starts inside the
+sphere lie in the approach cone, a few decimetres from the axis, where the
+Coriolis term pushes the chaser out of the cone always towards the same side:
+there the problem is not symmetric, and mirrored, the first stages of the
+reverse curriculum stalled; they are never mirrored. The side is fixed at the
+start and kept: the manoeuvre crosses the docking axis on its way into the
+cone, and a mirror switched there would make the state jump. The agent is not
+told the true side: an extra input, constant on every start of the first
+stages, changed the network and its training, and those stages stalled. So the
+mirror leaves every start within the sphere, and the whole training up to the
+first start outside it, exactly as without it, seed for seed. Outside the
+sphere the Clohessy-Wiltshire equations are not exactly symmetric under
+``x -> -x``; flown as in a mirror, the approach learned from one side docked
+83-89 % from the other (Step 22 of the ROADMAP), and what is learned on one
+side now serves both.
+
 Observation: the relative state, normalised so that every component is of
 order one, and the fraction of the episode elapsed,
 ``[x / r_max, y / r_max, vx / v_ref, vy / v_ref, t / T_max]``. Positions are
@@ -99,6 +118,7 @@ class EnvConfig:
     start_speed_radius: float = 15.0
     shaping_radius_margin: float = 0.0
     shaping_cone_margin_deg: float = 0.0
+    mirror_symmetry: bool = False
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -167,6 +187,8 @@ class RendezvousEnv(gym.Env):
         )
         self.state = np.zeros(4)
         self.steps = 0
+        # +1 shows the state as it is, -1 as in a mirror (x and vx flipped).
+        self.mirror = 1.0
         # A share of the starts drawn from the newest part of a curriculum's
         # stage: (fraction, (radius low, radius high), (angle low, angle high)).
         self.frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None
@@ -214,7 +236,8 @@ class RendezvousEnv(gym.Env):
 
     def _observation(self) -> np.ndarray:
         elapsed = self.steps / self.config.max_episode_steps
-        obs = np.append(self.state / self._obs_scale, elapsed).astype(np.float32)
+        shown = self.state * np.array([self.mirror, 1.0, self.mirror, 1.0])
+        obs = np.append(shown / self._obs_scale, elapsed).astype(np.float32)
         return np.clip(obs, self.observation_space.low, self.observation_space.high)
 
     def _info(self, outcome: Outcome | None, thrust: np.ndarray) -> dict[str, Any]:
@@ -274,6 +297,9 @@ class RendezvousEnv(gym.Env):
         velocity *= min(1.0, float(np.hypot(*position)) / cfg.start_speed_radius)
         self.state = np.append(position, velocity)
         self.steps = 0
+        outside = float(np.hypot(*position)) > cfg.keep_out_radius
+        mirrored = cfg.mirror_symmetry and outside and position[0] > 0.0
+        self.mirror = -1.0 if mirrored else 1.0
         return self._observation(), self._info(None, np.zeros(2))
 
     def _violates_keep_out(
@@ -339,6 +365,7 @@ class RendezvousEnv(gym.Env):
         self, action: np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         command = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        command[0] *= self.mirror   # the agent commands in its mirrored frame
         engine_on = True
         if self.config.engine_switch:
             engine_on = bool(command[2] > 0.0)
