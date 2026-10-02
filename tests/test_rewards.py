@@ -104,3 +104,41 @@ def test_terminal_rewards():
     assert terminal_reward(Outcome.ESCAPED, CONFIG) == CONFIG.failure_penalty
     assert terminal_reward(Outcome.TIMEOUT, CONFIG) == 0.0
     assert terminal_reward(None, CONFIG) == 0.0
+
+
+GRADED = RewardConfig(graded_failure=True)
+
+
+def test_graded_failure_is_off_by_default():
+    for miss in (0.0, 0.5, 1.0):
+        assert terminal_reward(Outcome.KEEP_OUT, CONFIG, miss) == CONFIG.failure_penalty
+        assert terminal_reward(Outcome.CRASHED, CONFIG, miss) == CONFIG.failure_penalty
+
+
+def test_graded_failure_runs_from_the_floor_to_the_full_penalty():
+    floor = GRADED.failure_floor * GRADED.failure_penalty
+    assert terminal_reward(Outcome.KEEP_OUT, GRADED, 0.0) == pytest.approx(floor)
+    assert terminal_reward(Outcome.KEEP_OUT, GRADED, 1.0) == pytest.approx(GRADED.failure_penalty)
+    # A runaway keeps the full penalty, however small the miss: fleeing must
+    # never cost less than a near miss. Docking and timeout are untouched.
+    assert terminal_reward(Outcome.ESCAPED, GRADED, 0.0) == GRADED.failure_penalty
+    assert terminal_reward(Outcome.DOCKED, GRADED, 0.0) == GRADED.success_bonus
+    assert terminal_reward(Outcome.TIMEOUT, GRADED, 0.0) == GRADED.timeout_reward
+    # Every failure stays worse than a timeout.
+    assert terminal_reward(Outcome.KEEP_OUT, GRADED, 0.0) < GRADED.timeout_reward
+
+
+def test_miss_size_grows_with_angle_and_speed_and_saturates():
+    from orbital_rendezvous.rewards import miss_size
+
+    assert miss_size(15.0, 0.10, 0.10, 15.0, GRADED) == 0.0          # on the rim, at the limit
+    assert miss_size(10.0, 0.05, 0.10, 15.0, GRADED) == 0.0          # inside: no error
+    angles = [miss_size(a, 0.0, 0.10, 15.0, GRADED) for a in (16, 20, 30, 45)]
+    speeds = [miss_size(15.0, v, 0.10, 15.0, GRADED) for v in (0.11, 0.14, 0.18, 0.20)]
+    assert angles == sorted(angles) and angles[-1] == pytest.approx(1.0)
+    assert speeds == sorted(speeds) and speeds[-1] == pytest.approx(1.0)
+    # The worked example of the README: 17 deg at 0.07 m/s costs about 53.
+    miss = miss_size(17.0, 0.07, 0.10, 15.0, GRADED)
+    assert terminal_reward(Outcome.KEEP_OUT, GRADED, miss) == pytest.approx(-53.3, abs=0.1)
+    # A fast arrival saturates even when well centred.
+    assert miss_size(16.0, 0.25, 0.10, 15.0, GRADED) == 1.0

@@ -31,7 +31,20 @@ the agent from ever learning to dock.
 cost, not shaping: it is meant to change the optimal policy.
 
 **Terminal**: a bonus on docking, a penalty on a crash, a runaway or a
-keep-out violation.
+keep-out violation. By default every failure costs the same. With
+``graded_failure`` a crash or a violation costs less the closer it came to
+being a docking, so that a slow, nearly centred miss is told apart from a fast,
+wide one before the agent can dock from there:
+
+    R = p [a + (1 - a) min(1, e_theta + e_v)],
+    e_theta = clip((theta - theta_c) / theta_ref, 0, 1),
+    e_v = clip((v - v_ok) / v_ref, 0, 1),
+
+with ``p`` the failure penalty, ``a`` its floor, ``theta`` the angle from the
+docking axis where the chaser entered the keep-out sphere, ``theta_c`` the cone
+of the moment, and ``v_ok`` the glide slope there, ``v_max(r)``; for a crash
+only the speed counts, against the docking speed. A runaway keeps the full
+penalty: flying away must never cost less than a near miss.
 """
 
 from __future__ import annotations
@@ -68,6 +81,11 @@ class RewardConfig:
     success_bonus: float = 100.0
     failure_penalty: float = -100.0
     timeout_reward: float = 0.0
+    # Graded failures: off by default, every failure then costs failure_penalty.
+    graded_failure: bool = False
+    failure_floor: float = 0.5        # share of the penalty a perfect near miss still costs
+    miss_angle_ref_deg: float = 30.0  # deg outside the cone for the full penalty
+    miss_speed_ref: float = 0.10      # m/s above the allowed speed for the full penalty
 
 
 @dataclass(frozen=True)
@@ -178,7 +196,20 @@ def step_reward(
     return {"shaping": shaping, "fuel": -config.fuel_weight * delta_v}
 
 
-def terminal_reward(outcome: Outcome | None, config: RewardConfig) -> float:
+def miss_size(
+    angle_deg: float, speed: float, speed_ok: float, cone_deg: float, config: RewardConfig
+) -> float:
+    """How far a failure was from a docking, in [0, 1]: ``min(1, e_theta + e_v)``.
+
+    Either error alone can saturate it: a fast arrival costs the full penalty
+    however well centred it was.
+    """
+    e_angle = np.clip((angle_deg - cone_deg) / config.miss_angle_ref_deg, 0.0, 1.0)
+    e_speed = np.clip((speed - speed_ok) / config.miss_speed_ref, 0.0, 1.0)
+    return float(min(1.0, e_angle + e_speed))
+
+
+def terminal_reward(outcome: Outcome | None, config: RewardConfig, miss: float = 1.0) -> float:
     """Bonus on docking, penalty on a crash or a runaway, ``timeout_reward`` on a timeout.
 
     By default a timeout is not penalised: the agent should not learn to fear
@@ -186,9 +217,16 @@ def terminal_reward(outcome: Outcome | None, config: RewardConfig) -> float:
     near a narrow corridor, a policy that cannot dock yet meets violations far
     more often than dockings, and with a free timeout it learns to fly away and
     wait; not docking is then a failure like the others.
+
+    With ``graded_failure``, a crash or a keep-out violation costs
+    ``failure_penalty (a + (1 - a) miss)``, ``miss`` from `miss_size`; a runaway
+    keeps the full penalty.
     """
     if outcome is Outcome.DOCKED:
         return config.success_bonus
+    if config.graded_failure and outcome in (Outcome.CRASHED, Outcome.KEEP_OUT):
+        floor = config.failure_floor
+        return config.failure_penalty * (floor + (1.0 - floor) * float(np.clip(miss, 0.0, 1.0)))
     if outcome in (Outcome.CRASHED, Outcome.ESCAPED, Outcome.KEEP_OUT):
         return config.failure_penalty
     if outcome is Outcome.TIMEOUT:

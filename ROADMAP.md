@@ -300,7 +300,7 @@ behaviour jumps and weight where precision matters. And a memory bug is a
 bug like any other: measure a run's peak on a short trial before launching
 long or parallel ones.
 
-## Step 21 — Back to RL from scratch: a reverse curriculum *(under way)*
+## Step 21 — Back to RL from scratch: a reverse curriculum
 
 - [x] `ReverseCurriculum`: starts a few metres from the port first, then further out and further round, the smallest distance kept at 2 m; `set_start_region`; inside the keep-out sphere a start lies in the cone
 - [x] First run: stuck at the first stage for 20 million steps. The starts kept the task's random velocity, about 6 cm/s, and left a cone 1 m wide in one or two steps; even an LQR docked 50 times in 200. Fix: the start velocity shrinks with the distance within 15 m, $`\mathbf{v}_0 \min(1, r_0/15\ \text{m})`$, so that drifting out of the cone takes about eight steps from anywhere; a simple controller then docks 172–188 in 200 on the first stages
@@ -308,14 +308,30 @@ long or parallel ones.
 - [x] A timeout priced as a failure (`timeout_reward`): never docked, stopped at 5 million steps
 - [x] The approach cone opened on the first stage and narrowed, as in Step 15: the cone reaches 15° in 1.2–1.6 million steps, the first stages follow
 - [x] Eight stages: stuck at 40 m and 45° (from 10° in one stage) at 75–80 %. Twenty-one stages, 10° at a time: through 35° in 2–3 million steps, stuck again at 45°, 75 %
-- [x] Violations on the rim, 19 m out, 22° off the axis. A shaping path with a margin (a sphere of 25 m, a mouth of 7°): still 75 %. Half the starts from the stage's frontier: 70 %, and one seed collapsed. A slower glide slope, $`\tau = 400\ \text{s}`$: 75–85 %, and the chaser still reached the rim at 0.20 m/s, too fast to turn into the cone with a 2 mm/s² thruster
-- [ ] SAC in place of PPO (`configs/sac_corridor_reverse.yaml`), with the same task and curricula: under way
+- [x] Violations on the rim, 19 m out, 22° off the axis. A shaping path with a margin (a sphere of 25 m, a mouth of 7°): still 75 %. Half the starts from the stage's frontier: 70 %, and one seed collapsed. A slower glide slope, $`\tau = 400\ \text{s}`$: 75–85 %, and the chaser still reached the rim at 0.20 m/s
+- [x] SAC in place of PPO (`configs/sac_corridor_reverse.yaml`, 256×256, 3 million steps, two seeds): about 1000 steps/s against 8000 for PPO; the cone reached 15° at 2.25 million steps on one seed and 30° on the other, and neither reached the 45° stage
 
-*Lesson so far.* Check that the first stage of a curriculum is solvable, by a
+*Lesson.* Check that the first stage of a curriculum is solvable, by a
 simple controller, before training on it. The cone opened first is again what
 lets the agent learn to dock under the rule. The wall at 45° held against four
-changes to the curriculum and the reward; its cause is physical, an arrival
-too fast to turn, and the shaping could not move it.
+changes to the curriculum and the reward, and SAC did not reach it. It looked
+physical, an arrival too fast to turn; Step 22 shows it is not.
+
+## Step 22 — What the wall at 45° is
+
+Two seeds of 10 million steps each, the curriculum of Step 21 otherwise unchanged.
+
+- [x] A graded failure penalty (`rewards.graded_failure`, off by default; `configs/ppo_corridor_graded.yaml`): a crash or a violation costs $`-100\,[\alpha + (1-\alpha)\min(1, e_\theta + e_v)]`$, $`\alpha = 0.5`$, with $`e_\theta`$ the angle outside the cone over 30° and $`e_v`$ the speed above the glide slope over 0.10 m/s, both where the chaser entered the sphere; a runaway keeps −100. The idea comes from fine-grained training [Pirovano, Milanesio et al., 2025]: tell a near miss from a wide one. Result: 70–75 % at 45°, unchanged. The violations entered at 0.21–0.23 m/s, the speed error saturated, and the median miss was 1: the penalty stayed binary exactly where it mattered
+- [x] A discount of 0.995 instead of 0.99 (`configs/ppo_corridor_gamma.yaml`), since with 0.99 a docking 27 steps away is worth 0.76 of the bonus and one 80 steps away 0.45, which pays for haste: 75–85 % at 45°, unchanged; the early stages were slower
+- [x] The diagnosis, on 200 new starts between 28 and 40 m and 35–45°: the wall is one-sided. From $`x \lt 0`$ the agents docked 81–99 of 100; from $`x \gt 0`$, 5–23 of 100. Dockings also peaked at 0.20–0.22 m/s, so speed was never the cause
+- [x] The trajectories: one manoeuvre learned, over the sphere at $`y \approx 25\ \text{m}`$ towards $`+x`$ and down the cone. From $`x \gt 0`$ it loops and cuts into the sphere about 30° off the axis
+- [x] The test: the same network flown as in a mirror on the $`x \gt 0`$ starts ($`x, \dot{x}, u_x`$ with their signs flipped) docks 172 and 161 of 194, against 47 and 9 unmirrored. The Clohessy-Wiltshire equations are not symmetric under $`x \to -x`$, but over one approach the difference costs a few per cent, not seventy
+
+*Lesson.* Two changes to the reward did not move the wall because the wall
+was not in the reward. Its cause was in the learning: PPO found the
+manoeuvre on one side and the network did not carry it to the other. The
+measurement that found it, success split by side, was cheap and should have
+come before the remedies; an average over both sides hid a 90 % and a 15 %.
 
 ## Possible extensions
 

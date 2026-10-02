@@ -215,7 +215,9 @@ would teach the agent to rush in and crash.
 
 Two further terms are real costs, meant to change the optimal policy: the fuel
 spent in each step, $`-w_f\,|\mathbf{u}|\,\Delta t/m`$, and a terminal reward of
-$`+100`$ on docking and $`-100`$ on a crash or an escape. The weights are
+$`+100`$ on docking and $`-100`$ on a crash or an escape. (An option, off by
+default and tried in Step 22 of the ROADMAP, grades the penalty of a crash or a
+violation by how far it was from a docking.) The weights are
 $`w_r = 20`$, $`w_v = 10`$ and $`w_f = 2`$ per $`\text{m/s}`$: flying in from
 $`200\ \text{m}`$ earns $`20 \cdot 200/500 = +8`$ of shaping, an efficient
 approach costs about $`-2`$ of fuel.
@@ -787,7 +789,9 @@ to load on macOS 27. The results above were produced with Python 3.10, numpy
 Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor.yaml` for the oriented target and its curricula;
 `configs/ppo_corridor_reverse.yaml` and `configs/sac_corridor_reverse.yaml`
-hold the reverse curriculum of Step 21, still under way (see the ROADMAP). Each
+hold the reverse curriculum of Step 21, and `configs/ppo_corridor_graded.yaml`
+and `configs/ppo_corridor_gamma.yaml` the two variants of Step 22, still under
+way (see the ROADMAP). Each
 script needs no arguments for the default run and lists its options with
 `--help`. The side study has its own scripts and instructions in its folder.
 
@@ -852,7 +856,9 @@ Orbital_Rendezvous/
 │   ├── ppo_default.yaml    # environment, reward, PPO and window parameters
 │   ├── ppo_corridor.yaml   # the oriented target, and the two curricula to train on it
 │   ├── ppo_corridor_reverse.yaml  # Step 21: starts next to the port first, then further out
-│   └── sac_corridor_reverse.yaml  # the same with SAC in place of PPO
+│   ├── sac_corridor_reverse.yaml  # the same with SAC in place of PPO
+│   ├── ppo_corridor_graded.yaml   # Step 22: failures graded by how close they came
+│   └── ppo_corridor_gamma.yaml    # Step 22: a discount of 0.995
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -920,7 +926,10 @@ would catch them.
   passes with warnings treated as errors, with and without the switch.
 - **Reward.** The sign of every term, and the property that makes the shaping
   safe: over a random trajectory the discounted sum equals
-  $`\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)`$ to $`10^{-12}`$.
+  $`\gamma^K\Phi(\mathbf{s}_K) - \Phi(\mathbf{s}_0)`$ to $`10^{-12}`$. The
+  graded failure penalty is off by default; on, it runs from half the penalty
+  to all of it, grows with the angle and the speed of the miss, and never
+  softens a runaway, so that fleeing cannot become cheaper than trying.
 - **Baselines.** The LQR gain against the residual of the Riccati equation, its
   closed loop for stability, and with free fuel its slowest mode against
   $`e^{-\Delta t/\tau}`$; the two-impulse transfer, flown with the closed-form

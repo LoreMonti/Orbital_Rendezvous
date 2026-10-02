@@ -66,6 +66,7 @@ from .rewards import (
     RewardConfig,
     Scales,
     in_approach_cone,
+    miss_size,
     step_reward,
     terminal_reward,
 )
@@ -275,11 +276,15 @@ class RendezvousEnv(gym.Env):
         self.steps = 0
         return self._observation(), self._info(None, np.zeros(2))
 
-    def _violates_keep_out(self, p0: np.ndarray, p1: np.ndarray, samples: int = 21) -> bool:
-        """Whether the step from ``p0`` to ``p1`` enters the keep-out sphere outside the cone.
+    def _violates_keep_out(
+        self, p0: np.ndarray, p1: np.ndarray, samples: int = 21
+    ) -> float | None:
+        """Where the step from ``p0`` to ``p1`` enters the keep-out sphere outside the cone.
 
-        Checked along the whole segment, not only at its ends: in one step the
-        chaser can cross the sphere with neither end inside it.
+        Returns the fraction of the step at the first forbidden point, or
+        ``None`` if there is none. Checked along the whole segment, not only at
+        its ends: in one step the chaser can cross the sphere with neither end
+        inside it.
         """
         cfg = self.config
         for s in np.linspace(0.0, 1.0, samples):
@@ -288,8 +293,30 @@ class RendezvousEnv(gym.Env):
             if cfg.docking_radius <= distance < cfg.keep_out_radius and not in_approach_cone(
                 point, cfg.approach_cone_deg
             ):
-                return True
-        return False
+                return float(s)
+        return None
+
+    def _miss(
+        self, outcome: Outcome | None, previous_state: np.ndarray, entry: float | None
+    ) -> float:
+        """How far a crash or a violation was from a docking (see `rewards.miss_size`)."""
+        cfg = self.config
+        if outcome is Outcome.CRASHED:
+            speed = float(np.linalg.norm(self.state[2:]))
+            return miss_size(
+                0.0, speed, cfg.docking_speed, cfg.approach_cone_deg, self.reward_config
+            )
+        if outcome is Outcome.KEEP_OUT and entry is not None:
+            # Position and velocity where the step entered the forbidden zone.
+            point = previous_state + entry * (self.state - previous_state)
+            distance = float(np.hypot(*point[:2]))
+            angle = float(np.degrees(np.arccos(np.clip(point[1] / distance, -1.0, 1.0))))
+            speed_ok = cfg.docking_speed + distance / self.reward_config.approach_time
+            return miss_size(
+                angle, float(np.hypot(*point[2:])), speed_ok, cfg.approach_cone_deg,
+                self.reward_config,
+            )
+        return 1.0
 
     def _outcome(self, previous_position: np.ndarray, violated: bool) -> Outcome | None:
         cfg = self.config
@@ -324,9 +351,11 @@ class RendezvousEnv(gym.Env):
         self.state = propagate(self.state, thrust, self.phi, self.gamma)
         self.steps += 1
 
-        violated = bool(self.config.keep_out_radius) and self._violates_keep_out(
-            previous_state[:2], self.state[:2]
+        entry = (
+            self._violates_keep_out(previous_state[:2], self.state[:2])
+            if self.config.keep_out_radius else None
         )
+        violated = entry is not None
         outcome = self._outcome(previous_state[:2], violated)
         # With the clock observed, every outcome, the timeout included, ends
         # the task; nothing is left to bootstrap from.
@@ -340,7 +369,8 @@ class RendezvousEnv(gym.Env):
             previous_state - shift, self.state - shift, thrust, terminated,
             self.reward_config, self.scales,
         )
-        terms["terminal"] = terminal_reward(outcome, self.reward_config)
+        miss = self._miss(outcome, previous_state, entry)
+        terms["terminal"] = terminal_reward(outcome, self.reward_config, miss)
         if self.config.keep_out_radius:
             penalised = violated and self.config.keep_out_mode == "penalty"
             terms["keep_out"] = -self.config.keep_out_weight if penalised else 0.0
@@ -350,5 +380,6 @@ class RendezvousEnv(gym.Env):
         info["reward_terms"] = terms
         info["engine_on"] = engine_on
         info["keep_out_violated"] = violated
+        info["miss"] = miss
         return self._observation(), reward, terminated, truncated, info
 

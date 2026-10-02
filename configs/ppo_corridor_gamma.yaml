@@ -1,0 +1,134 @@
+# Configuration for Step 22: the reverse curriculum of Step 21
+# (configs/ppo_corridor_reverse.yaml), unchanged, with one difference: a
+# discount of 0.995 instead of 0.99. With 0.99 a docking 27 steps away is worth
+# 0.99^27 = 0.76 of the bonus and one 80 steps away 0.45: the discount itself
+# pays the agent to arrive fast, and at the 45 degree wall it reaches the
+# keep-out sphere at 0.2 m/s. With 0.995 the gap shrinks from 31 to 20 points.
+# Lengths are in metres, velocities in m/s, times in seconds.
+
+environment:
+  # Target orbit: circular, low Earth orbit at 400 km altitude.
+  # The mean motion is n = sqrt(mu / a^3).
+  semi_major_axis: 6.778e+6        # m; YAML needs the explicit sign to read a float
+  mu: 3.986004418e+14         # m^3/s^2
+
+  # Chaser spacecraft.
+  mass: 500.0
+  max_thrust: 1.0          # N, per axis limit on the commanded thrust
+  # Minimum thruster level, as a fraction of max_thrust: weaker commands leave
+  # the thruster off. 0 for the default agent; the fuel study uses it so that
+  # exploration noise around zero does not burn fuel.
+  thrust_deadzone: 0.0
+  # An engine switch as a third action: the engine fires only when it is
+  # positive, so coasting is free even under exploration noise. Off for the
+  # default agent.
+  engine_switch: false
+
+  # Keep-out sphere around the station, entered only inside an approach cone
+  # around the docking axis +y (the V-bar). 0 turns it off, as for the default
+  # agent; configs/ppo_corridor.yaml turns it on.
+  keep_out_radius: 20.0        # m
+  approach_cone_deg: 15.0      # half-angle of the cone
+
+  # Integration.
+  # One decision every 10 s. The propagation is exact for any step, so this
+  # only sets how often the agent acts; it also makes the discount horizon,
+  # 1 / (1 - gamma) = 200 steps, span twice the ~1000 s an approach takes.
+  time_step: 10.0          # s, one environment step
+  max_episode_steps: 300   # 3000 s
+
+  # Initial condition: the chaser starts somewhere on this annulus,
+  # with a small random relative velocity.
+  initial_radius_range: [80.0, 200.0]
+  # Angle between the start and the docking axis +y, drawn in this range on a
+  # random side of the axis. [0, 180] is every direction; the start curriculum
+  # of configs/ppo_corridor.yaml narrows it at first, then widens it.
+  start_angle_range_deg: [0.0, 180.0]
+  # Inside the keep-out sphere, a start stays this close to the docking axis.
+  inner_start_angle_deg: 10.0
+  # Closer than this, the random start velocity shrinks with the distance.
+  start_speed_radius: 15.0     # m
+  # The shaping measures the way to the port around a sphere this much larger,
+  # to a cone mouth this much narrower: the shortest way hugs the rim and the
+  # agent cut the corner there. The rule itself is unchanged.
+  shaping_radius_margin: 5.0   # m
+  shaping_cone_margin_deg: 8.0 # deg
+  initial_velocity_scale: 0.05
+
+  # Terminal conditions.
+  docking_radius: 1.0          # m, close enough to count as a rendezvous
+  docking_speed: 0.05          # m/s, and slow enough not to crash into it
+  max_distance: 500.0          # m, beyond this the episode is a failure
+
+  # Observation normalisation: velocities are divided by this, positions by
+  # max_distance, so every component the agent sees is of order one.
+  velocity_scale: 0.5          # m/s
+
+rewards:
+  # Potential-based shaping, F = gamma Phi(s') - Phi(s), with
+  # Phi = -w_r r / r_max - w_v max(0, |v| - v_max(r)) / v_ref
+  # and the glide slope v_max(r) = docking_speed + r / approach_time.
+  distance_weight: 20.0
+  speed_weight: 10.0
+  # 400 s instead of 200: at the rim of the keep-out sphere the glide slope
+  # allows 0.10 m/s instead of 0.15; arriving at 0.18 m/s the chaser needed
+  # about four steps, 7 m, to turn into the cone, and entered the sphere first.
+  approach_time: 400.0         # s
+  gamma: 0.995                 # must equal training.gamma
+  fuel_weight: 2.0             # per m/s of delta-v spent: a real cost, not shaping
+  success_bonus: 100.0
+  failure_penalty: -100.0
+  timeout_reward: 0.0           # a timeout is not a failure by default
+
+training:
+  algorithm: PPO
+  total_timesteps: 32_000_000  # as for Step 15, for a fair comparison
+  seed: 0
+  n_envs: 8
+  policy: MlpPolicy
+  policy_kwargs:
+    net_arch: [64, 64]
+  learning_rate: 3.0e-4
+  n_steps: 512
+  batch_size: 256
+  gamma: 0.995
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  # Optionally raise the fuel weight during training, from `start` to
+  # rewards.fuel_weight over the first `ramp` fraction of the run, e.g.
+  # {start: 2.0, ramp: 0.5}. Off for the default agent.
+  fuel_curriculum: null
+  start_curriculum: null
+  # Stages of (largest distance [m], largest angle from the docking axis
+  # [deg]) for the starts, the smallest distance staying at min_radius; the
+  # next stage when the deterministic agent docks in `threshold` of 20 test
+  # attempts from the outer `band` of the stage's distances. The angle grows
+  # by 10 degrees a stage: a jump from 10 to 45 degrees stalled at 75-80 %.
+  # First the approach cone is opened (cone_start_deg, no constraint) and
+  # narrowed to 15 degrees on the first stage's starts: without it the agent
+  # never docked and learned to fly away from the port.
+  reverse_curriculum:
+    min_radius: 2.0
+    cone_start_deg: 180.0
+    stages: [[5.0, 10.0], [10.0, 10.0], [20.0, 10.0], [40.0, 15.0], [40.0, 25.0],
+             [40.0, 35.0], [40.0, 45.0], [60.0, 55.0], [60.0, 65.0], [60.0, 75.0],
+             [60.0, 85.0], [100.0, 95.0], [100.0, 105.0], [100.0, 115.0],
+             [100.0, 125.0], [150.0, 135.0], [150.0, 145.0], [150.0, 155.0],
+             [150.0, 165.0], [200.0, 175.0], [200.0, 180.0]]
+    threshold: 0.9
+    band: 0.3
+    # Share of the training starts from the newest part of the stage. Half of
+    # them did not get past the stage at 45 degrees and upset one seed: off.
+    frontier_fraction: 0.0
+  # The best policy on the task itself, 50 validation starts, every 25 rollouts.
+  best_model: {evaluate_every: 25, episodes: 50}
+
+live_view:
+  enabled: true
+  episode_stride: 500          # replay one attempt every N; ~40 over a full run
+  trail_length: 300            # how many past positions to keep on screen
+  # With --record, the replays kept for the training GIF: the first at or after
+  # each of these episode counts (wandering, learning, mostly docking), plus the
+  # last one of the run.
+  record_at: [500, 1500, 2500]

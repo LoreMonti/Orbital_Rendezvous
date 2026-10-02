@@ -180,3 +180,35 @@ def test_path_is_continuous_across_the_edge_of_the_cone():
     inside = path_length(at_angle(14.999, 100.0), scales(15.0))
     outside = path_length(at_angle(15.001, 100.0), scales(15.0))
     assert inside == pytest.approx(outside, abs=1e-3)
+
+
+def test_graded_failure_charges_a_near_miss_less_than_a_wide_fast_one():
+    from orbital_rendezvous import RewardConfig
+
+    def violation(degrees, speed):
+        # 20.5 m out, heading straight in: the step enters the sphere at this angle.
+        position = at_angle(degrees, 20.5)
+        velocity = -speed * position / np.hypot(*position)
+        env = RendezvousEnv(STRICT, RewardConfig(graded_failure=True, approach_time=400.0))
+        env.reset(seed=0)
+        env.state = np.append(position, velocity)
+        _, _, _, _, info = env.step(np.zeros(2))
+        assert info["outcome"] is Outcome.KEEP_OUT
+        return info["miss"], info["reward_terms"]["terminal"]
+
+    near_miss, near = violation(17.0, 0.07)
+    _, wide = violation(22.0, 0.20)
+    assert near_miss == pytest.approx(2.0 / 30.0, abs=0.01)   # 2 deg out, slow enough
+    assert -60.0 < near < -50.0
+    assert wide == pytest.approx(-100.0)
+
+
+def test_graded_crash_depends_on_the_speed_only():
+    from orbital_rendezvous import RewardConfig
+
+    env = RendezvousEnv(STRICT, RewardConfig(graded_failure=True))
+    env.reset(seed=0)
+    env.state = np.array([0.0, 1.5, 0.0, -0.10])     # into the port at 0.10 m/s
+    _, _, _, _, info = env.step(np.zeros(2))
+    assert info["outcome"] is Outcome.CRASHED
+    assert info["miss"] == pytest.approx(0.5, abs=0.05)  # 0.05 m/s over the docking speed
