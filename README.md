@@ -668,6 +668,16 @@ on every start they dock, by about 400 s in the median, and spend more fuel. See
 cheaper on every one, by about 20 % against the slower procedure, and 190 s
 slower. None is both, and none is as reliable.
 
+Later, back to reinforcement learning from scratch after the side study, a
+reverse curriculum (starts next to the port first) stopped at $`45°`$ on
+every seed. Split by side, the wall was one-sided: PPO had learned the
+approach from $`x \lt 0`$ only. Showing the starts with $`x \gt 0`$ as in a
+mirror (`mirror_symmetry`) removed it, and the curriculum then reached
+$`105°`$, $`155°`$ and $`155°`$. On the same 200 starts the three seeds docked
+**152**, 126 and 45 times: the best equals the best above, with 11 of 47 from
+behind the station instead of 5. The wall it removed was real; behind the
+station the hard part remains (Steps 21–23 of the ROADMAP).
+
 ### A side study: learning from a teacher
 
 Set aside in [`experiments/teacher_student`](experiments/teacher_student): the
@@ -791,8 +801,7 @@ Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor_reverse.yaml` and `configs/sac_corridor_reverse.yaml`
 hold the reverse curriculum of Step 21, and `configs/ppo_corridor_graded.yaml`
 and `configs/ppo_corridor_gamma.yaml` the two variants of Step 22, and
-`configs/ppo_corridor_mirror.yaml` the mirror of Step 23, still under way (see
-the ROADMAP). Each
+`configs/ppo_corridor_mirror.yaml` the mirror of Step 23 (see the ROADMAP). Each
 script needs no arguments for the default run and lists its options with
 `--help`. The side study has its own scripts and instructions in its folder.
 

@@ -333,18 +333,25 @@ manoeuvre on one side and the network did not carry it to the other. The
 measurement that found it, success split by side, was cheap and should have
 come before the remedies; an average over both sides hid a 90 % and a 15 %.
 
-## Step 23 — A mirror for the two sides *(under way)*
+## Step 23 — A mirror for the two sides
 
 - [x] `mirror_symmetry` (off by default; `configs/ppo_corridor_mirror.yaml`): a start outside the keep-out sphere with $`x \gt 0`$ is shown to the agent as on the side $`x \lt 0`$, with $`x`$, $`\dot{x}`$ and $`u_x`$ flipped for the whole episode; the side is fixed at the start, since the manoeuvre crosses the axis on its way into the cone
 - [x] First version, every start mirrored and the true side given as an extra input: stuck at the first stage, 60–65 % and 15 % at 4 million steps. Next to the port the Coriolis term pushes the chaser out of the cone always towards the same side; there the problem is not symmetric
 - [x] Starts inside the sphere never mirrored, the side still an input: stuck at the first stage again, although the task there was unchanged. The constant extra input changed the network and its training
 - [x] No extra input: within 20 m the training is now the one of Step 21, bit for bit, a test pins it. Two seeds of 10 million steps: **seed 1 passed the wall**, the first agent from scratch to do it, and reached 85° at 60 m; from new starts at 45° it docks 89/99 from $`x \lt 0`$ and 97/101 from $`x \gt 0`$, at 75° 74/99 and 94/101. Seed 0 stayed at 45°, its two sides now even but weak, 33/99 and 48/101
-- [ ] Three seeds of 32 million steps, as in Step 15: under way
+- [x] Three seeds of 32 million steps, as in Step 15: the curriculum reached 105°, 155° and 155° (Step 15: 55°, 145°, 155°); seed 1's training success fell to nearly zero at 26 million steps and partly came back
+- [x] On the 200 unseen starts of Step 15 (`scripts/corridor_eval.py`, which now flies the V-bar procedure without the mirror: it commands the true thrust, and through the mirror it docked 106 of 200): **152, 126 and 45 of 200** (best on validation: 143, 120, 58), against 153, 121 and 71 in Step 15. By direction, for the best seed: 97/97 within 90°, 44/56 between 90° and 135° (Step 15: 51), 11/47 from behind the station (Step 15: 5). The procedure docks 200 of 200
 
-*Lesson so far.* A symmetry helps only where it holds: next to the port it
-does not, and imposing it there broke the stage that had been easy. And a
-change meant to be invisible should be made invisible, so that the comparison
-is clean: the extra input looked harmless and was not.
+*Lesson.* The mirror removed the wall it was built for: the curriculum now
+passes 45° on every seed, and the two sides dock alike. On the whole task it
+did not pay: the best seed docks 152 of 200, as Step 15 did, and from behind
+the station it still fails four times in five. The wall at 45° was one
+obstacle of several, and the next one, behind the station, is the one Step 15
+already found. Two smaller lessons: a symmetry helps only where it holds,
+since next to the port it does not and imposing it there broke the easy stage;
+and a change meant to be invisible must be made invisible, as an extra input
+that looked harmless was not. The evaluation had its own trap: a classical
+controller flown through the agent's mirror.
 
 ## Possible extensions
 

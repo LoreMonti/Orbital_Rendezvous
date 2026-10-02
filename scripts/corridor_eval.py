@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -70,12 +71,16 @@ def main() -> None:
     args = parse_args()
     env_config, reward_config = build_configs(load_config(args.config))
     env = RendezvousEnv(env_config, reward_config)
+    # The procedure commands the true thrust: with the mirror of Step 23 the
+    # environment would flip its radial command on half of the starts. The
+    # starts are the same either way.
+    plain = RendezvousEnv(replace(env_config, mirror_symmetry=False), reward_config)
     seeds = range(HELD_OUT_SEED, HELD_OUT_SEED + args.episodes)
 
     results, vbar, agents = {}, {}, {}
     for tau in (100.0, 200.0):
         name = f"V-bar procedure, tau = {tau:.0f} s"
-        vbar[name] = evaluate(env, VbarApproach(env, approach_time=tau), seeds)
+        vbar[name] = evaluate(plain, VbarApproach(plain, approach_time=tau), seeds)
         results[name] = summary(vbar[name])
     for path in args.models:
         model = load_model(path)
