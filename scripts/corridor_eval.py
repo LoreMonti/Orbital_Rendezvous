@@ -71,10 +71,12 @@ def main() -> None:
     args = parse_args()
     env_config, reward_config = build_configs(load_config(args.config))
     env = RendezvousEnv(env_config, reward_config)
-    # The procedure commands the true thrust: with the mirror of Step 23 the
+    # The procedure commands the true thrust: with the mirror of Steps 23-24 the
     # environment would flip its radial command on half of the starts. The
     # starts are the same either way.
-    plain = RendezvousEnv(replace(env_config, mirror_symmetry=False), reward_config)
+    plain = RendezvousEnv(
+        replace(env_config, mirror_symmetry=False, side_choice=False), reward_config
+    )
     seeds = range(HELD_OUT_SEED, HELD_OUT_SEED + args.episodes)
 
     results, vbar, agents = {}, {}, {}

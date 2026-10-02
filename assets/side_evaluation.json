@@ -1,0 +1,328 @@
+{
+ "description": "Oriented target: keep-out sphere of 20 m, approach cone of 15 degrees. 200 held-out starts in every direction; costs are medians over the dockings; sectors are start angles from the docking axis.",
+ "sectors_deg": [
+  0.0,
+  45.0,
+  90.0,
+  135.0,
+  180.0
+ ],
+ "results": {
+  "V-bar procedure, tau = 100 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.2307316768740946,
+   "time_median": 1400.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "V-bar procedure, tau = 200 s": {
+   "docked": 200,
+   "attempts": 200,
+   "violations": 0,
+   "delta_v_median": 1.0570284400676986,
+   "time_median": 1775.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     47,
+     47
+    ]
+   ]
+  },
+  "side32_seed0": {
+   "docked": 105,
+   "attempts": 200,
+   "violations": 56,
+   "delta_v_median": 1.4909721658760848,
+   "time_median": 1210.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     44,
+     56
+    ],
+    [
+     18,
+     56
+    ],
+    [
+     2,
+     47
+    ]
+   ]
+  },
+  "side32_seed0_best": {
+   "docked": 115,
+   "attempts": 200,
+   "violations": 83,
+   "delta_v_median": 1.6279433783966575,
+   "time_median": 1220.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     49,
+     56
+    ],
+    [
+     23,
+     56
+    ],
+    [
+     2,
+     47
+    ]
+   ]
+  },
+  "side32_seed1": {
+   "docked": 163,
+   "attempts": 200,
+   "violations": 37,
+   "delta_v_median": 2.2193228223422814,
+   "time_median": 1330.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     46,
+     56
+    ],
+    [
+     20,
+     47
+    ]
+   ]
+  },
+  "side32_seed1_best": {
+   "docked": 160,
+   "attempts": 200,
+   "violations": 40,
+   "delta_v_median": 2.181438234088465,
+   "time_median": 1215.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     56,
+     56
+    ],
+    [
+     46,
+     56
+    ],
+    [
+     17,
+     47
+    ]
+   ]
+  },
+  "side32_seed2": {
+   "docked": 100,
+   "attempts": 200,
+   "violations": 100,
+   "delta_v_median": 1.8328614543068016,
+   "time_median": 1160.0,
+   "docked_by_sector": [
+    [
+     39,
+     41
+    ],
+    [
+     34,
+     56
+    ],
+    [
+     24,
+     56
+    ],
+    [
+     3,
+     47
+    ]
+   ]
+  },
+  "side32_seed2_best": {
+   "docked": 109,
+   "attempts": 200,
+   "violations": 46,
+   "delta_v_median": 1.5306268179735583,
+   "time_median": 1190.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     47,
+     56
+    ],
+    [
+     20,
+     56
+    ],
+    [
+     1,
+     47
+    ]
+   ]
+  }
+ },
+ "same_starts": {
+  "side32_seed0": {
+   "starts": 105,
+   "agent": {
+    "delta_v_median": 1.4909721658760848,
+    "time_median": 1210.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0342078585851793,
+    "time_median": 1310.0,
+    "agent_cheaper": 0.2857142857142857,
+    "agent_faster": 0.6571428571428571
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9016721756961381,
+    "time_median": 1680.0,
+    "agent_cheaper": 0.24761904761904763,
+    "agent_faster": 0.9523809523809523
+   }
+  },
+  "side32_seed0_best": {
+   "starts": 115,
+   "agent": {
+    "delta_v_median": 1.6279433783966575,
+    "time_median": 1220.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.072519847293161,
+    "time_median": 1330.0,
+    "agent_cheaper": 0.2782608695652174,
+    "agent_faster": 0.6260869565217392
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.932011767027151,
+    "time_median": 1700.0,
+    "agent_cheaper": 0.22608695652173913,
+    "agent_faster": 0.8695652173913043
+   }
+  },
+  "side32_seed1": {
+   "starts": 163,
+   "agent": {
+    "delta_v_median": 2.2193228223422814,
+    "time_median": 1330.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.1789672142983565,
+    "time_median": 1360.0,
+    "agent_cheaper": 0.0736196319018405,
+    "agent_faster": 0.5460122699386503
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.008464208938711,
+    "time_median": 1740.0,
+    "agent_cheaper": 0.006134969325153374,
+    "agent_faster": 0.9386503067484663
+   }
+  },
+  "side32_seed1_best": {
+   "starts": 160,
+   "agent": {
+    "delta_v_median": 2.181438234088465,
+    "time_median": 1215.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.1666624331787294,
+    "time_median": 1350.0,
+    "agent_cheaper": 0.075,
+    "agent_faster": 0.725
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 1.0065842511729497,
+    "time_median": 1735.0,
+    "agent_cheaper": 0.0125,
+    "agent_faster": 0.9375
+   }
+  },
+  "side32_seed2": {
+   "starts": 100,
+   "agent": {
+    "delta_v_median": 1.8328614543068016,
+    "time_median": 1160.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0695084950775242,
+    "time_median": 1310.0,
+    "agent_cheaper": 0.13,
+    "agent_faster": 0.64
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9332576162423181,
+    "time_median": 1690.0,
+    "agent_cheaper": 0.08,
+    "agent_faster": 0.98
+   }
+  },
+  "side32_seed2_best": {
+   "starts": 109,
+   "agent": {
+    "delta_v_median": 1.5306268179735583,
+    "time_median": 1190.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0480322748847555,
+    "time_median": 1320.0,
+    "agent_cheaper": 0.30275229357798167,
+    "agent_faster": 0.7889908256880734
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9231444433333028,
+    "time_median": 1690.0,
+    "agent_cheaper": 0.22935779816513763,
+    "agent_faster": 1.0
+   }
+  }
+ }
+}

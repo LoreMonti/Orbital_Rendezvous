@@ -676,7 +676,10 @@ mirror (`mirror_symmetry`) removed it, and the curriculum then reached
 $`105°`$, $`155°`$ and $`155°`$. On the same 200 starts the three seeds docked
 **152**, 126 and 45 times: the best equals the best above, with 11 of 47 from
 behind the station instead of 5. The wall it removed was real; behind the
-station the hard part remains (Steps 21–23 of the ROADMAP).
+station the hard part remains (Steps 21–23 of the ROADMAP). Letting the agent
+choose the mirror, once, at the start (`side_choice`), took one seed round the
+whole station: **163 of 200**, 20 of 47 from behind it, the best agent from
+scratch so far, while the other two seeds docked 105 and 100 (Step 24).
 
 ### A side study: learning from a teacher
 
@@ -801,7 +804,9 @@ Every parameter lives in `configs/ppo_default.yaml`, and in
 `configs/ppo_corridor_reverse.yaml` and `configs/sac_corridor_reverse.yaml`
 hold the reverse curriculum of Step 21, and `configs/ppo_corridor_graded.yaml`
 and `configs/ppo_corridor_gamma.yaml` the two variants of Step 22, and
-`configs/ppo_corridor_mirror.yaml` the mirror of Step 23 (see the ROADMAP). Each
+`configs/ppo_corridor_mirror.yaml` the mirror of Step 23, and
+`configs/ppo_corridor_side.yaml` the side chosen by the agent in Step 24 (see
+the ROADMAP). Each
 script needs no arguments for the default run and lists its options with
 `--help`. The side study has its own scripts and instructions in its folder.
 
@@ -869,7 +874,8 @@ Orbital_Rendezvous/
 │   ├── sac_corridor_reverse.yaml  # the same with SAC in place of PPO
 │   ├── ppo_corridor_graded.yaml   # Step 22: failures graded by how close they came
 │   ├── ppo_corridor_gamma.yaml    # Step 22: a discount of 0.995
-│   └── ppo_corridor_mirror.yaml   # Step 23: starts on the side x > 0 shown as in a mirror
+│   ├── ppo_corridor_mirror.yaml   # Step 23: starts on the side x > 0 shown as in a mirror
+│   └── ppo_corridor_side.yaml     # Step 24: the agent chooses the mirror, once
 ├── src/orbital_rendezvous/
 │   ├── dynamics.py         # Clohessy-Wiltshire propagation: pure physics, no RL
 │   ├── env.py              # RendezvousEnv, the Gymnasium API
@@ -984,7 +990,10 @@ would catch them.
   mirrored starts look the same to the agent; the side is kept when the
   chaser crosses the axis; and inside the sphere observations and rewards
   equal those without the mirror bit for bit, seed for seed and action for
-  action, so the first stages of a curriculum train exactly as before.
+  action, so the first stages of a curriculum train exactly as before. With
+  the side chosen by the agent, the choice is read on the first step only and
+  kept, there is none inside the sphere, and choosing by the sign of $`x`$
+  reproduces the fixed mirror bit for bit.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

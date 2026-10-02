@@ -353,6 +353,20 @@ and a change meant to be invisible must be made invisible, as an extra input
 that looked harmless was not. The evaluation had its own trap: a classical
 controller flown through the agent's mirror.
 
+## Step 24 — The side chosen by the agent
+
+- [x] `side_choice` (off by default, needs the mirror; `configs/ppo_corridor_side.yaml`): the action gains a last component $`a_s`$, read once, on the first step of a start outside the keep-out sphere; $`a_s \lt 0`$ shows the world as in a mirror from the next step on. Choosing the mirror is choosing the side: one manoeuvre is learned, flown on either side. A Gaussian policy cannot say "left or right" where both are good; one sign drawn once and kept turns the average into one whole manoeuvre or the other. Policy and value keep separate networks, as before: one change at a time
+- [x] Two seeds of 10 million steps: the curriculum reached 125° and 135° (Step 23 at 10 million: 45° and 85°)
+- [x] Three seeds of 32 million steps: the curriculum reached 145°, **180°** (the whole task, a first) and 135°. On the 200 unseen starts: **163**, 105 and 100 of 200 (best on validation: 160, 115, 109). For the best seed: 97/97 within 90°, 46/56 between 90° and 135°, **20/47** from behind the station (Step 15: 5, Step 23: 11). The best of Steps 15 and 23 docked 153 and 152
+- [x] What the agents chose: a fixed rule by the sign of $`x_0`$, 192 times in 200 for the best seed, the same rule as Step 23's mirror (one seed learned the opposite, equivalent convention). Behind the station the best seed docks 73 of 160 starts more than 20 m off the axis, and 1 of 40 within 20 m: there it crosses the axis behind the station and enters the sphere. The hard starts are where the natural drift, $`\Delta y = -12\pi\,x_0`$ per orbit, picks no side
+
+*Lesson.* A choice made once helped where the averaging had hurt: the best
+seed went further, round the whole station, and docked more often than any
+agent before it. It did not help the typical seed, and the agents did not use
+the freedom they were given: they kept the rule of the mirror. Behind the
+station, near the axis, is now the last hard part, and it is the place where
+the physics gives no preference; that is where to look next.
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -394,6 +408,10 @@ lost. Each has a remedy that stays within reinforcement learning.
 - [ ] If successes stay too rare: an off-policy algorithm with Hindsight
   Experience Replay, which relabels each failed approach as a success towards
   the point it reached.
+- [ ] Policy and value on one shared trunk instead of two networks: the
+  value then acts as an auxiliary task shaping the policy's features, which
+  helps only if the two losses are balanced; with returns of ±100 the value
+  loss would dominate unless scaled (Step 24 kept them separate).
 
 ### 3. Three dimensions
 

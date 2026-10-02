@@ -33,6 +33,18 @@ sphere the Clohessy-Wiltshire equations are not exactly symmetric under
 83-89 % from the other (Step 22 of the ROADMAP), and what is learned on one
 side now serves both.
 
+Optionally, with the mirror, a side chosen by the agent: with ``side_choice``
+the action gains a last component, ``a_s``, read once, on the first step of an
+episode that starts outside the keep-out sphere. ``a_s >= 0`` keeps the world
+as it is from the next step on, ``a_s < 0`` shows it as in a mirror; the first
+step itself is seen and flown as it is. Choosing the mirror is choosing the
+side: the agent learns one manoeuvre in its own frame, and the mirror decides
+on which side of the station it is flown. A Gaussian policy cannot say
+"left or right" where both are good, and averages them into "straight on",
+into the keep-out sphere; one sign drawn once and kept turns that average into
+one whole manoeuvre or the other. ``a_s`` is ignored afterwards, and inside the
+sphere, where the mirror never applies.
+
 Observation: the relative state, normalised so that every component is of
 order one, and the fraction of the episode elapsed,
 ``[x / r_max, y / r_max, vx / v_ref, vy / v_ref, t / T_max]``. Positions are
@@ -119,6 +131,7 @@ class EnvConfig:
     shaping_radius_margin: float = 0.0
     shaping_cone_margin_deg: float = 0.0
     mirror_symmetry: bool = False
+    side_choice: bool = False
 
 
 def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
@@ -157,7 +170,9 @@ class RendezvousEnv(gym.Env):
         self.phi, self.gamma = discretize(self.n, self.config.time_step, self.config.mass)
 
         # Thrust on the two axes, and with the engine switch a third command, a_on.
-        n_actions = 3 if self.config.engine_switch else 2
+        if self.config.side_choice and not self.config.mirror_symmetry:
+            raise ValueError("side_choice chooses the mirror: it needs mirror_symmetry")
+        n_actions = 2 + int(self.config.engine_switch) + int(self.config.side_choice)
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(n_actions,), dtype=np.float32)
         # Finite but generous bounds: twice the escape radius on position, and
         # 10 m/s on velocity, more than the delta-v an episode can spend. The
@@ -189,6 +204,8 @@ class RendezvousEnv(gym.Env):
         self.steps = 0
         # +1 shows the state as it is, -1 as in a mirror (x and vx flipped).
         self.mirror = 1.0
+        # With side_choice: whether the next step's a_s still sets the mirror.
+        self.side_open = False
         # A share of the starts drawn from the newest part of a curriculum's
         # stage: (fraction, (radius low, radius high), (angle low, angle high)).
         self.frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None
@@ -298,8 +315,9 @@ class RendezvousEnv(gym.Env):
         self.state = np.append(position, velocity)
         self.steps = 0
         outside = float(np.hypot(*position)) > cfg.keep_out_radius
-        mirrored = cfg.mirror_symmetry and outside and position[0] > 0.0
+        mirrored = cfg.mirror_symmetry and not cfg.side_choice and outside and position[0] > 0.0
         self.mirror = -1.0 if mirrored else 1.0
+        self.side_open = cfg.side_choice and outside
         return self._observation(), self._info(None, np.zeros(2))
 
     def _violates_keep_out(
@@ -365,6 +383,9 @@ class RendezvousEnv(gym.Env):
         self, action: np.ndarray
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         command = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        side = None
+        if self.config.side_choice:
+            side, command = float(command[-1]), command[:-1]
         command[0] *= self.mirror   # the agent commands in its mirrored frame
         engine_on = True
         if self.config.engine_switch:
@@ -377,6 +398,11 @@ class RendezvousEnv(gym.Env):
 
         self.state = propagate(self.state, thrust, self.phi, self.gamma)
         self.steps += 1
+        if self.side_open:
+            # Chosen once, on the first step, and kept: the observation of
+            # this step is already in the chosen frame.
+            self.mirror = -1.0 if side < 0.0 else 1.0
+            self.side_open = False
 
         entry = (
             self._violates_keep_out(previous_state[:2], self.state[:2])
@@ -407,6 +433,7 @@ class RendezvousEnv(gym.Env):
         info["reward_terms"] = terms
         info["engine_on"] = engine_on
         info["keep_out_violated"] = violated
+        info["mirror"] = self.mirror
         info["miss"] = miss
         return self._observation(), reward, terminated, truncated, info
 
