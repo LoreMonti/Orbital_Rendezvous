@@ -359,13 +359,27 @@ controller flown through the agent's mirror.
 - [x] Two seeds of 10 million steps: the curriculum reached 125° and 135° (Step 23 at 10 million: 45° and 85°)
 - [x] Three seeds of 32 million steps: the curriculum reached 145°, **180°** (the whole task, a first) and 135°. On the 200 unseen starts: **163**, 105 and 100 of 200 (best on validation: 160, 115, 109). For the best seed: 97/97 within 90°, 46/56 between 90° and 135°, **20/47** from behind the station (Step 15: 5, Step 23: 11). The best of Steps 15 and 23 docked 153 and 152
 - [x] What the agents chose: a fixed rule by the sign of $`x_0`$, 192 times in 200 for the best seed, the same rule as Step 23's mirror (one seed learned the opposite, equivalent convention). Behind the station the best seed docks 73 of 160 starts more than 20 m off the axis, and 1 of 40 within 20 m: there it crosses the axis behind the station and enters the sphere. The hard starts are where the natural drift, $`\Delta y = -12\pi\,x_0`$ per orbit, picks no side
+- [x] Three more seeds, 3 to 5, the configuration unchanged, to see how much a single seed says: 122, 0 and 96 of 200 at the end (seed 4 forgot everything; best on validation 122, 113, 122). Over six seeds the best policies on validation dock **109–160 of 200, median 118**; 163 was one seed in six. From behind the station: 1–4 of 47 on five seeds, 17–20 on one
 
 *Lesson.* A choice made once helped where the averaging had hurt: the best
 seed went further, round the whole station, and docked more often than any
-agent before it. It did not help the typical seed, and the agents did not use
+agent before it. It did not help the typical seed, which docks about 118 of
+200; three seeds were not enough to tell a lucky seed from a method, and the agents did not use
 the freedom they were given: they kept the rule of the mirror. Behind the
 station, near the axis, is now the last hard part, and it is the place where
 the physics gives no preference; that is where to look next.
+
+## Step 25 — Brakes on PPO
+
+- [x] The logs of Step 24: the updates never shrank. The median KL divergence between the new and the old policy stayed near 0.02 for the whole run, a twentieth of updates passed 0.06, a fifth of the samples were clipped, and the training success fell to zero and back
+- [x] `training.ppo_stability`, off by default: a learning rate falling linearly to `learning_rate_final`, and `target_kl`, which stops the epochs of an update once the KL passes 1.5 times it (`configs/ppo_corridor_stable.yaml`: $`3 \times 10^{-4} \to 3 \times 10^{-5}`$, 0.02)
+- [x] Three seeds, stopped at 11 million steps: two still at the first stage, narrowing the cone, and one at the fourth, where Step 24 had been at the ninth by 4 million. The KL had only fallen to 0.016, so the brakes rarely acted, and the cause of the slowdown is not proven; the six seeds of Step 24 without them all passed 45° within 6 million steps
+- [x] Not done: replaying the starts of earlier stages. The curriculum already draws them, since every stage covers its whole region from 2 m; at the last stage a quarter of the starts are within 45° of the axis
+
+*Lesson.* A diagnosis from the logs was right in what it measured, large
+updates, and wrong in what it promised: slowing every update slowed the
+learning first. Forgetting is better handled by keeping the best policy,
+which turned seed 4 from 0 to 113 of 200, than by braking the training.
 
 ## Possible extensions
 

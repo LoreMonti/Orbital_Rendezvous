@@ -73,6 +73,31 @@ def with_overrides(
     return config
 
 
+def ppo_stability(training: dict[str, Any]) -> dict[str, Any]:
+    """Two optional brakes on PPO's updates, both off unless set.
+
+    ``learning_rate_final``: the learning rate falls linearly from
+    ``learning_rate`` to this value over the run. Stable-Baselines3 passes the
+    progress remaining, 1 at the start and 0 at the end.
+
+    ``target_kl``: the epochs of an update stop once the KL divergence between
+    the new and the old policy passes 1.5 times this value.
+
+    On the corridor the updates did not shrink: the median KL stayed near 0.02,
+    a twentieth of updates passed 0.06, a fifth of the samples were clipped,
+    and the agents lost manoeuvres they had learned (Step 24 of the ROADMAP).
+    """
+    settings: dict[str, Any] = {}
+    final = training.get("learning_rate_final")
+    if final is not None:
+        start = float(training["learning_rate"])
+        final = float(final)
+        settings["learning_rate"] = lambda remaining: final + (start - final) * remaining
+    if training.get("target_kl") is not None:
+        settings["target_kl"] = float(training["target_kl"])
+    return settings
+
+
 def build_model(
     config: dict[str, Any],
     seed: int,
@@ -103,6 +128,8 @@ def build_model(
         monitor_kwargs={"info_keywords": ("is_success",)},
     )
     settings = {key: training[key] for key in keys}
+    if algorithm == "PPO":
+        settings.update(ppo_stability(training))
     if isinstance(settings.get("train_freq"), list):
         settings["train_freq"] = tuple(settings["train_freq"])
     model = cls(

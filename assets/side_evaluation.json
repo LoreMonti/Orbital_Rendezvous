@@ -207,6 +207,156 @@
      47
     ]
    ]
+  },
+  "side32_seed3": {
+   "docked": 122,
+   "attempts": 200,
+   "violations": 78,
+   "delta_v_median": 1.6120375498163066,
+   "time_median": 995.0,
+   "docked_by_sector": [
+    [
+     40,
+     41
+    ],
+    [
+     53,
+     56
+    ],
+    [
+     25,
+     56
+    ],
+    [
+     4,
+     47
+    ]
+   ]
+  },
+  "side32_seed3_best": {
+   "docked": 122,
+   "attempts": 200,
+   "violations": 78,
+   "delta_v_median": 1.5784672883635724,
+   "time_median": 1040.0,
+   "docked_by_sector": [
+    [
+     40,
+     41
+    ],
+    [
+     54,
+     56
+    ],
+    [
+     24,
+     56
+    ],
+    [
+     4,
+     47
+    ]
+   ]
+  },
+  "side32_seed4": {
+   "docked": 0,
+   "attempts": 200,
+   "violations": 57,
+   "delta_v_median": null,
+   "time_median": null,
+   "docked_by_sector": [
+    [
+     0,
+     41
+    ],
+    [
+     0,
+     56
+    ],
+    [
+     0,
+     56
+    ],
+    [
+     0,
+     47
+    ]
+   ]
+  },
+  "side32_seed4_best": {
+   "docked": 113,
+   "attempts": 200,
+   "violations": 38,
+   "delta_v_median": 1.5684748252717826,
+   "time_median": 1470.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     50,
+     56
+    ],
+    [
+     21,
+     56
+    ],
+    [
+     1,
+     47
+    ]
+   ]
+  },
+  "side32_seed5": {
+   "docked": 96,
+   "attempts": 200,
+   "violations": 33,
+   "delta_v_median": 1.4125666537687285,
+   "time_median": 1135.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     39,
+     56
+    ],
+    [
+     13,
+     56
+    ],
+    [
+     3,
+     47
+    ]
+   ]
+  },
+  "side32_seed5_best": {
+   "docked": 122,
+   "attempts": 200,
+   "violations": 31,
+   "delta_v_median": 1.4735819199586577,
+   "time_median": 1180.0,
+   "docked_by_sector": [
+    [
+     41,
+     41
+    ],
+    [
+     55,
+     56
+    ],
+    [
+     25,
+     56
+    ],
+    [
+     1,
+     47
+    ]
+   ]
   }
  },
  "same_starts": {
@@ -322,6 +472,101 @@
     "time_median": 1690.0,
     "agent_cheaper": 0.22935779816513763,
     "agent_faster": 1.0
+   }
+  },
+  "side32_seed3": {
+   "starts": 122,
+   "agent": {
+    "delta_v_median": 1.6120375498163066,
+    "time_median": 995.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0829756521036336,
+    "time_median": 1330.0,
+    "agent_cheaper": 0.22950819672131148,
+    "agent_faster": 0.9836065573770492
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9422603073482568,
+    "time_median": 1700.0,
+    "agent_cheaper": 0.09016393442622951,
+    "agent_faster": 1.0
+   }
+  },
+  "side32_seed3_best": {
+   "starts": 122,
+   "agent": {
+    "delta_v_median": 1.5784672883635724,
+    "time_median": 1040.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0829756521036336,
+    "time_median": 1330.0,
+    "agent_cheaper": 0.27049180327868855,
+    "agent_faster": 0.9016393442622951
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9422603073482568,
+    "time_median": 1700.0,
+    "agent_cheaper": 0.11475409836065574,
+    "agent_faster": 1.0
+   }
+  },
+  "side32_seed4_best": {
+   "starts": 113,
+   "agent": {
+    "delta_v_median": 1.5684748252717826,
+    "time_median": 1470.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.072519847293161,
+    "time_median": 1330.0,
+    "agent_cheaper": 0.2743362831858407,
+    "agent_faster": 0.23893805309734514
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.932011767027151,
+    "time_median": 1690.0,
+    "agent_cheaper": 0.23893805309734514,
+    "agent_faster": 0.6637168141592921
+   }
+  },
+  "side32_seed5": {
+   "starts": 96,
+   "agent": {
+    "delta_v_median": 1.4125666537687285,
+    "time_median": 1135.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.011080711651882,
+    "time_median": 1310.0,
+    "agent_cheaper": 0.3020833333333333,
+    "agent_faster": 0.7291666666666666
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.8758369294872543,
+    "time_median": 1670.0,
+    "agent_cheaper": 0.21875,
+    "agent_faster": 0.96875
+   }
+  },
+  "side32_seed5_best": {
+   "starts": 122,
+   "agent": {
+    "delta_v_median": 1.4735819199586577,
+    "time_median": 1180.0
+   },
+   "V-bar procedure, tau = 100 s": {
+    "delta_v_median": 1.0829756521036336,
+    "time_median": 1330.0,
+    "agent_cheaper": 0.2459016393442623,
+    "agent_faster": 0.6475409836065574
+   },
+   "V-bar procedure, tau = 200 s": {
+    "delta_v_median": 0.9422603073482568,
+    "time_median": 1700.0,
+    "agent_cheaper": 0.19672131147540983,
+    "agent_faster": 0.8852459016393442
    }
   }
  }
