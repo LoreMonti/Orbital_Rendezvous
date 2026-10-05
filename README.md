@@ -566,7 +566,8 @@ but over six seeds the best policies dock a median 118 of 200, and 1 to 4 of 47
 from behind the station. The limit is exploration, not capacity: the same network,
 imitating a teacher, docks 596 of 600 ([`experiments/teacher_student`](experiments/teacher_student)).
 Behind the station both sides are equally good, and a Gaussian policy averages
-them into flying straight into the sphere. Planning with the known dynamics is next.
+them into flying straight into the sphere. A planner on the known dynamics, with
+a hand-written value beyond 200 s, docks 195 of 200; learning that value is next.
 
 ## Discussion and limitations
 
@@ -665,6 +666,7 @@ script needs no arguments for the default run and lists its options with
 | `fuel_summary.py` | the default agent and the best of each fuel study in one plot, from the saved results |
 | `cone_summary.py` | the approach cone narrowing during training, from the saved results |
 | `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
+| `plan_eval.py` | the sampling planner of Step 26 on the oriented target, 200 unseen starts, one row per value and horizon, a JSON file |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 
 ```bash
@@ -729,6 +731,7 @@ Orbital_Rendezvous/
 │   ├── rewards.py          # potential-based shaping, fuel and terminal terms
 │   ├── baselines.py        # LQR, two-impulse transfer and the V-bar procedure
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
+│   ├── planning.py         # a sampling planner on the known dynamics (Step 26)
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
 │   ├── callbacks.py        # SB3 callbacks: window, curricula, multipliers, best model
@@ -743,6 +746,7 @@ Orbital_Rendezvous/
 │   ├── fuel_summary.py     # the fuel story in one plot, from saved results
 │   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
+│   ├── plan_eval.py        # the sampling planner on the corridor, in parallel
 │   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 ├── tests/                  # 133 tests, one file per module or feature
 ├── experiments/
@@ -843,6 +847,10 @@ would catch them.
   reproduces the fixed mirror bit for bit.
 - **Brakes on PPO.** Off, no setting changes; on, the learning rate falls from
   its start to its end, in that order, and the KL target reaches the model.
+- **Planner.** Its score equals what the environment pays, step by step, for
+  sequences ending in a violation, a docking, a crash and an escape; the
+  value counts only beyond the horizon, discounted, and never after the last
+  step of an episode; without the port it docks within the thrust limit.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

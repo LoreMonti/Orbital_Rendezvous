@@ -398,7 +398,7 @@ updates, and wrong in what it promised: slowing every update slowed the
 learning first. Forgetting is better handled by keeping the best policy,
 which turned seed 4 from 0 to 113 of 200, than by braking the training.
 
-## Step 26 — Model-based: planning with a learned value *(planned)*
+## Step 26 — Model-based: planning with a learned value *(under way)*
 
 The dynamics are known exactly, $`\mathbf{s}_{k+1} = \Phi\,\mathbf{s}_k + \Gamma\,\mathbf{u}_k`$,
 and model-free RL learns them again from samples. A planner uses them: at
@@ -415,11 +415,19 @@ of the station and keeps the better, sees the keep-out sphere before entering
 it, and leaves the long horizon to $`V_\theta`$. No plan is written by hand and
 no teacher is used: the agent still learns from its own reward.
 
-- [ ] Design: a sampling planner (cross-entropy method or MPPI) on the closed-form propagation, the reward of the environment, the horizon and the number of samples, with formulas and a worked example
-- [ ] Before any learning: the planner alone, with no value, $`V_\theta = 0`$, and with the shaping potential as $`V`$, on the 200 starts; how far a horizon reaches without help
-- [ ] The value learned from the planner's own flights (fitted to discounted returns, then by temporal differences), and the planner run with it; the loop repeated
-- [ ] Tests: the planner's model agrees with the environment step by step; with a long enough horizon and no constraint it docks like the LQR; its thrust never exceeds the limit
-- [ ] Evaluation on the 200 unseen starts, by direction, against the V-bar procedure and the model-free agents of Step 24; cost per decision in time
+- [x] `planning.py`: a cross-entropy planner on the closed-form propagation, scored with the environment's own outcomes and fuel, in the same order, plus $`\gamma^H V(\mathbf{s}_H)`$ if the horizon ends first; `scripts/plan_eval.py` flies it on the 200 starts in parallel
+- [x] Check without the port: it docks, 0.71 m/s in 1120 s on the first test start, cheaper than the default agent
+- [x] With the port, a long horizon and no knowledge beyond it ($`V = 0`$, or the straight distance, horizon 50 steps): **0 of 200**. It reaches the rim of the keep-out sphere and stops: over 500 s nearly every sampled sequence leaves the narrow cone, so not entering scores best
+- [x] A short horizon and the straight distance (10 steps): 22 of 200, 120 violations
+- [x] A short horizon and the shaping potential as $`V`$, which measures the way around the sphere: 116 of 200 with 10 steps; **195 of 200 with 20 steps, no violation, 45 of 47 from behind the station**, 1.13 m/s in 1260 s, against 200 of 200 and 1.06–1.23 m/s for the V-bar procedure; about 0.1 s per decision
+- [ ] The value learned instead of written: fitted to the returns of the planner's own flights, then by temporal differences, and the planner run with it; the loop repeated
+- [ ] Evaluation of the learned value as above, against the potential, the V-bar procedure and the model-free agents of Step 24
+
+*Lesson so far.* The search alone, blind beyond its horizon, does nothing on
+this task: the model is not enough. The search with a good value beyond 200 s
+nearly solves it, from every direction. Everything rests on the value, and the
+one used here is written by hand from the geometry; whether it can be learned
+from experience is the question of the next sub-step.
 
 ## Possible extensions
 

@@ -1,0 +1,194 @@
+{
+ "description": "Sampling planner (cross-entropy method) on the oriented target, 200 held-out starts; value:horizon:block per setting.",
+ "results": {
+  "none:50:5": {
+   "docked": 0,
+   "episodes": 200,
+   "violations": 0,
+   "outcomes": {
+    "timeout": 200
+   },
+   "delta_v_median": NaN,
+   "time_median": NaN,
+   "ms_per_decision": 48.15642722331783,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 0,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 0,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 0,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 0,
+     "starts": 47
+    }
+   ]
+  },
+  "distance:50:5": {
+   "docked": 0,
+   "episodes": 200,
+   "violations": 0,
+   "outcomes": {
+    "timeout": 200
+   },
+   "delta_v_median": NaN,
+   "time_median": NaN,
+   "ms_per_decision": 51.10046506997605,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 0,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 0,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 0,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 0,
+     "starts": 47
+    }
+   ]
+  },
+  "distance:10:2": {
+   "docked": 22,
+   "episodes": 200,
+   "violations": 120,
+   "outcomes": {
+    "docked": 22,
+    "timeout": 58,
+    "keep-out violation": 120
+   },
+   "delta_v_median": 1.344873982911936,
+   "time_median": 780.0,
+   "ms_per_decision": 11.833947232545666,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 1,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 2,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 12,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 7,
+     "starts": 47
+    }
+   ]
+  },
+  "potential:10:2": {
+   "docked": 116,
+   "episodes": 200,
+   "violations": 84,
+   "outcomes": {
+    "docked": 116,
+    "keep-out violation": 84
+   },
+   "delta_v_median": 1.0939143967843228,
+   "time_median": 775.0,
+   "ms_per_decision": 98.54609705043298,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 22,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 34,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 38,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 22,
+     "starts": 47
+    }
+   ]
+  },
+  "potential:20:4": {
+   "docked": 195,
+   "episodes": 200,
+   "violations": 0,
+   "outcomes": {
+    "docked": 195,
+    "timeout": 5
+   },
+   "delta_v_median": 1.1288252295723185,
+   "time_median": 1260.0,
+   "ms_per_decision": 93.01713884970792,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 40,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 54,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 56,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 45,
+     "starts": 47
+    }
+   ]
+  }
+ }
+}
