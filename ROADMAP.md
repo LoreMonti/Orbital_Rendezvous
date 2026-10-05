@@ -172,7 +172,24 @@ itself: a slow approach that docks every time exists, but PPO finds it only
 some of the time. The fuel line of work stops here, with diminishing returns
 (−15 %, then −11 %) and a clear account of each obstacle.
 
-## Step 14 — An oriented target
+## Steps 14–25 — An oriented target, with model-free RL
+
+A port on the V-bar, a keep-out sphere of 20 m and an approach cone of 15°.
+Twelve steps of reinforcement learning from scratch, each a sub-step below,
+the step numbers kept since the code and configurations refer to them.
+
+**Conclusion.** Model-free PPO does not solve the oriented target reliably:
+over six seeds of the best configuration (Step 24) the best policies dock
+109–160 of 200, median 118, and 1–4 of 47 from behind the station, where the
+V-bar procedure docks 200 of 200. Every sub-step removed an obstacle; none
+moved the typical result. The limit is exploration, not capacity: the same
+network, trained to imitate a teacher, docks 596 of 600 (Steps 16–20). Behind
+the station two manoeuvres, round either side, are about equally good; a
+Gaussian policy averages them, and trial and error over 100–300 decisions
+under a hard constraint rarely finds either. The next approach uses the known
+dynamics to plan (Step 26).
+
+### Step 14 — An oriented target
 
 - [x] Keep-out sphere of 20 m around the station, entered only inside a 15° approach cone around the docking axis (the V-bar); a violation is checked along the whole step and ends the attempt; `configs/ppo_corridor.yaml`
 - [x] Baseline: the V-bar procedure, an LQR to a hold point 30 m out on the axis, then sliding along it with a steady radial thrust against Coriolis; 200 / 200, no violation, 1.06–1.23 m/s
@@ -189,7 +206,7 @@ manoeuvre that a start behind the station needs, going around it. Helping it
 with a clever potential did more harm than good twice. On the full corridor,
 the classical procedure wins: the knowledge that solves it fits in a few lines.
 
-## Step 15 — Two curricula for the corridor
+### Step 15 — Two curricula for the corridor
 
 - [x] `start_angle_range_deg` option: starts drawn within an angle of the docking axis; with every direction allowed, a seed selects the same start as before, so every earlier result holds
 - [x] Curriculum logic shared in `MasteryCurriculum`; `StartCurriculum` widens the starts, tested on the outer 30° of the range only
@@ -209,11 +226,11 @@ start, up to 145–155° on two seeds of three, but not from directly behind, an
 twice as much training did not move it. On the starts they dock, the agents are
 faster or cheaper than the procedure, never both, and never as reliable.
 
-## Steps 16–20 — A side study: learning from a teacher
+### Steps 16–20 — A side study: learning from a teacher
 
 - [x] **Set aside** in [`experiments/teacher_student`](experiments/teacher_student), with its code, configurations, tests and results: it answered whether a network can fly the corridor (596 of 600 by imitation), not whether reinforcement learning can discover it alone, the question of this project
 
-### Step 16 — Two learned pilots on the classical plan
+#### Step 16 — Two learned pilots on the classical plan
 
 - [x] Diagnosis of the Step 15 agents behind the station: from 160–180° they fail 18 times in 18, the best one flying straight into the back of the sphere, and they only ever go around on the side they start from
 - [x] Hypothesis: the optimal action jumps between the two sides at 180°, which a continuous network cannot do
@@ -231,7 +248,7 @@ With both, the same PPO that could not hold the corridor from behind docks
 every time. On cost it matches the classical procedure rather than beating
 it, so the win is reliability with learned control, not a better controller.
 
-### Step 17 — A learned planner
+#### Step 17 — A learned planner
 
 - [x] `waypoint_menu`: 16 directions around the station at 40 and 60 m; the go-to pilot retrained with the menu among its goals (`configs/ppo_goto_menu.yaml`), 100 % on validation on 3 / 3 seeds, 200 / 200 with the rule's plan
 - [x] `PlannerEnv`: one step per approach, a discrete choice from the menu, since the best side jumps at 180°; the frozen pilots fly the rest; $`+100`$ for a docking, $`-100`$ otherwise, less $`w_f\,\Delta v`$
@@ -248,7 +265,7 @@ computed before any training, said how much there was to win, 3 %, and so how
 to read the result: the learned planner matches the rule and takes the little
 the rule leaves, it does not find a better plan.
 
-#### Step 17b — Time in the cost, the rule as a baseline
+##### Step 17b — Time in the cost, the rule as a baseline
 
 - [x] Flaw of the Step 17 planner: in front of the port a detour through a point 60 m out on the axis, nearly free in fuel, 580 s longer
 - [x] Cost $`J = 50\,\Delta v + 0.01\,T`$ in the reward, the oracle and the choice of the best model; with it the oracle flies straight to the hold point from 151 starts and beats the rule by 1 %
@@ -259,7 +276,7 @@ the rule leaves, it does not find a better plan.
 obstacle was exploration: once only a few safe choices were ever tried, no
 reward, however clean, could show that the others were cheaper.
 
-#### Step 17c — Learning the planner from the oracle
+##### Step 17c — Learning the planner from the oracle
 
 - [x] `oracle_costs`: every choice flown from a start; `imitate_oracle.py` labels 4000 training starts in parallel and reuses the labels
 - [x] `imitation.py`: soft targets on the cost saved, failures at zero; the same network as the PPO planner, saved and evaluated as one
@@ -273,7 +290,7 @@ hugs the edge of what is allowed, so imitation alone learned to cut corners;
 pricing a failure into the fit, as a reward would, taught it to keep a margin
 at almost no cost.
 
-### Step 18 — More waypoints? Measured, not built
+#### Step 18 — More waypoints? Measured, not built
 
 - [x] A planner may return several waypoints; `beam_search`: plans of up to three waypoints, only the three cheapest that dock extended at each level, 219 flights per start instead of about 36 000
 - [x] `plan_search.py` on the 200 test starts: the best plan never has a second or third waypoint, not even from behind the station; 151 plans fly straight to the hold point, 49 through one waypoint
@@ -283,7 +300,7 @@ at almost no cost.
 One sphere and one corridor need one point to go around; the idea of learning
 the length of the plan was sound, but the problem gives it nothing to learn.
 
-### Step 20 — One network again: distillation
+#### Step 20 — One network again: distillation
 
 - [x] Steps 18 and 19 set aside: distillation removes the remaining rules at once, since the student has no menu, sequence or thresholds
 - [x] `distillation.py`: the teacher is the system of Step 17c; its flights record the student's observations and the teacher's commands as labels, with noise on the thrust applied but not on the labels (DART)
@@ -300,7 +317,7 @@ behaviour jumps and weight where precision matters. And a memory bug is a
 bug like any other: measure a run's peak on a short trial before launching
 long or parallel ones.
 
-## Step 21 — Back to RL from scratch: a reverse curriculum
+### Step 21 — Back to RL from scratch: a reverse curriculum
 
 - [x] `ReverseCurriculum`: starts a few metres from the port first, then further out and further round, the smallest distance kept at 2 m; `set_start_region`; inside the keep-out sphere a start lies in the cone
 - [x] First run: stuck at the first stage for 20 million steps. The starts kept the task's random velocity, about 6 cm/s, and left a cone 1 m wide in one or two steps; even an LQR docked 50 times in 200. Fix: the start velocity shrinks with the distance within 15 m, $`\mathbf{v}_0 \min(1, r_0/15\ \text{m})`$, so that drifting out of the cone takes about eight steps from anywhere; a simple controller then docks 172–188 in 200 on the first stages
@@ -317,7 +334,7 @@ lets the agent learn to dock under the rule. The wall at 45° held against four
 changes to the curriculum and the reward, and SAC did not reach it. It looked
 physical, an arrival too fast to turn; Step 22 shows it is not.
 
-## Step 22 — What the wall at 45° is
+### Step 22 — What the wall at 45° is
 
 Two seeds of 10 million steps each, the curriculum of Step 21 otherwise unchanged.
 
@@ -333,7 +350,7 @@ manoeuvre on one side and the network did not carry it to the other. The
 measurement that found it, success split by side, was cheap and should have
 come before the remedies; an average over both sides hid a 90 % and a 15 %.
 
-## Step 23 — A mirror for the two sides
+### Step 23 — A mirror for the two sides
 
 - [x] `mirror_symmetry` (off by default; `configs/ppo_corridor_mirror.yaml`): a start outside the keep-out sphere with $`x \gt 0`$ is shown to the agent as on the side $`x \lt 0`$, with $`x`$, $`\dot{x}`$ and $`u_x`$ flipped for the whole episode; the side is fixed at the start, since the manoeuvre crosses the axis on its way into the cone
 - [x] First version, every start mirrored and the true side given as an extra input: stuck at the first stage, 60–65 % and 15 % at 4 million steps. Next to the port the Coriolis term pushes the chaser out of the cone always towards the same side; there the problem is not symmetric
@@ -353,7 +370,7 @@ and a change meant to be invisible must be made invisible, as an extra input
 that looked harmless was not. The evaluation had its own trap: a classical
 controller flown through the agent's mirror.
 
-## Step 24 — The side chosen by the agent
+### Step 24 — The side chosen by the agent
 
 - [x] `side_choice` (off by default, needs the mirror; `configs/ppo_corridor_side.yaml`): the action gains a last component $`a_s`$, read once, on the first step of a start outside the keep-out sphere; $`a_s \lt 0`$ shows the world as in a mirror from the next step on. Choosing the mirror is choosing the side: one manoeuvre is learned, flown on either side. A Gaussian policy cannot say "left or right" where both are good; one sign drawn once and kept turns the average into one whole manoeuvre or the other. Policy and value keep separate networks, as before: one change at a time
 - [x] Two seeds of 10 million steps: the curriculum reached 125° and 135° (Step 23 at 10 million: 45° and 85°)
@@ -369,7 +386,7 @@ the freedom they were given: they kept the rule of the mirror. Behind the
 station, near the axis, is now the last hard part, and it is the place where
 the physics gives no preference; that is where to look next.
 
-## Step 25 — Brakes on PPO
+### Step 25 — Brakes on PPO
 
 - [x] The logs of Step 24: the updates never shrank. The median KL divergence between the new and the old policy stayed near 0.02 for the whole run, a twentieth of updates passed 0.06, a fifth of the samples were clipped, and the training success fell to zero and back
 - [x] `training.ppo_stability`, off by default: a learning rate falling linearly to `learning_rate_final`, and `target_kl`, which stops the epochs of an update once the KL passes 1.5 times it (`configs/ppo_corridor_stable.yaml`: $`3 \times 10^{-4} \to 3 \times 10^{-5}`$, 0.02)
@@ -380,6 +397,29 @@ the physics gives no preference; that is where to look next.
 updates, and wrong in what it promised: slowing every update slowed the
 learning first. Forgetting is better handled by keeping the best policy,
 which turned seed 4 from 0 to 113 of 200, than by braking the training.
+
+## Step 26 — Model-based: planning with a learned value *(planned)*
+
+The dynamics are known exactly, $`\mathbf{s}_{k+1} = \Phi\,\mathbf{s}_k + \Gamma\,\mathbf{u}_k`$,
+and model-free RL learns them again from samples. A planner uses them: at
+every decision it simulates many thrust sequences over a horizon $`H`$ and
+flies the first thrust of the best, with a value learned from experience
+beyond the horizon,
+
+```math
+\mathbf{a}_t = \arg\max_{\mathbf{a}_{t:t+H}} \sum_{k=0}^{H-1} \gamma^k\, r(\mathbf{s}_{t+k}, \mathbf{a}_{t+k}) + \gamma^H\, V_\theta(\mathbf{s}_{t+H})
+```
+
+as in TD-MPC or, for discrete actions, AlphaZero. The search tries both sides
+of the station and keeps the better, sees the keep-out sphere before entering
+it, and leaves the long horizon to $`V_\theta`$. No plan is written by hand and
+no teacher is used: the agent still learns from its own reward.
+
+- [ ] Design: a sampling planner (cross-entropy method or MPPI) on the closed-form propagation, the reward of the environment, the horizon and the number of samples, with formulas and a worked example
+- [ ] Before any learning: the planner alone, with no value, $`V_\theta = 0`$, and with the shaping potential as $`V`$, on the 200 starts; how far a horizon reaches without help
+- [ ] The value learned from the planner's own flights (fitted to discounted returns, then by temporal differences), and the planner run with it; the loop repeated
+- [ ] Tests: the planner's model agrees with the environment step by step; with a long enough horizon and no constraint it docks like the LQR; its thrust never exceeds the limit
+- [ ] Evaluation on the 200 unseen starts, by direction, against the V-bar procedure and the model-free agents of Step 24; cost per decision in time
 
 ## Possible extensions
 
@@ -408,20 +448,15 @@ is finding a slow approach reliably.
 
 ### 2. The oriented target, if taken further
 
-Reinforcement learning from scratch reached 153 of 200 (Step 15). The side
-study located what stops it: behind the station the best side jumps, which a
-continuous policy cannot do, and PPO loses manoeuvres it has learned; starts
-on one side only, which remove the jump, went to 175° before the stage was
-lost. Each has a remedy that stays within reinforcement learning.
+Model-free reinforcement learning from scratch stopped at a median of 118 of
+200 (Steps 14–25); Step 26 plans with the model instead. If that is not enough:
 
-- [ ] A policy with a discrete choice of side, taken by the policy itself at
-  the start and kept, next to its continuous thrust, with the two curricula of
-  Step 15.
-- [ ] The best policy on validation kept (`BestModel`), and a learning rate
-  that decays, so that a stage reached is not lost.
-- [ ] If successes stay too rare: an off-policy algorithm with Hindsight
-  Experience Replay, which relabels each failed approach as a success towards
-  the point it reached.
+- [ ] A safety filter (a control barrier function) between the policy and the
+  thruster, which changes the commanded thrust as little as needed to stay out
+  of the forbidden zone; the agent then learns efficiency, not the rule, and
+  the result must say so.
+- [ ] An off-policy algorithm with Hindsight Experience Replay, which relabels
+  each failed approach as a success towards the point it reached.
 - [ ] Policy and value on one shared trunk instead of two networks: the
   value then acts as an auxiliary task shaping the policy's features, which
   helps only if the two losses are balanced; with returns of ±100 the value

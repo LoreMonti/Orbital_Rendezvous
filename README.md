@@ -27,10 +27,9 @@ used.*
   approach, not a fuel-optimal one. Asked to save fuel, it gets to 25 % less
   (0.74 m/s in 790 s) with an engine switch and a Lagrange multiplier on a fuel
   budget; how, and why not further, is the subject of three studies below.
-  Asked to dock through a port, along a narrow approach corridor, a single
-  agent learns to hold the corridor and to go around the station from most
-  directions, docking at best 153 times in 200, where the classical V-bar
-  procedure succeeds every time.
+  Asked to dock through a port, along a narrow approach corridor, model-free
+  reinforcement learning from scratch docks a median 118 times in 200 over six
+  seeds, where the classical V-bar procedure succeeds every time.
 
 
 ## Contents
@@ -535,168 +534,6 @@ Asked to save fuel, the agent went from 0.98 to 0.74 m/s, 25 % less, taking
 reached. Each attempt removed one obstacle, and the last one standing is the
 difficulty of *finding* a slow approach that docks every time.
 
-### An oriented target
-
-A real station has a docking port on one side and a keep-out sphere around it,
-entered only along an approach corridor. Here the port faces the V-bar ($`+y`$),
-the keep-out sphere has a radius of $`R = 20\ \text{m}`$, and inside it, outside
-the docking sphere, the chaser must stay within a cone of half-angle
-$`\theta_c = 15°`$ around the axis. Leaving it is a *keep-out violation* and a
-failure. The rule is checked along the whole segment of each step, since a
-fast chaser can cross the sphere between two decisions.
-
-Nothing trained so far respects it: on the 200 unseen starts, the default agent
-violates the zone 199 times and the fastest LQR 200 times, since both arrive
-from wherever they start. The V-bar procedure docks every time without a
-violation:
-
-| V-bar procedure | docked | violations | $`\Delta v`$, median | time, median |
-| --- | --- | --- | --- | --- |
-| LQR with $`\tau = 100\ \text{s}`$ to the hold point | 200 / 200 | 0 | 1.23 m/s | 1400 s |
-| LQR with $`\tau = 200\ \text{s}`$ to the hold point | 200 / 200 | 0 | 1.06 m/s | 1775 s |
-
-Teaching the agent the rule took five attempts, each on at least two seeds.
-
-| attempt | what happened |
-| --- | --- |
-| the rule enforced from the start | the agent stops approaching: nearly every early approach comes in from the wrong side and ends in a violation |
-| a potential pulling towards the mouth of the cone, at 15° from the start | the agent never learns to dock, even with violations free |
-| a Lagrange multiplier on violations, rising fast | docking is learned, then collapses as soon as the price rises |
-| the same, rising slowly and relaxing when docking is lost | docking collapses all the same, and never comes back |
-| **a curriculum narrowing the cone from 180°** | the cone narrows to **90°**, then stops |
-
-The curriculum starts with a cone of 180°, which is no constraint at all, and
-narrows it by 10° whenever the deterministic agent docks in 90 % of its
-attempts under the strict rule. With it, the shaping potential measures the
-shortest path to the mouth of the *current* cone around the sphere, a tangent,
-an arc of its rim and the axis,
-
-```math
-d = \sqrt{r^2 - R^2} + R\,\Delta\varphi + R
-```
-
-equal to the straight distance at 180° and changing only as the cone narrows,
-so that the potential and the constraint change together.
-
-![The approach cone during training: both runs stop at 90 degrees](assets/cone_curriculum.png)
-
-Both runs stop at 90°, one after 1.5 million steps, where it then stops docking
-altogether, and one after 6.4 million, where it docks 70 to 85 % of the time
-but never the 90 % needed to go further. With the straight potential instead,
-two earlier runs stopped at the same angle. At 90° the rule becomes *arrive
-from the front half*, and every start behind the station must go around it.
-Down to that point, the agent learned to shift its direction of arrival a
-little at a time; going around the station is not a small shift but a
-different manoeuvre, and PPO does not find it in these small steps. On the
-full corridor the V-bar procedure, a few lines written by someone who knows the
-physics, wins. The next section takes the small steps in the starting points
-instead, and gets further.
-
-### Two curricula for the corridor
-
-Step 14 changed the rule for every start at once. The next attempt kept the
-rule and changed the starts instead, a *reverse curriculum* [11]: first only
-starts at most $`15°`$ from the docking axis, then wider by $`10°`$ each time
-the agent docks in 90 % of 20 test attempts from the outer $`30°`$ of the
-current range. The test uses the outer band only: at $`180°`$ the newest
-$`10°`$ are 6 % of the starts, and a threshold over all of them could be
-passed while failing every new one. Training starts are still drawn over the
-whole range, so the easy ones are not forgotten.
-
-On its own, from scratch, this never docked, not once in 27 000 episodes per
-seed on two seeds, not even from in front of the port. Starting inside the cone
-does not make the straight approach easy, because the approach is not straight.
-Moving along the V-bar at $`\dot{y}`$, the first Clohessy-Wiltshire equation
-gives a sideways acceleration
-
-```math
-\ddot{x} = 2\,n\,|\dot{y}|
-```
-
-which at $`0.1\ \text{m/s}`$ is $`2.3 \times 10^{-4}\ \text{m/s}^2`$: in 150 s,
-uncorrected, $`\tfrac12\,\ddot{x}\,t^2 \approx 2.5\ \text{m}`$, while 5 m from
-the port the cone is only $`\pm 1.3\ \text{m}`$ wide. Even the default agent,
-which docks from anywhere without the rule, fails 100 times in 100 from these
-starts with a cone of 15°, and 17 times with a cone of 60°. A policy that cannot
-dock yet never sees a docking, while coming close costs $`-100`$ and staying out
-costs nothing, so it stays out.
-
-The two curricula were therefore put in sequence, each where it had worked:
-
-1. **Phase 1**: starts at most $`15°`$ from the axis, and the cone narrowed from
-   $`180°`$, no constraint, to $`15°`$, as in Step 14. The agent first learns
-   to dock, then to hold the axis against the Coriolis term.
-2. **Phase 2**: the cone at $`15°`$, and the starts widened, as above.
-
-Each run trained for 32 million steps, about 100 minutes, three seeds in
-parallel:
-
-![The two curricula during training](assets/start_curriculum.png)
-
-Phase 1 reaches $`15°`$ on every seed, in 1.6 to 2.0 million steps, where
-Step 14, with starts in every direction, stopped at $`90°`$. Holding the corridor
-is learned. Phase 2 goes around the station on two seeds out of three, to
-$`145°`$ and $`155°`$, and stops at $`55°`$ on the third. No seed reaches
-$`180°`$, and none moves after 13 million steps: doubling the training from
-16 to 32 million steps did not move the curriculum on the two seeds run both
-ways. On the
-200 unseen starts in every direction:
-
-| | docked | violations | from $`0\text{–}90°`$ | from $`90\text{–}135°`$ | from $`135\text{–}180°`$ |
-| --- | --- | --- | --- | --- | --- |
-| V-bar procedure | 200 / 200 | 0 | 97 / 97 | 56 / 56 | 47 / 47 |
-| seed 0, stopped at $`55°`$ | 71 / 200 | 128 | 64 / 97 | 6 / 56 | 1 / 47 |
-| seed 1, reached $`145°`$ | **153 / 200** | 47 | 97 / 97 | 51 / 56 | 5 / 47 |
-| seed 2, reached $`155°`$ | 121 / 200 | 79 | 87 / 97 | 30 / 56 | 4 / 47 |
-
-Seed 2 reached $`155°`$ at 13 million steps, then lost it: by the end it
-docked in only 25 % of its test attempts from the outer band, and the start
-angle, which never narrows, overstates it.
-
-An agent that docks only from some starts would look cheap or fast next to a
-procedure that also flies the hard ones, so the costs are compared on the very
-starts each agent docks:
-
-| on the starts it docks | agent | V-bar, $`\tau = 100\ \text{s}`$ | V-bar, $`\tau = 200\ \text{s}`$ |
-| --- | --- | --- | --- |
-| seed 0, 71 starts | 1.12 m/s, 860 s | 1.00 m/s, 1300 s | 0.87 m/s, 1660 s |
-| seed 1, 153 starts | 1.45 m/s, 980 s | 1.14 m/s, 1340 s | 0.98 m/s, 1730 s |
-| seed 2, 121 starts | 0.75 m/s, 1890 s | 1.08 m/s, 1320 s | 0.92 m/s, 1700 s |
-
-The seeds found different trades. Seeds 0 and 1 are faster than the procedure
-on every start they dock, by about 400 s in the median, and spend more fuel. Seed 2 is
-cheaper on every one, by about 20 % against the slower procedure, and 190 s
-slower. None is both, and none is as reliable.
-
-Later, back to reinforcement learning from scratch after the side study, a
-reverse curriculum (starts next to the port first) stopped at $`45°`$ on
-every seed. Split by side, the wall was one-sided: PPO had learned the
-approach from $`x \lt 0`$ only. Showing the starts with $`x \gt 0`$ as in a
-mirror (`mirror_symmetry`) removed it, and the curriculum then reached
-$`105°`$, $`155°`$ and $`155°`$. On the same 200 starts the three seeds docked
-**152**, 126 and 45 times: the best equals the best above, with 11 of 47 from
-behind the station instead of 5. The wall it removed was real; behind the
-station the hard part remains (Steps 21–23 of the ROADMAP). Letting the agent
-choose the mirror, once, at the start (`side_choice`), took one seed round the
-whole station: **163 of 200**, 20 of 47 from behind it, the best agent from
-scratch so far. Six seeds put it in context: the best policies on validation
-dock 109 to 160 of 200, median 118, and 1 to 4 of 47 from behind the station
-on five of them; 163 was the lucky seed (Steps 24 and 25).
-
-### A side study: learning from a teacher
-
-Set aside in [`experiments/teacher_student`](experiments/teacher_student): the
-corridor flown by learned pilots on the V-bar procedure's plan, then distilled
-by imitation into one network. It shows that a network can dock through the
-port, not that reinforcement learning can discover how, the question this
-project pursues.
-
-| approach | how the corridor is learned | docked |
-| --- | --- | --- |
-| single agent (Step 15) | reinforcement learning from scratch | 153 / 200 |
-| two pilots on the V-bar plan | RL on fixed sub-tasks, plan written by hand | 200 / 200 |
-| one network distilled from them | imitation of that system | 596 / 600, three seeds |
-
 ### Robustness across training seeds
 
 A single training run can be lucky or unlucky, so the effect of the clock in the
@@ -717,6 +554,19 @@ one to three crashes in 200, all at the edge of the docking speed. Three seeds
 are too few for a statistic, but a run that fails outright is hard to dismiss.
 Docking rate, $`\Delta v`$ and time to dock are otherwise the same within a few
 percent.
+
+### An oriented target
+
+A real station is entered through a port: here a keep-out sphere of $`20\ \text{m}`$,
+crossed only within a cone of $`15°`$ around the V-bar. The classical V-bar
+procedure docks 200 times in 200. Twelve steps of model-free reinforcement
+learning from scratch (curricula [11], SAC, a mirror symmetry, a side chosen by
+the agent; Steps 14–25 of the [ROADMAP](ROADMAP.md)) each removed an obstacle,
+but over six seeds the best policies dock a median 118 of 200, and 1 to 4 of 47
+from behind the station. The limit is exploration, not capacity: the same network,
+imitating a teacher, docks 596 of 600 ([`experiments/teacher_student`](experiments/teacher_student)).
+Behind the station both sides are equally good, and a Gaussian policy averages
+them into flying straight into the sphere. Planning with the known dynamics is next.
 
 ## Discussion and limitations
 
@@ -754,22 +604,15 @@ engine switch removed the third, making coasting free: with it, a budget of
 reach a slow, cheap regime but lose reliability.
 
 **Where it loses outright.** On an oriented target the classical procedure
-docks every time through the approach corridor, and the agent does not. The
-two results mirror each other. Against the LQR, the agent won because it
-learned a constraint a quadratic cost cannot express, a limit on the speed at
-docking, by adjusting how it arrived. The corridor asks for more than an
-adjustment: from behind the station the chaser must go around it, a different
-manoeuvre, which a curriculum on the cone reached step by step up to 90° and
-no further. Two curricula in sequence did better, and taught more. Starting in
-front of the port was not enough: holding the corridor needs a steady sideways
-thrust against the Coriolis term, a skill of its own that the agent learns only
-once it can dock. With that learned first, two seeds of three went around the
-station, but none from directly behind it, and none reliably: 153 of 200 at
-best, with a cost that trades time against fuel differently on each seed. The
-knowledge that solves the whole corridor, stop on the V-bar and then advance,
-sits in a few lines of the classical procedure; whether reinforcement learning
-can discover it alone, without that knowledge given, is the question still
-open.
+docks every time through the approach corridor, and the agent does not. Against
+the LQR the agent won by learning a constraint a quadratic cost cannot express,
+adjusting how it arrived. The corridor asks for a different manoeuvre from
+behind the station, round one side or the other, and model-free trial and
+error, with every remedy tried, stops at about 118 of 200. A network that
+imitates a teacher reaches 596 of 600, so what is missing is the search, not
+the network: the knowledge that solves the corridor sits in a few lines of the
+classical procedure, and whether a learner can find it alone, by planning with
+the model it is given, is the question still open.
 
 **What mattered most.** The timescale of the decisions mattered more than any
 hyperparameter. The first run, with a decision every second, learned nothing;
