@@ -442,6 +442,31 @@ it flies. Model-free reinforcement learning stopped at a median of 118, the
 planner with a learned value at 100, the planner with the hand-written value
 at 195, and the classical procedure at 200.
 
+## Step 27 — Go-Explore: find the trajectories first, then learn them *(planned)*
+
+The results so far split the problem in two. A network imitating good
+trajectories docks 596 of 600 (Step 20), and a search with a good value docks
+195 of 200 (Step 26): learning to fly is not the obstacle. Finding the good
+trajectories alone is: from behind the station the chaser must go round one
+side, and at the port it must arrive slowly to the centimetre, and neither
+trial and error (Steps 14–25) nor a learned value (Step 26) found both.
+Go-Explore [Ecoffet et al., 2021] separates the two parts.
+
+- [ ] Phase 1, explore without learning: an archive of *cells*, the states
+  reached so far grouped on a coarse grid of position and speed; each round
+  returns to a cell of the archive, preferring those visited least, and
+  explores from there for a few steps; a new cell, or a better way to an old
+  one, enters the archive. The way round the sphere is then found leg by leg,
+  and the last metre is retried from close to the port as often as needed.
+  The simulator's state can be saved and restored, which makes the return
+  exact. First test: a few starts from behind the station, the hardest
+- [ ] Phase 2, learn by imitation: the docking trajectories found become the
+  examples of the distillation of Step 20 (`experiments/teacher_student`),
+  which generalises to unseen starts. No teacher and no plan: the examples
+  come from the exploration, guided only by the reward
+- [ ] Evaluation on the 200 unseen starts against the V-bar procedure, the
+  model-free agents and the planners of Step 26
+
 ## Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
@@ -470,7 +495,13 @@ is finding a slow approach reliably.
 ### 2. The oriented target, if taken further
 
 Model-free reinforcement learning from scratch stopped at a median of 118 of
-200 (Steps 14–25); Step 26 plans with the model instead. If that is not enough:
+200 (Steps 14–25), a planner with a learned value at 100 (Step 26); Step 27
+tries Go-Explore. Other families of methods, if that is not enough, in order:
+
+- [ ] Hierarchical reinforcement learning with learned subgoals (HIRO, HAC):
+  one network chooses waypoints, another reaches them. With waypoints written
+  by hand this docked 200 of 200 (Step 16); learning them from scratch moves
+  the exploration problem up a level rather than removing it.
 
 - [ ] A safety filter (a control barrier function) between the policy and the
   thruster, which changes the commanded thrust as little as needed to stay out
@@ -482,6 +513,13 @@ Model-free reinforcement learning from scratch stopped at a median of 118 of
   value then acts as an auxiliary task shaping the policy's features, which
   helps only if the two losses are balanced; with returns of ±100 the value
   loss would dominate unless scaled (Step 24 kept them separate).
+- [ ] A differentiable simulation: the Clohessy-Wiltshire step is linear, so
+  the policy could be trained by gradients through the dynamics. The outcomes
+  that end an attempt, a violation or a docking, are not differentiable, and
+  the choice of side stays a local minimum.
+- [ ] Neuroevolution (CMA-ES on the weights of the policy): a population
+  searches without gradients, but without successes to reward it has no more
+  direction than trial and error.
 
 ### 3. Three dimensions
 
