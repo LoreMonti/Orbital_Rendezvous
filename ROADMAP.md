@@ -456,7 +456,7 @@ Go-Explore [Ecoffet et al., 2021] separates the two parts.
 - [x] Probe on 10 starts from behind the station (150–180°, 80–200 m). Cells of 5 m chosen by visit count alone: **0 dockings** after 100 000 rounds each; the archive reached the mouth of the cone, 21–28 m out, and no further
 - [x] The cell to return to weighted also by its distance to the port, $`w = e^{-r/30\ \text{m}} / \sqrt{n+1}`$, the generic prior of Step 26, and random thrusts of random magnitude: **8 of 10** in 200 000 rounds; the other two stopped 2.5 m from the port
 - [x] Cells that shrink next to the port, from 4 m to 0.5 m: on a 5 m grid the last metres were one cell, in which the archive could not get closer. **10 of 10**, the first docking after 21 000–44 000 rounds, about two minutes per start; each replayed from a fresh reset, it docks again with no violation, 1.15–2.52 m/s in 1410–2630 s
-- [ ] Phase 1 on 400 starts in every direction (`scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): under way
+- [x] Phase 1 on 400 starts in every direction (`scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): **393 of 400 dock on replay, no violation**; 92/93 within 45°, 101/102 at 45–90°, 106/110 at 90–135°, **94/95 from behind the station**. Median 1.66 m/s in 1780 s, against 1.06–1.23 m/s in 1400–1775 s for the V-bar procedure: the exploration finds a way, not the cheapest. About 1.5 minutes per start (`assets/go_explore_phase1.json`)
 - [ ] Phase 2, learn by imitation: the docking trajectories found become the
   examples of the distillation of Step 20 (`experiments/teacher_student`),
   which generalises to unseen starts. No teacher and no plan: the examples
