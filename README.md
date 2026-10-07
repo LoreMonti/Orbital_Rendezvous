@@ -669,6 +669,7 @@ script needs no arguments for the default run and lists its options with
 | `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
 | `plan_eval.py` | the sampling planner of Step 26 on the oriented target, 200 unseen starts, one row per value and horizon, a JSON file |
 | `value_loop.py` | learns the planner's value from its own flights, from the port outwards; resumable |
+| `go_explore.py` | Go-Explore phase 1 on many starts in parallel: dockings found by exploring from an archive, each replayed to check it; resumable |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 
 ```bash
@@ -735,6 +736,7 @@ Orbital_Rendezvous/
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── planning.py         # a sampling planner on the known dynamics (Step 26)
 │   ├── value.py            # its value learned from flights: a prior and a network
+│   ├── go_explore.py       # Go-Explore phase 1: explore from an archive of cells (Step 27)
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
 │   ├── callbacks.py        # SB3 callbacks: window, curricula, multipliers, best model
@@ -751,6 +753,7 @@ Orbital_Rendezvous/
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
 │   ├── plan_eval.py        # the sampling planner on the corridor, in parallel
 │   ├── value_loop.py       # learns the planner's value, stage by stage
+│   ├── go_explore.py       # Go-Explore phase 1 on many starts, in parallel
 │   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 ├── tests/                  # 133 tests, one file per module or feature
 ├── experiments/
@@ -860,6 +863,10 @@ would catch them.
   the network is off down the cone near the port and on beside the sphere;
   a penalty-only correction never raises the prior; disagreeing networks
   lower the value; the planner values the state reached after its horizon.
+- **Go-Explore.** Cells group nearby states, split speeds and shrink next to
+  the port; the search returns more often to cells near the port and seldom
+  chosen; a docking found by restoring saved states docks again when its
+  thrusts are replayed from a fresh reset, with no violation.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

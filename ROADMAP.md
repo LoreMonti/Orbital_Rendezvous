@@ -442,7 +442,7 @@ it flies. Model-free reinforcement learning stopped at a median of 118, the
 planner with a learned value at 100, the planner with the hand-written value
 at 195, and the classical procedure at 200.
 
-## Step 27 — Go-Explore: find the trajectories first, then learn them *(planned)*
+## Step 27 — Go-Explore: find the trajectories first, then learn them *(under way)*
 
 The results so far split the problem in two. A network imitating good
 trajectories docks 596 of 600 (Step 20), and a search with a good value docks
@@ -452,14 +452,11 @@ side, and at the port it must arrive slowly to the centimetre, and neither
 trial and error (Steps 14–25) nor a learned value (Step 26) found both.
 Go-Explore [Ecoffet et al., 2021] separates the two parts.
 
-- [ ] Phase 1, explore without learning: an archive of *cells*, the states
-  reached so far grouped on a coarse grid of position and speed; each round
-  returns to a cell of the archive, preferring those visited least, and
-  explores from there for a few steps; a new cell, or a better way to an old
-  one, enters the archive. The way round the sphere is then found leg by leg,
-  and the last metre is retried from close to the port as often as needed.
-  The simulator's state can be saved and restored, which makes the return
-  exact. First test: a few starts from behind the station, the hardest
+- [x] Phase 1, explore without learning (`go_explore.py`): an archive of *cells*, the states reached so far grouped by position and speed; each round returns to a cell, restoring the simulator's state, and explores from it with a few random thrusts; a new cell, or a better way to an old one, enters the archive, with the thrusts that reached it
+- [x] Probe on 10 starts from behind the station (150–180°, 80–200 m). Cells of 5 m chosen by visit count alone: **0 dockings** after 100 000 rounds each; the archive reached the mouth of the cone, 21–28 m out, and no further
+- [x] The cell to return to weighted also by its distance to the port, $`w = e^{-r/30\ \text{m}} / \sqrt{n+1}`$, the generic prior of Step 26, and random thrusts of random magnitude: **8 of 10** in 200 000 rounds; the other two stopped 2.5 m from the port
+- [x] Cells that shrink next to the port, from 4 m to 0.5 m: on a 5 m grid the last metres were one cell, in which the archive could not get closer. **10 of 10**, the first docking after 21 000–44 000 rounds, about two minutes per start; each replayed from a fresh reset, it docks again with no violation, 1.15–2.52 m/s in 1410–2630 s
+- [ ] Phase 1 on 400 starts in every direction (`scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): under way
 - [ ] Phase 2, learn by imitation: the docking trajectories found become the
   examples of the distillation of Step 20 (`experiments/teacher_student`),
   which generalises to unseen starts. No teacher and no plan: the examples
