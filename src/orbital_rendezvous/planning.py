@@ -17,8 +17,8 @@ value of the state it reaches:
 ROADMAP compares three that are not learned: none, ``V = 0``; the straight
 distance to the port, ``V = -w r / r_max``, what a generic planner would use,
 blind to the corridor; and the shaping potential, which measures the way
-around the keep-out sphere, knowledge written by hand. A learned ``V`` is the
-next step.
+around the keep-out sphere, knowledge written by hand. The fourth, learned
+from the planner's own flights, is passed as ``value_fn`` (see `value`).
 
 The thrust is held over blocks of ``block`` steps while sampling, so a
 sequence over 150 steps is 30 numbers, not 300; the mean keeps one thrust per
@@ -28,6 +28,7 @@ the last.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -35,7 +36,7 @@ import numpy as np
 from .env import RendezvousEnv
 from .rewards import potential
 
-VALUES = ("none", "distance", "potential")
+VALUES = ("none", "distance", "potential", "learned")
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,7 @@ class PlannerConfig:
     elites: int = 50           # best sequences that refit the distribution
     iterations: int = 5        # refits per decision
     init_std: float = 0.5      # spread of the first iteration, in units of max thrust
-    value: str = "distance"    # beyond the horizon: none, distance or potential
+    value: str = "distance"    # beyond the horizon: none, distance, potential or learned
     value_scale: float = 1.0   # multiplies V, against the +-100 of the outcomes
     segment_samples: int = 5   # points per step checked against the keep-out rule
 
@@ -60,10 +61,19 @@ class SamplingPlanner:
     action in ``[-1, 1]^2``. Call `reset` at the start of every episode.
     """
 
-    def __init__(self, env: RendezvousEnv, config: PlannerConfig | None = None, seed: int = 0):
+    def __init__(
+        self,
+        env: RendezvousEnv,
+        config: PlannerConfig | None = None,
+        seed: int = 0,
+        value_fn: Callable[[np.ndarray, int], np.ndarray] | None = None,
+    ):
         self.config = config or PlannerConfig()
         if self.config.value not in VALUES:
             raise ValueError(f"unknown value {self.config.value!r}; known: {VALUES}")
+        if (self.config.value == "learned") != (value_fn is not None):
+            raise ValueError("a learned value needs value_fn, and only it does")
+        self.value_fn = value_fn
         if env.config.mirror_symmetry or env.config.engine_switch:
             raise ValueError("the planner commands the true thrust on two axes")
         self.env = env
@@ -136,12 +146,14 @@ class SamplingPlanner:
             states = new
             discount *= rc.gamma
         if horizon < steps_left:
-            total += alive * discount * cfg.value_scale * self.value(states)
+            total += alive * discount * cfg.value_scale * self.value(states, steps_done + horizon)
         return total
 
-    def value(self, states: np.ndarray) -> np.ndarray:
-        """``V`` beyond the horizon, for a batch of states."""
+    def value(self, states: np.ndarray, steps: int) -> np.ndarray:
+        """``V`` beyond the horizon, for a batch of states reached after ``steps`` steps."""
         kind = self.config.value
+        if kind == "learned":
+            return self.value_fn(states, steps)
         if kind == "none":
             return np.zeros(len(states))
         rc, scales = self.env.reward_config, self.env.scales

@@ -7,12 +7,13 @@ direction of the start, and the planning time per decision. Saves the table
 as JSON.
 
 Each setting is ``value:horizon:block``, for example ``potential:20:4``: the
-value beyond the horizon (none, distance, potential), the horizon in steps,
-and the steps a sampled thrust is held.
+value beyond the horizon (none, distance, potential, or learned with
+``--value-net``), the horizon in steps, and the steps a sampled thrust is held.
 
 Usage:
     python scripts/plan_eval.py --settings distance:50:5 potential:20:4
     python scripts/plan_eval.py --settings potential:10:2 --episodes 50 --workers 4
+    python scripts/plan_eval.py --settings learned:20:4 --value-net runs/value_loop/seed0
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from orbital_rendezvous.evaluation import HELD_OUT_SEED, docked_by_sector, rollo
 from orbital_rendezvous.planning import PlannerConfig, SamplingPlanner
 from orbital_rendezvous.rewards import Outcome
 from orbital_rendezvous.utils import build_configs, load_config
+from orbital_rendezvous.value import LearnedValue, ValueNet
 
 SECTORS = (0.0, 45.0, 90.0, 135.0, 180.0)
 
@@ -44,6 +46,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--init-std", type=float, default=0.3)
     parser.add_argument("--results", default="assets/planner_evaluation.json")
+    parser.add_argument("--value-net", default=None,
+                        help="run directory of value_loop.py, with its value_*.npz networks, "
+                             "for settings learned:H:B")
     return parser.parse_args()
 
 
@@ -52,12 +57,16 @@ def planner_config(setting: str, init_std: float) -> PlannerConfig:
     return PlannerConfig(value=value, horizon=int(horizon), block=int(block), init_std=init_std)
 
 
-def fly(job: tuple[str, PlannerConfig, int]):
+def fly(job: tuple[str, PlannerConfig, int, str | None]):
     """One start, flown by a fresh planner: the rollout and the seconds per decision."""
-    config_path, planner, seed = job
+    config_path, planner, seed, value_net = job
     env_config, reward_config = build_configs(load_config(config_path))
     env = RendezvousEnv(env_config, reward_config)
-    controller = SamplingPlanner(env, planner, seed=seed)
+    value_fn = None
+    if planner.value == "learned":
+        nets = [ValueNet.load(path) for path in sorted(Path(value_net).glob("value_*.npz"))]
+        value_fn = LearnedValue(env, nets)
+    controller = SamplingPlanner(env, planner, seed=seed, value_fn=value_fn)
     began = time.perf_counter()
     with np.errstate(all="ignore"):   # spurious matmul warnings of Accelerate on macOS
         run = rollout(env, controller, seed)
@@ -75,7 +84,7 @@ def main() -> None:
     for setting in args.settings:
         planner = planner_config(setting, args.init_std)
         with ProcessPoolExecutor(args.workers) as pool:
-            runs = list(pool.map(fly, [(args.config, planner, s) for s in seeds]))
+            runs = list(pool.map(fly, [(args.config, planner, s, args.value_net) for s in seeds]))
         rollouts = [run for run, _ in runs]
         docked = [r for r in rollouts if r.outcome is Outcome.DOCKED]
         sectors = docked_by_sector(rollouts, SECTORS)

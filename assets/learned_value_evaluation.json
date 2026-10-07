@@ -1,0 +1,81 @@
+{
+ "description": "Sampling planner, horizon 20 steps, on the 200 held-out starts of the oriented target: the straight-distance prior alone, and the prior with the value learned by scripts/value_loop.py (stage 5 of 12 reached, 60 m and 65 degrees; correction penalty-only, off down the cone within 25 m).",
+ "results": {
+  "distance:20:4": {
+   "docked": 100,
+   "episodes": 200,
+   "violations": 0,
+   "outcomes": {
+    "docked": 100,
+    "timeout": 100
+   },
+   "delta_v_median": 1.1886800988477433,
+   "time_median": 1695.0,
+   "ms_per_decision": 20.37051203418758,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 30,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 27,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 36,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 7,
+     "starts": 47
+    }
+   ]
+  },
+  "learned:20:4": {
+   "docked": 100,
+   "episodes": 200,
+   "violations": 0,
+   "outcomes": {
+    "docked": 100,
+    "timeout": 100
+   },
+   "delta_v_median": 1.2083552646142053,
+   "time_median": 1880.0,
+   "ms_per_decision": 23.610393425750935,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 32,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 27,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 26,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 15,
+     "starts": 47
+    }
+   ]
+  }
+ }
+}

@@ -398,7 +398,7 @@ updates, and wrong in what it promised: slowing every update slowed the
 learning first. Forgetting is better handled by keeping the best policy,
 which turned seed 4 from 0 to 113 of 200, than by braking the training.
 
-## Step 26 — Model-based: planning with a learned value *(under way)*
+## Step 26 — Model-based: planning with a learned value
 
 The dynamics are known exactly, $`\mathbf{s}_{k+1} = \Phi\,\mathbf{s}_k + \Gamma\,\mathbf{u}_k`$,
 and model-free RL learns them again from samples. A planner uses them: at
@@ -420,14 +420,27 @@ no teacher is used: the agent still learns from its own reward.
 - [x] With the port, a long horizon and no knowledge beyond it ($`V = 0`$, or the straight distance, horizon 50 steps): **0 of 200**. It reaches the rim of the keep-out sphere and stops: over 500 s nearly every sampled sequence leaves the narrow cone, so not entering scores best
 - [x] A short horizon and the straight distance (10 steps): 22 of 200, 120 violations
 - [x] A short horizon and the shaping potential as $`V`$, which measures the way around the sphere: 116 of 200 with 10 steps; **195 of 200 with 20 steps, no violation, 45 of 47 from behind the station**, 1.13 m/s in 1260 s, against 200 of 200 and 1.06–1.23 m/s for the V-bar procedure; about 0.1 s per decision
-- [ ] The value learned instead of written: fitted to the returns of the planner's own flights, then by temporal differences, and the planner run with it; the loop repeated
-- [ ] Evaluation of the learned value as above, against the potential, the V-bar procedure and the model-free agents of Step 24
+- [x] `value.py` and `scripts/value_loop.py`: $`V = \text{prior} + \Delta V_\theta`$, the prior the straight distance, the correction a network fitted to the returns $`G_t = r_t + \gamma G_{t+1}`$ of the planner's own flights, with the environment's fuel and outcomes only; the starts from the port outwards, a stage further once 90 % of the outer starts dock
+- [x] Without the prior the loop cannot start: with $`V = 0`$ the planner docked 4 of 30 even from 2–10 m. With it, 30 of 30
+- [x] The correction everywhere: 92 % at the first stage became 6–15 %, with or without five networks penalised by their spread. The value learned next to the port, +112 at 2 m, was above the +100 of docking: the planner hovered there, safe, rather than try the exact slow arrival its sampling rarely finds
+- [x] Off within 25 m: stuck at 40 m, 31 escapes in 64, since beyond its data the network invented high values. Off within 25 m and allowed only to lower the prior: through 30°, stuck at 45°, the chaser parked against the side of the sphere, 22 m out, where the network was off and the prior pushes into the sphere. Five networks and a zone of 8 m: collapse at the first stage
+- [x] Off only down the cone within 25 m, where the port is in sight, and penalty only: **through 45°**, then stuck at 60 m and 65° after 18 iterations, 69–88 %; failures went round the wrong side and stopped behind the station, or hovered 4 m from the port
+- [x] On the 200 unseen starts: **100 of 200, no violation**, 15 of 47 from behind the station. The same planner with the prior alone: **100 of 200**, 7 of 47 from behind and 36 of 56 at 90–135° against 26. The learned correction moved dockings between directions and added none (`assets/learned_value_evaluation.json`)
 
-*Lesson so far.* The search alone, blind beyond its horizon, does nothing on
-this task: the model is not enough. The search with a good value beyond 200 s
-nearly solves it, from every direction. Everything rests on the value, and the
-one used here is written by hand from the geometry; whether it can be learned
-from experience is the question of the next sub-step.
+*Lesson.* The search with a value written from the geometry docks 195 of 200;
+the value learned from the search's own flights, in five forms, did not
+improve on the bare distance. Each form failed for a reason that could be
+measured, and each is general to planning with a learned value: a value
+estimated well on average becomes a trap where the search cannot execute the
+last step (it hovers on a plateau short of the goal); a network is believed
+where it has no data (the planner flies to its inventions); and a zone that
+switches the network off must follow what the search can see, not a
+distance. Learning the value is not hopeless, but it needs more than a
+sampling planner and Monte Carlo returns: a better search for the final
+metres, or values trained on the states the search imagines, not only those
+it flies. Model-free reinforcement learning stopped at a median of 118, the
+planner with a learned value at 100, the planner with the hand-written value
+at 195, and the classical procedure at 200.
 
 ## Possible extensions
 

@@ -567,7 +567,8 @@ from behind the station. The limit is exploration, not capacity: the same networ
 imitating a teacher, docks 596 of 600 ([`experiments/teacher_student`](experiments/teacher_student)).
 Behind the station both sides are equally good, and a Gaussian policy averages
 them into flying straight into the sphere. A planner on the known dynamics, with
-a hand-written value beyond 200 s, docks 195 of 200; learning that value is next.
+a hand-written value beyond 200 s, docks 195 of 200; with that value learned from
+its own flights, 100, no better than the bare distance (Step 26).
 
 ## Discussion and limitations
 
@@ -667,6 +668,7 @@ script needs no arguments for the default run and lists its options with
 | `cone_summary.py` | the approach cone narrowing during training, from the saved results |
 | `corridor_eval.py` | agents on the oriented target against the V-bar procedure, on the same 200 unseen starts: dockings by direction, costs on the same starts, a JSON file |
 | `plan_eval.py` | the sampling planner of Step 26 on the oriented target, 200 unseen starts, one row per value and horizon, a JSON file |
+| `value_loop.py` | learns the planner's value from its own flights, from the port outwards; resumable |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 
 ```bash
@@ -732,6 +734,7 @@ Orbital_Rendezvous/
 │   ├── baselines.py        # LQR, two-impulse transfer and the V-bar procedure
 │   ├── evaluation.py       # flies any controller on fixed starts, summarises
 │   ├── planning.py         # a sampling planner on the known dynamics (Step 26)
+│   ├── value.py            # its value learned from flights: a prior and a network
 │   ├── game_view.py        # one attempt drawn like a video game, reusable
 │   ├── live_view.py        # the training window: a game view and the curves
 │   ├── callbacks.py        # SB3 callbacks: window, curricula, multipliers, best model
@@ -747,6 +750,7 @@ Orbital_Rendezvous/
 │   ├── cone_summary.py     # the cone curriculum in one plot, from saved results
 │   ├── corridor_eval.py    # agents against the V-bar procedure on the corridor
 │   ├── plan_eval.py        # the sampling planner on the corridor, in parallel
+│   ├── value_loop.py       # learns the planner's value, stage by stage
 │   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 ├── tests/                  # 133 tests, one file per module or feature
 ├── experiments/
@@ -851,6 +855,11 @@ would catch them.
   sequences ending in a violation, a docking, a crash and an escape; the
   value counts only beyond the horizon, discounted, and never after the last
   step of an episode; without the port it docks within the thrust limit.
+- **Learned value.** The returns it is fitted to, checked by hand; an untrained
+  network leaves the prior unchanged; the fit reproduces a known function;
+  the network is off down the cone near the port and on beside the sphere;
+  a penalty-only correction never raises the prior; disagreeing networks
+  lower the value; the planner values the state reached after its horizon.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.
