@@ -457,12 +457,19 @@ Go-Explore [Ecoffet et al., 2021] separates the two parts.
 - [x] The cell to return to weighted also by its distance to the port, $`w = e^{-r/30\ \text{m}} / \sqrt{n+1}`$, the generic prior of Step 26, and random thrusts of random magnitude: **8 of 10** in 200 000 rounds; the other two stopped 2.5 m from the port
 - [x] Cells that shrink next to the port, from 4 m to 0.5 m: on a 5 m grid the last metres were one cell, in which the archive could not get closer. **10 of 10**, the first docking after 21 000–44 000 rounds, about two minutes per start; each replayed from a fresh reset, it docks again with no violation, 1.15–2.52 m/s in 1410–2630 s
 - [x] Phase 1 on 400 starts in every direction (`scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): **393 of 400 dock on replay, no violation**; 92/93 within 45°, 101/102 at 45–90°, 106/110 at 90–135°, **94/95 from behind the station**. Median 1.66 m/s in 1780 s, against 1.06–1.23 m/s in 1400–1775 s for the V-bar procedure: the exploration finds a way, not the cheapest. About 1.5 minutes per start (`assets/go_explore_phase1.json`)
-- [ ] Phase 2, learn by imitation: the docking trajectories found become the
-  examples of the distillation of Step 20 (`experiments/teacher_student`),
-  which generalises to unseen starts. No teacher and no plan: the examples
-  come from the exploration, guided only by the reward
-- [ ] Evaluation on the 200 unseen starts against the V-bar procedure, the
-  model-free agents and the planners of Step 26
+- [x] Phase 2 by imitation (behaviour cloning on the 393 dockings, 71 738 pairs): **2 of 200**, 197 violations. The thrusts found are half random, the network fits barely half of their variance, and the first error leaves it where no example goes. The distillation of Step 20 worked because its teacher could be asked again off its path; these trajectories cannot
+- [x] Phase 2 by the backward algorithm: PPO started from states of the dockings, $`k`$ steps before their end, the cone first opened as in Step 21, $`k`$ raised by 10 once the deterministic agent docks 80 % of 40 attempts. Two seeds of 15 million steps reached $`k`$ = 115 and 85 of a median 178; on the 200 unseen starts 48 and 73 of 200, 40 of 41 in front, 0 of 47 from behind, since the starts never reached the true ones. Not a final result
+- [x] Go-Explore as a planner instead (`GoExplorePlanner`): explore from the chaser's state on a copy of the simulator, fly the best docking found, explore again every 30 steps; a replan keeps searching 2000 rounds after its first docking. On the 200 unseen starts, with no thrust error: **198 of 200**, 41/41, 55/56, 56/56 and **46 of 47 from behind the station**, two violations; 1.88 m/s in 2035 s; about seven searches and 5.4 minutes of computing per flight (`assets/go_explore_planner.json`)
+- [x] The plan found at the start flown open loop, with a thrust error of 10 % in magnitude and 3° in direction each step: **9 of 200**, 174 violations. A fixed sequence does not survive imperfect thrust; replanning is what would. The same errors with replanning were not measured: the run was stopped
+- [ ] Replanning with thrust errors, and a phase 2 that leaves a network: open
+
+*Lesson so far.* Exploring from an archive of saved states found what trial and
+error never did, a way through the port from every direction, and as a planner
+it docks 198 of 200 with no teacher and no plan written by hand. It is a
+search, not a learned policy: minutes per flight and 60 % more fuel than the
+procedure. Turning what it finds into a network is the open half: copying its
+thrusts fails, and the backward algorithm learns, but slowly, the same
+reinforcement learning the exploration was meant to help.
 
 ## Possible extensions
 

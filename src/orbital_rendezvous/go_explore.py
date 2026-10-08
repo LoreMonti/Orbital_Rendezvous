@@ -34,7 +34,7 @@ distillation of Step 20.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -69,6 +69,7 @@ class Exploration:
     first_docking: int | None = None
     cells: int = 0
     closest: float = float("inf")              # m, nearest the archive came to the port
+    toward: np.ndarray = field(default=None, repr=False)   # actions to that nearest cell
 
 
 def cell_size(distance: float, config: GoExploreConfig) -> float:
@@ -96,16 +97,28 @@ def weights(distances: np.ndarray, visits: np.ndarray, config: GoExploreConfig) 
     return w / w.sum()
 
 
-def explore(env: RendezvousEnv, seed: int, config: GoExploreConfig | None = None) -> Exploration:
-    """Explore from the start that ``seed`` selects; return the best docking found."""
+def explore(
+    env: RendezvousEnv,
+    seed: int,
+    config: GoExploreConfig | None = None,
+    state: np.ndarray | None = None,
+    steps_done: int = 0,
+) -> Exploration:
+    """Explore from the start that ``seed`` selects; return the best docking found.
+
+    With ``state`` the exploration starts there instead, ``steps_done`` steps
+    into the episode: a planner flying a chaser explores again from where it is.
+    """
     config = config or GoExploreConfig()
     if env.config.mirror_symmetry or env.config.engine_switch:
         raise ValueError("the exploration commands the true thrust on two axes")
     rng = np.random.default_rng(seed)
     env.reset(seed=seed)
+    if state is not None:
+        env.state, env.steps = np.asarray(state, dtype=float).copy(), steps_done
     start = env.state.copy()
     index = {cell(start, config): 0}
-    states, steps, scores, sequences = [start.copy()], [0], [0.0], [np.zeros((0, 2))]
+    states, steps, scores, sequences = [start.copy()], [env.steps], [0.0], [np.zeros((0, 2))]
     capacity = 1024
     visits, distances = np.zeros(capacity), np.zeros(capacity)
     distances[0] = np.hypot(*start[:2])
@@ -156,7 +169,8 @@ def explore(env: RendezvousEnv, seed: int, config: GoExploreConfig | None = None
                 sequences[j] = np.concatenate(taken)
                 distances[j] = np.hypot(*env.state[:2])
     found.rounds, found.cells = rounds, len(states)
-    found.closest = float(distances[: len(states)].min())
+    nearest = int(np.argmin(distances[: len(states)]))
+    found.closest, found.toward = float(distances[nearest]), sequences[nearest]
     return found
 
 
@@ -172,3 +186,45 @@ def replay(env: RendezvousEnv, seed: int, actions: np.ndarray) -> dict:
             break
     return {"outcome": info["outcome"], "delta_v": delta_v, "violated": violated,
             "time": env.steps * env.config.time_step}
+
+
+class GoExplorePlanner:
+    """Go-Explore as a planner: explore from the chaser's state, fly, explore again.
+
+    A `Controller`. At the start, and then every ``replan_every`` steps, it runs
+    `explore` from the chaser's current state on a private copy of the
+    environment, and flies the thrusts of the best docking found; if none was
+    found, the thrusts toward the cell nearest the port. Without errors the
+    first plan would dock alone, as its replay shows; replanning is what lets
+    the chaser recover when the thrust is not the one commanded. There is no
+    learning: every plan is a new search, guided only by the reward and by the
+    preference for cells near the port.
+    """
+
+    def __init__(self, env: RendezvousEnv, config: GoExploreConfig | None = None,
+                 replan_every: int = 30, seed: int = 0, replan_after_docking: int = 2_000):
+        self.model = RendezvousEnv(env.config, env.reward_config)
+        self.config = config or GoExploreConfig()
+        # The first plan is searched in full; a replan keeps looking for a
+        # cheaper docking for fewer rounds once it has one, since a flight
+        # replans about eight times and the margin of phase 1, 20 000 rounds,
+        # made a flight cost five minutes.
+        self.replan_config = replace(self.config, after_docking=replan_after_docking)
+        self.replan_every, self.seed = replan_every, seed
+        self.plan, self.position, self.searches = np.zeros((0, 2)), 0, 0
+
+    def __call__(self, env: RendezvousEnv, obs: np.ndarray) -> np.ndarray:
+        if env.steps == 0:
+            self.plan, self.position, self.searches = np.zeros((0, 2)), 0, 0
+        if self.position >= len(self.plan) or self.position >= self.replan_every:
+            settings = self.config if self.searches == 0 else self.replan_config
+            found = explore(self.model, self.seed + 1000 * self.searches, settings,
+                            state=env.state, steps_done=env.steps)
+            self.searches += 1
+            self.plan = found.actions if found.docked else found.toward
+            self.position = 0
+            if len(self.plan) == 0:
+                return np.zeros(2)
+        action = self.plan[self.position]
+        self.position += 1
+        return np.asarray(action, dtype=float)

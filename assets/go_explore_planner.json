@@ -1,0 +1,83 @@
+{
+ "results": {
+  "replan every 30, replan margin 2000": {
+   "docked": 198,
+   "episodes": 200,
+   "outcomes": {
+    "keep-out violation": 2,
+    "docked": 198
+   },
+   "delta_v_median": 1.8791097915133974,
+   "time_median": 2035.0,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 41,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 55,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 56,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 46,
+     "starts": 47
+    }
+   ],
+   "searches_median": 7.0,
+   "minutes_per_flight_median": 5.369229763541565
+  },
+  "open loop, thrust error 0.10, 3 deg": {
+   "docked": 9,
+   "episodes": 200,
+   "outcomes": {
+    "crashed": 2,
+    "timeout": 15,
+    "docked": 9,
+    "keep-out violation": 174
+   },
+   "delta_v_median": 1.8741685857394081,
+   "time_median": 2260.0,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 4,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 1,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 3,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 1,
+     "starts": 47
+    }
+   ],
+   "searches_median": 1.0,
+   "minutes_per_flight_median": 1.435957010058337
+  }
+ },
+ "description": "Go-Explore as a planner on the 200 held-out starts of the oriented target; thrust errors as in scripts/go_explore_eval.py."
+}

@@ -568,7 +568,10 @@ imitating a teacher, docks 596 of 600 ([`experiments/teacher_student`](experimen
 Behind the station both sides are equally good, and a Gaussian policy averages
 them into flying straight into the sphere. A planner on the known dynamics, with
 a hand-written value beyond 200 s, docks 195 of 200; with that value learned from
-its own flights, 100, no better than the bare distance (Step 26).
+its own flights, 100, no better than the bare distance (Step 26). Go-Explore,
+exploring from an archive of saved states and replanning in flight, docks 198
+of 200, 46 of 47 from behind, with no teacher and no value written by hand, at
+5 minutes of computing and 1.88 m/s per flight (Step 27).
 
 ## Discussion and limitations
 
@@ -670,6 +673,7 @@ script needs no arguments for the default run and lists its options with
 | `plan_eval.py` | the sampling planner of Step 26 on the oriented target, 200 unseen starts, one row per value and horizon, a JSON file |
 | `value_loop.py` | learns the planner's value from its own flights, from the port outwards; resumable |
 | `go_explore.py` | Go-Explore phase 1 on many starts in parallel: dockings found by exploring from an archive, each replayed to check it; resumable |
+| `go_explore_eval.py` | Go-Explore as a planner on the 200 unseen starts, replanning or open loop, with optional thrust errors |
 | `curriculum_summary.py` | the two curricula of the corridor during training, next to Step 14, from the run directories |
 
 ```bash
@@ -754,6 +758,7 @@ Orbital_Rendezvous/
 │   ├── plan_eval.py        # the sampling planner on the corridor, in parallel
 │   ├── value_loop.py       # learns the planner's value, stage by stage
 │   ├── go_explore.py       # Go-Explore phase 1 on many starts, in parallel
+│   ├── go_explore_eval.py  # Go-Explore as a planner on the corridor
 │   └── curriculum_summary.py  # the corridor curricula in one plot, from the runs
 ├── tests/                  # 133 tests, one file per module or feature
 ├── experiments/
@@ -866,7 +871,8 @@ would catch them.
 - **Go-Explore.** Cells group nearby states, split speeds and shrink next to
   the port; the search returns more often to cells near the port and seldom
   chosen; a docking found by restoring saved states docks again when its
-  thrusts are replayed from a fresh reset, with no violation.
+  thrusts are replayed from a fresh reset, with no violation; an exploration
+  can start anywhere in an episode; the planner docks and replans on schedule.
 - **Best model.** The policy kept is the one that docks most often on
   validation starts, the cheaper one on a tie, never merely the last, and its
   cost can count time as well as fuel.

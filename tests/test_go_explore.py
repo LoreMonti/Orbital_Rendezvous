@@ -76,3 +76,26 @@ def test_without_a_docking_the_archive_still_reports_how_close_it_came():
 def test_mirrored_environments_are_refused():
     with pytest.raises(ValueError):
         explore(RendezvousEnv(replace(STRICT, mirror_symmetry=True)), 0)
+
+
+def test_an_exploration_can_start_from_any_state_of_an_episode():
+    env = RendezvousEnv(STRICT)
+    state = np.array([0.0, 30.0, 0.0, -0.05])
+    found = explore(env, 0, replace(SETTINGS, budget=50), state=state, steps_done=40)
+    np.testing.assert_array_equal(found.start, state)
+    assert found.toward is not None and found.toward.shape[1] == 2
+
+
+def test_the_planner_docks_and_replans_on_schedule():
+    from orbital_rendezvous.evaluation import rollout
+    from orbital_rendezvous.go_explore import GoExplorePlanner
+
+    quick = replace(SETTINGS, budget=20_000, after_docking=200)
+    env = near_the_port()
+    open_loop = GoExplorePlanner(env, quick, replan_every=10**9, seed=3)
+    run = rollout(env, open_loop, 3)
+    assert run.outcome is Outcome.DOCKED and open_loop.searches == 1
+    replanning = GoExplorePlanner(env, quick, replan_every=5, seed=3)
+    run = rollout(env, replanning, 3)
+    assert run.outcome is Outcome.DOCKED
+    assert replanning.searches >= len(run.positions) // 5        # a search every 5 steps
