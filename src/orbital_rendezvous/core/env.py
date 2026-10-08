@@ -1,0 +1,439 @@
+"""Gymnasium environment for the planar rendezvous task.
+
+Action: ``a`` in ``[-1, 1]^2``, mapped to the thrust ``u = u_max a`` and
+saturated per axis. The thrust is continuous, so the agent can correct gently
+instead of choosing between a few abrupt burns. Optionally, a thruster has a
+minimum level: commands below ``thrust_deadzone`` (a fraction of ``u_max``) on
+an axis leave that thruster off. Real thrusters cannot fire arbitrarily weakly,
+and with it the exploration noise around zero no longer burns fuel, so the
+agent can coast for free.
+
+Optionally too, an engine switch: with ``engine_switch`` the action gains a
+third component, ``a_on``, and the engine fires only when ``a_on > 0``. Off, the
+thrust is exactly zero whatever the noise on the other two components, so
+coasting costs nothing even while exploring; on, the thrust stays continuous
+with no minimum level, keeping the fine control a minimum level would lose.
+
+Optionally, a mirror: with ``mirror_symmetry`` every episode that starts
+outside the keep-out sphere is shown to the agent as if it had started on the
+side ``x <= 0``. Such a start with ``x > 0`` has ``x``, ``vx`` and the radial
+thrust ``u_x`` flipped in sign for the whole episode. Starts inside the
+sphere lie in the approach cone, a few decimetres from the axis, where the
+Coriolis term pushes the chaser out of the cone always towards the same side:
+there the problem is not symmetric, and mirrored, the first stages of the
+reverse curriculum stalled; they are never mirrored. The side is fixed at the
+start and kept: the manoeuvre crosses the docking axis on its way into the
+cone, and a mirror switched there would make the state jump. The agent is not
+told the true side: an extra input, constant on every start of the first
+stages, changed the network and its training, and those stages stalled. So the
+mirror leaves every start within the sphere, and the whole training up to the
+first start outside it, exactly as without it, seed for seed. Outside the
+sphere the Clohessy-Wiltshire equations are not exactly symmetric under
+``x -> -x``; flown as in a mirror, the approach learned from one side docked
+83-89 % from the other (Step 22 of the ROADMAP), and what is learned on one
+side now serves both.
+
+Optionally, with the mirror, a side chosen by the agent: with ``side_choice``
+the action gains a last component, ``a_s``, read once, on the first step of an
+episode that starts outside the keep-out sphere. ``a_s >= 0`` keeps the world
+as it is from the next step on, ``a_s < 0`` shows it as in a mirror; the first
+step itself is seen and flown as it is. Choosing the mirror is choosing the
+side: the agent learns one manoeuvre in its own frame, and the mirror decides
+on which side of the station it is flown. A Gaussian policy cannot say
+"left or right" where both are good, and averages them into "straight on",
+into the keep-out sphere; one sign drawn once and kept turns that average into
+one whole manoeuvre or the other. ``a_s`` is ignored afterwards, and inside the
+sphere, where the mirror never applies.
+
+Observation: the relative state, normalised so that every component is of
+order one, and the fraction of the episode elapsed,
+``[x / r_max, y / r_max, vx / v_ref, vy / v_ref, t / T_max]``. Positions are
+hundreds of metres and velocities centimetres per second; fed raw, the network
+would barely see the velocities. Without the clock, two identical states early
+and late in an episode would look the same to the agent although their futures
+differ, and the problem would not be Markovian.
+
+An episode ends in one of four ways:
+
+- docked: inside the docking radius and slower than the docking speed;
+- crashed: inside the docking radius, or through it, too fast;
+- escaped: further than ``max_distance`` from the target;
+- keep-out violation: with ``keep_out_radius`` set, entering the keep-out
+  sphere around the station outside the approach cone, of half-angle
+  ``approach_cone_deg`` around the docking axis +y (the V-bar). The docking
+  sphere itself is exempt, as the cone's apex is the port. With
+  ``keep_out_mode = "penalty"`` a violation does not end the episode: each step
+  spent in the forbidden zone costs ``keep_out_weight`` instead, a constraint a
+  Lagrange multiplier can price during training (see
+  `callbacks.KeepOutBudget`), while evaluation keeps the strict rule;
+- timeout: ``max_episode_steps`` reached. Since the agent sees the clock, the
+  time limit is part of the task and the timeout is a true end of the episode,
+  reported as ``terminated`` (Pardo et al., 2018). It is not penalised: the
+  agent should not learn to fear the clock itself.
+
+The chaser starts at a random distance in ``initial_radius_range``, in a random
+direction. ``start_angle_range_deg`` can restrict that direction: the angle
+between the start and the docking axis +y is drawn in the range, on either side
+of the axis at random. The default, 0 to 180 degrees, is every direction, drawn
+exactly as without the option; `callbacks.StartCurriculum` widens a narrower
+range as the agent masters it, from starts in front of the port to starts
+behind the station. Starting inside the keep-out sphere, a start is kept
+within ``inner_start_angle_deg`` of the axis, inside the approach cone, so that
+it is not a violation before the first thrust; `callbacks.ReverseCurriculum`
+starts close to the port and moves the starts out.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from typing import Any
+
+import gymnasium as gym
+import numpy as np
+
+from orbital_rendezvous.core.dynamics import discretize, mean_motion, propagate
+from orbital_rendezvous.core.rewards import (
+    Outcome,
+    RewardConfig,
+    Scales,
+    in_approach_cone,
+    miss_size,
+    step_reward,
+    terminal_reward,
+)
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    """Physical and episode parameters. See ``studies/1_free_docking/configs/ppo_default.yaml``."""
+
+    semi_major_axis: float = 6778.0e3
+    mu: float = 3.986004418e14
+    mass: float = 500.0
+    max_thrust: float = 1.0
+    time_step: float = 10.0
+    max_episode_steps: int = 300
+    initial_radius_range: tuple[float, float] = (80.0, 200.0)
+    initial_velocity_scale: float = 0.05
+    docking_radius: float = 1.0
+    docking_speed: float = 0.05
+    max_distance: float = 500.0
+    velocity_scale: float = 0.5
+    thrust_deadzone: float = 0.0
+    engine_switch: bool = False
+    keep_out_radius: float = 0.0
+    approach_cone_deg: float = 15.0
+    keep_out_mode: str = "terminal"
+    keep_out_weight: float = 0.0
+    start_angle_range_deg: tuple[float, float] = (0.0, 180.0)
+    inner_start_angle_deg: float = 10.0
+    start_speed_radius: float = 15.0
+    shaping_radius_margin: float = 0.0
+    shaping_cone_margin_deg: float = 0.0
+    mirror_symmetry: bool = False
+    side_choice: bool = False
+
+
+def _closest_approach(p0: np.ndarray, p1: np.ndarray) -> float:
+    """Distance from the origin to the segment ``p0 -> p1``.
+
+    At a few metres per second the chaser can cross the docking sphere between
+    two steps; checking only the endpoints would let it fly through the target.
+    """
+    d = p1 - p0
+    length2 = float(d @ d)
+    if length2 == 0.0:
+        return float(np.linalg.norm(p0))
+    t = np.clip(-(p0 @ d) / length2, 0.0, 1.0)
+    return float(np.linalg.norm(p0 + t * d))
+
+
+class RendezvousEnv(gym.Env):
+    """A chaser spacecraft learning to dock with a target in the LVLH frame.
+
+    The physical state ``[x, y, vx, vy]`` in SI units is kept in ``self.state``;
+    the agent only ever sees its normalised version.
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(
+        self,
+        config: EnvConfig | None = None,
+        reward_config: RewardConfig | None = None,
+    ) -> None:
+        super().__init__()
+        self.config = config or EnvConfig()
+        self.reward_config = reward_config or RewardConfig()
+
+        self.n = mean_motion(self.config.semi_major_axis, self.config.mu)
+        self.phi, self.gamma = discretize(self.n, self.config.time_step, self.config.mass)
+
+        # Thrust on the two axes, and with the engine switch a third command, a_on.
+        if self.config.side_choice and not self.config.mirror_symmetry:
+            raise ValueError("side_choice chooses the mirror: it needs mirror_symmetry")
+        n_actions = 2 + int(self.config.engine_switch) + int(self.config.side_choice)
+        self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(n_actions,), dtype=np.float32)
+        # Finite but generous bounds: twice the escape radius on position, and
+        # 10 m/s on velocity, more than the delta-v an episode can spend. The
+        # elapsed fraction of the episode lies in [0, 1].
+        low = np.array([-2.0, -2.0, -20.0, -20.0, 0.0], dtype=np.float32)
+        high = np.array([2.0, 2.0, 20.0, 20.0, 1.0], dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low, high, dtype=np.float32)
+
+        self._obs_scale = np.array(
+            [
+                self.config.max_distance,
+                self.config.max_distance,
+                self.config.velocity_scale,
+                self.config.velocity_scale,
+            ]
+        )
+        self.scales = Scales(
+            max_distance=self.config.max_distance,
+            velocity_scale=self.config.velocity_scale,
+            docking_speed=self.config.docking_speed,
+            mass=self.config.mass,
+            time_step=self.config.time_step,
+            keep_out_radius=self.config.keep_out_radius,
+            approach_cone_deg=self.config.approach_cone_deg,
+            shaping_radius_margin=self.config.shaping_radius_margin,
+            shaping_cone_margin_deg=self.config.shaping_cone_margin_deg,
+        )
+        self.state = np.zeros(4)
+        self.steps = 0
+        # +1 shows the state as it is, -1 as in a mirror (x and vx flipped).
+        self.mirror = 1.0
+        # With side_choice: whether the next step's a_s still sets the mirror.
+        self.side_open = False
+        # A share of the starts drawn from the newest part of a curriculum's
+        # stage: (fraction, (radius low, radius high), (angle low, angle high)).
+        self.frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None
+        # Where the shaping pulls to: the target at the origin here, a point
+        # to reach in a subclass (the go-to pilot of studies/2_oriented_port/teacher_student).
+        self.goal = np.zeros(2)
+
+    def set_approach_cone(self, degrees: float) -> None:
+        """Change the half-angle of the approach cone, for a curriculum that narrows it."""
+        self.config = replace(self.config, approach_cone_deg=degrees)
+        self.scales = replace(self.scales, approach_cone_deg=degrees)
+
+    def set_start_angles(self, low: float, high: float) -> None:
+        """Change the range of start angles from the docking axis, for a curriculum on starts."""
+        self.config = replace(self.config, start_angle_range_deg=(low, high))
+
+    def set_start_region(
+        self,
+        radius_low: float,
+        radius_high: float,
+        angle_high: float,
+        frontier: tuple[float, tuple[float, float], tuple[float, float]] | None = None,
+    ) -> None:
+        """Change the distance and the largest angle of the starts, for a reverse curriculum.
+
+        With ``frontier = (fraction, radii, angles)``, that fraction of the starts
+        is drawn from the given distances and angles instead, the newest part of
+        a stage, where the agent has had the least practice.
+        """
+        self.config = replace(self.config, initial_radius_range=(radius_low, radius_high),
+                              start_angle_range_deg=(0.0, angle_high))
+        self.frontier = frontier
+
+    def set_keep_out_weight(self, weight: float) -> None:
+        """Change the cost of a step in the forbidden zone, in penalty mode."""
+        self.config = replace(self.config, keep_out_weight=weight)
+
+    def set_fuel_weight(self, weight: float) -> None:
+        """Change the cost of fuel, for a curriculum that raises it during training.
+
+        Only the fuel term changes; the shaping potential does not, so the
+        shaping stays a pure telescoping sum whatever the schedule.
+        """
+        self.reward_config = replace(self.reward_config, fuel_weight=weight)
+
+    def _observation(self) -> np.ndarray:
+        elapsed = self.steps / self.config.max_episode_steps
+        shown = self.state * np.array([self.mirror, 1.0, self.mirror, 1.0])
+        obs = np.append(shown / self._obs_scale, elapsed).astype(np.float32)
+        return np.clip(obs, self.observation_space.low, self.observation_space.high)
+
+    def _info(self, outcome: Outcome | None, thrust: np.ndarray) -> dict[str, Any]:
+        cfg = self.config
+        info: dict[str, Any] = {
+            "position": self.state[:2].copy(),
+            "velocity": self.state[2:].copy(),
+            "distance": float(np.linalg.norm(self.state[:2])),
+            "speed": float(np.linalg.norm(self.state[2:])),
+            "thrust": thrust,
+            "delta_v": float(np.linalg.norm(thrust)) * cfg.time_step / cfg.mass,
+            "outcome": outcome,
+        }
+        if outcome is not None:
+            # Read by Stable-Baselines3 to log the success rate.
+            info["is_success"] = outcome is Outcome.DOCKED
+        return info
+
+    def reset(
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        super().reset(seed=seed)
+        cfg = self.config
+        if self.frontier is not None and self.np_random.random() < self.frontier[0]:
+            cfg = replace(cfg, initial_radius_range=self.frontier[1],
+                          start_angle_range_deg=self.frontier[2])
+        radius = self.np_random.uniform(*cfg.initial_radius_range)
+        low, high = cfg.start_angle_range_deg
+        if (low, high) == (0.0, 180.0):
+            # Every direction, drawn as before the option existed, so that a
+            # seed still selects the same start and old models reproduce.
+            angle = self.np_random.uniform(0.0, 2.0 * np.pi)
+            position = radius * np.array([np.cos(angle), np.sin(angle)])
+        else:
+            # Angle from the docking axis +y, on a random side of it.
+            angle = np.radians(self.np_random.uniform(low, high))
+            side = 1.0 if self.np_random.random() < 0.5 else -1.0
+            position = radius * np.array([side * np.sin(angle), np.cos(angle)])
+        if cfg.keep_out_radius and radius < cfg.keep_out_radius:
+            # Inside the keep-out sphere a start must lie in the approach cone,
+            # or the attempt would be a violation before the first thrust:
+            # within inner_start_angle_deg of the axis. Starts outside the
+            # sphere, all of them by default, draw nothing more.
+            limit = min(cfg.inner_start_angle_deg, cfg.approach_cone_deg)
+            if np.degrees(np.arctan2(abs(position[0]), position[1])) > limit:
+                angle = np.radians(self.np_random.uniform(0.0, limit))
+                side = 1.0 if self.np_random.random() < 0.5 else -1.0
+                position = radius * np.array([side * np.sin(angle), np.cos(angle)])
+        velocity = self.np_random.normal(0.0, cfg.initial_velocity_scale, size=2)
+        # Closer than start_speed_radius the random velocity shrinks with the
+        # distance, so that the time to drift out of the approach cone,
+        # r tan(cone) / v, stays the same whatever the start: about eight
+        # decisions. Starts further out, all of them by default, are unchanged.
+        velocity *= min(1.0, float(np.hypot(*position)) / cfg.start_speed_radius)
+        self.state = np.append(position, velocity)
+        self.steps = 0
+        outside = float(np.hypot(*position)) > cfg.keep_out_radius
+        mirrored = cfg.mirror_symmetry and not cfg.side_choice and outside and position[0] > 0.0
+        self.mirror = -1.0 if mirrored else 1.0
+        self.side_open = cfg.side_choice and outside
+        return self._observation(), self._info(None, np.zeros(2))
+
+    def _violates_keep_out(
+        self, p0: np.ndarray, p1: np.ndarray, samples: int = 21
+    ) -> float | None:
+        """Where the step from ``p0`` to ``p1`` enters the keep-out sphere outside the cone.
+
+        Returns the fraction of the step at the first forbidden point, or
+        ``None`` if there is none. Checked along the whole segment, not only at
+        its ends: in one step the chaser can cross the sphere with neither end
+        inside it.
+        """
+        cfg = self.config
+        for s in np.linspace(0.0, 1.0, samples):
+            point = p0 + s * (p1 - p0)
+            distance = float(np.hypot(*point))
+            if cfg.docking_radius <= distance < cfg.keep_out_radius and not in_approach_cone(
+                point, cfg.approach_cone_deg
+            ):
+                return float(s)
+        return None
+
+    def _miss(
+        self, outcome: Outcome | None, previous_state: np.ndarray, entry: float | None
+    ) -> float:
+        """How far a crash or a violation was from a docking (see `rewards.miss_size`)."""
+        cfg = self.config
+        if outcome is Outcome.CRASHED:
+            speed = float(np.linalg.norm(self.state[2:]))
+            return miss_size(
+                0.0, speed, cfg.docking_speed, cfg.approach_cone_deg, self.reward_config
+            )
+        if outcome is Outcome.KEEP_OUT and entry is not None:
+            # Position and velocity where the step entered the forbidden zone.
+            point = previous_state + entry * (self.state - previous_state)
+            distance = float(np.hypot(*point[:2]))
+            angle = float(np.degrees(np.arccos(np.clip(point[1] / distance, -1.0, 1.0))))
+            speed_ok = cfg.docking_speed + distance / self.reward_config.approach_time
+            return miss_size(
+                angle, float(np.hypot(*point[2:])), speed_ok, cfg.approach_cone_deg,
+                self.reward_config,
+            )
+        return 1.0
+
+    def _outcome(self, previous_position: np.ndarray, violated: bool) -> Outcome | None:
+        cfg = self.config
+        distance = float(np.linalg.norm(self.state[:2]))
+        speed = float(np.linalg.norm(self.state[2:]))
+
+        if violated and cfg.keep_out_mode == "terminal":
+            return Outcome.KEEP_OUT
+        # The segment test covers the endpoint too: ending inside the sphere is
+        # the special case where the closest point is the last one.
+        if _closest_approach(previous_position, self.state[:2]) < cfg.docking_radius:
+            return Outcome.DOCKED if speed < cfg.docking_speed else Outcome.CRASHED
+        if distance > cfg.max_distance:
+            return Outcome.ESCAPED
+        if self.steps >= cfg.max_episode_steps:
+            return Outcome.TIMEOUT
+        return None
+
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+        command = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+        side = None
+        if self.config.side_choice:
+            side, command = float(command[-1]), command[:-1]
+        command[0] *= self.mirror   # the agent commands in its mirrored frame
+        engine_on = True
+        if self.config.engine_switch:
+            engine_on = bool(command[2] > 0.0)
+            command = command[:2] if engine_on else np.zeros(2)
+        # Below its minimum level a thruster stays off.
+        command[np.abs(command) < self.config.thrust_deadzone] = 0.0
+        thrust = self.config.max_thrust * command
+        previous_state = self.state.copy()
+
+        self.state = propagate(self.state, thrust, self.phi, self.gamma)
+        self.steps += 1
+        if self.side_open:
+            # Chosen once, on the first step, and kept: the observation of
+            # this step is already in the chosen frame.
+            self.mirror = -1.0 if side < 0.0 else 1.0
+            self.side_open = False
+
+        entry = (
+            self._violates_keep_out(previous_state[:2], self.state[:2])
+            if self.config.keep_out_radius else None
+        )
+        violated = entry is not None
+        outcome = self._outcome(previous_state[:2], violated)
+        # With the clock observed, every outcome, the timeout included, ends
+        # the task; nothing is left to bootstrap from.
+        terminated = outcome is not None
+        truncated = False
+
+        # The shaping measures distances from the goal. At the origin, the
+        # default, the shift is an exact zero and nothing changes.
+        shift = np.append(self.goal, [0.0, 0.0])
+        terms = step_reward(
+            previous_state - shift, self.state - shift, thrust, terminated,
+            self.reward_config, self.scales,
+        )
+        miss = self._miss(outcome, previous_state, entry)
+        terms["terminal"] = terminal_reward(outcome, self.reward_config, miss)
+        if self.config.keep_out_radius:
+            penalised = violated and self.config.keep_out_mode == "penalty"
+            terms["keep_out"] = -self.config.keep_out_weight if penalised else 0.0
+        reward = float(sum(terms.values()))
+
+        info = self._info(outcome, thrust)
+        info["reward_terms"] = terms
+        info["engine_on"] = engine_on
+        info["keep_out_violated"] = violated
+        info["mirror"] = self.mirror
+        info["miss"] = miss
+        return self._observation(), reward, terminated, truncated, info
+

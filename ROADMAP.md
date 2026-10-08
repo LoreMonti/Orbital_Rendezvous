@@ -2,13 +2,20 @@
 
 The project was built one reviewable step at a time: each step ended with tests
 passing, the README updated, and a commit. The physics and the method behind
-every item are in the [README](README.md); this file records what was done, in
-what order, and what each step taught.
+every item are in the README of each part; this file records what was done, in
+what order, and what each step taught. The steps are numbered across the three
+parts, and the code refers to them by number.
+
+- [Part 1 — Free docking](#part-1--free-docking), Steps 0–13 ([README](studies/1_free_docking/README.md))
+- [Part 2 — Through a port](#part-2--through-a-port), Steps 14–27 ([README](studies/2_oriented_port/README.md))
+- [Part 3 — Graph planner](#part-3--graph-planner), Step 28 → ([README](studies/3_graph_planner/README.md))
+
+# Part 1 — Free docking
 
 ## Step 0 — Repository skeleton
 
 - [x] `src/` package layout, editable install, `pyproject.toml` with ruff and pytest
-- [x] Every parameter in `configs/ppo_default.yaml`, none hard-coded
+- [x] Every parameter in `studies/1_free_docking/configs/ppo_default.yaml`, none hard-coded
 - [x] Design choices: planar motion only, continuous thrust, PPO, physics kept apart from the RL code
 - [x] README and this roadmap
 
@@ -172,6 +179,8 @@ itself: a slow approach that docks every time exists, but PPO finds it only
 some of the time. The fuel line of work stops here, with diminishing returns
 (−15 %, then −11 %) and a clear account of each obstacle.
 
+# Part 2 — Through a port
+
 ## Steps 14–25 — An oriented target, with model-free RL
 
 A port on the V-bar, a keep-out sphere of 20 m and an approach cone of 15°.
@@ -191,14 +200,14 @@ dynamics to plan (Step 26).
 
 ### Step 14 — An oriented target
 
-- [x] Keep-out sphere of 20 m around the station, entered only inside a 15° approach cone around the docking axis (the V-bar); a violation is checked along the whole step and ends the attempt; `configs/ppo_corridor.yaml`
+- [x] Keep-out sphere of 20 m around the station, entered only inside a 15° approach cone around the docking axis (the V-bar); a violation is checked along the whole step and ends the attempt; `studies/2_oriented_port/configs/ppo_corridor.yaml`
 - [x] Baseline: the V-bar procedure, an LQR to a hold point 30 m out on the axis, then sliding along it with a steady radial thrust against Coriolis; 200 / 200, no violation, 1.06–1.23 m/s
 - [x] Reference: the default agent violates the zone 199 times in 200, the fastest LQR 200 times
 - [x] Attempt 1, the rule from the start: the agent stops approaching
 - [x] Attempt 2, a potential towards the mouth of the cone at 15° from the start: the agent never learns to dock, even with violations free (checked against the straight potential: 97 % against 0 %)
 - [x] Attempts 3–4, a Lagrange multiplier on violations in a penalty mode (`KeepOutBudget`), fast, then slow and relaxing: docking is learned, then collapses and does not return
 - [x] Attempt 5, a curriculum narrowing the cone from 180° (`ConeCurriculum`), with a potential that follows the current cone around the sphere: both runs stop at 90°
-- [x] `cone_summary.py` and `assets/cone_curriculum.json`
+- [x] `cone_summary.py` and `studies/2_oriented_port/assets/cone_curriculum.json`
 
 *Lesson.* The agent can shift its direction of arrival a little at a time, down
 to the front half of the station; it cannot find, in small steps, the different
@@ -212,10 +221,10 @@ the classical procedure wins: the knowledge that solves it fits in a few lines.
 - [x] Curriculum logic shared in `MasteryCurriculum`; `StartCurriculum` widens the starts, tested on the outer 30° of the range only
 - [x] Attempt 1, the start curriculum alone at a 15° cone, 8 million steps, two seeds: **no docking in 27 000 episodes** per seed, not even from in front of the port
 - [x] Diagnosis: the Coriolis term $`2n|\dot{y}|`$ pushes an approach along the V-bar out of the cone; the default agent, from the front, docks 0 times in 100 with a 15° cone and 83 with a 60° cone
-- [x] Fix: the two curricula in sequence, the cone narrowed on front starts first (`after=`), then the starts widened; `training.start_curriculum` in `configs/ppo_corridor.yaml`
+- [x] Fix: the two curricula in sequence, the cone narrowed on front starts first (`after=`), then the starts widened; `training.start_curriculum` in `studies/2_oriented_port/configs/ppo_corridor.yaml`
 - [x] Result, 32 million steps, three seeds: the cone reaches 15° on 3 / 3 seeds in 1.6–2.0 million steps; the starts reach 145°, 155° and 55°; 153, 121 and 71 dockings in 200 against 200 for the V-bar procedure
 - [x] `corridor_eval.py`: dockings by direction of the start, and costs compared with the V-bar procedure on the starts each agent docks
-- [x] `curriculum_summary.py` and `assets/start_curriculum.json`; the run's `config.yaml` now records the seed actually used
+- [x] `curriculum_summary.py` and `studies/2_oriented_port/assets/start_curriculum.json`; the run's `config.yaml` now records the seed actually used
 
 *Lesson.* The premise of the plan was wrong: a start inside the cone does not
 make the straight approach easy, because in orbit the approach is not straight.
@@ -228,7 +237,7 @@ faster or cheaper than the procedure, never both, and never as reliable.
 
 ### Steps 16–20 — A side study: learning from a teacher
 
-- [x] **Set aside** in [`experiments/teacher_student`](experiments/teacher_student), with its code, configurations, tests and results: it answered whether a network can fly the corridor (596 of 600 by imitation), not whether reinforcement learning can discover it alone, the question of this project
+- [x] **Set aside** in [`studies/2_oriented_port/teacher_student`](studies/2_oriented_port/teacher_student), with its code, configurations, tests and results: it answered whether a network can fly the corridor (596 of 600 by imitation), not whether reinforcement learning can discover it alone, the question of this project
 
 #### Step 16 — Two learned pilots on the classical plan
 
@@ -326,7 +335,7 @@ long or parallel ones.
 - [x] The approach cone opened on the first stage and narrowed, as in Step 15: the cone reaches 15° in 1.2–1.6 million steps, the first stages follow
 - [x] Eight stages: stuck at 40 m and 45° (from 10° in one stage) at 75–80 %. Twenty-one stages, 10° at a time: through 35° in 2–3 million steps, stuck again at 45°, 75 %
 - [x] Violations on the rim, 19 m out, 22° off the axis. A shaping path with a margin (a sphere of 25 m, a mouth of 7°): still 75 %. Half the starts from the stage's frontier: 70 %, and one seed collapsed. A slower glide slope, $`\tau = 400\ \text{s}`$: 75–85 %, and the chaser still reached the rim at 0.20 m/s
-- [x] SAC in place of PPO (`configs/sac_corridor_reverse.yaml`, 256×256, 3 million steps, two seeds): about 1000 steps/s against 8000 for PPO; the cone reached 15° at 2.25 million steps on one seed and 30° on the other, and neither reached the 45° stage
+- [x] SAC in place of PPO (`studies/2_oriented_port/configs/sac_corridor_reverse.yaml`, 256×256, 3 million steps, two seeds): about 1000 steps/s against 8000 for PPO; the cone reached 15° at 2.25 million steps on one seed and 30° on the other, and neither reached the 45° stage
 
 *Lesson.* Check that the first stage of a curriculum is solvable, by a
 simple controller, before training on it. The cone opened first is again what
@@ -338,8 +347,8 @@ physical, an arrival too fast to turn; Step 22 shows it is not.
 
 Two seeds of 10 million steps each, the curriculum of Step 21 otherwise unchanged.
 
-- [x] A graded failure penalty (`rewards.graded_failure`, off by default; `configs/ppo_corridor_graded.yaml`): a crash or a violation costs $`-100\,[\alpha + (1-\alpha)\min(1, e_\theta + e_v)]`$, $`\alpha = 0.5`$, with $`e_\theta`$ the angle outside the cone over 30° and $`e_v`$ the speed above the glide slope over 0.10 m/s, both where the chaser entered the sphere; a runaway keeps −100. The idea comes from fine-grained training [Pirovano, Milanesio et al., 2025]: tell a near miss from a wide one. Result: 70–75 % at 45°, unchanged. The violations entered at 0.21–0.23 m/s, the speed error saturated, and the median miss was 1: the penalty stayed binary exactly where it mattered
-- [x] A discount of 0.995 instead of 0.99 (`configs/ppo_corridor_gamma.yaml`), since with 0.99 a docking 27 steps away is worth 0.76 of the bonus and one 80 steps away 0.45, which pays for haste: 75–85 % at 45°, unchanged; the early stages were slower
+- [x] A graded failure penalty (`rewards.graded_failure`, off by default; `studies/2_oriented_port/configs/ppo_corridor_graded.yaml`): a crash or a violation costs $`-100\,[\alpha + (1-\alpha)\min(1, e_\theta + e_v)]`$, $`\alpha = 0.5`$, with $`e_\theta`$ the angle outside the cone over 30° and $`e_v`$ the speed above the glide slope over 0.10 m/s, both where the chaser entered the sphere; a runaway keeps −100. The idea comes from fine-grained training [Pirovano, Milanesio et al., 2025]: tell a near miss from a wide one. Result: 70–75 % at 45°, unchanged. The violations entered at 0.21–0.23 m/s, the speed error saturated, and the median miss was 1: the penalty stayed binary exactly where it mattered
+- [x] A discount of 0.995 instead of 0.99 (`studies/2_oriented_port/configs/ppo_corridor_gamma.yaml`), since with 0.99 a docking 27 steps away is worth 0.76 of the bonus and one 80 steps away 0.45, which pays for haste: 75–85 % at 45°, unchanged; the early stages were slower
 - [x] The diagnosis, on 200 new starts between 28 and 40 m and 35–45°: the wall is one-sided. From $`x \lt 0`$ the agents docked 81–99 of 100; from $`x \gt 0`$, 5–23 of 100. Dockings also peaked at 0.20–0.22 m/s, so speed was never the cause
 - [x] The trajectories: one manoeuvre learned, over the sphere at $`y \approx 25\ \text{m}`$ towards $`+x`$ and down the cone. From $`x \gt 0`$ it loops and cuts into the sphere about 30° off the axis
 - [x] The test: the same network flown as in a mirror on the $`x \gt 0`$ starts ($`x, \dot{x}, u_x`$ with their signs flipped) docks 172 and 161 of 194, against 47 and 9 unmirrored. The Clohessy-Wiltshire equations are not symmetric under $`x \to -x`$, but over one approach the difference costs a few per cent, not seventy
@@ -352,12 +361,12 @@ come before the remedies; an average over both sides hid a 90 % and a 15 %.
 
 ### Step 23 — A mirror for the two sides
 
-- [x] `mirror_symmetry` (off by default; `configs/ppo_corridor_mirror.yaml`): a start outside the keep-out sphere with $`x \gt 0`$ is shown to the agent as on the side $`x \lt 0`$, with $`x`$, $`\dot{x}`$ and $`u_x`$ flipped for the whole episode; the side is fixed at the start, since the manoeuvre crosses the axis on its way into the cone
+- [x] `mirror_symmetry` (off by default; `studies/2_oriented_port/configs/ppo_corridor_mirror.yaml`): a start outside the keep-out sphere with $`x \gt 0`$ is shown to the agent as on the side $`x \lt 0`$, with $`x`$, $`\dot{x}`$ and $`u_x`$ flipped for the whole episode; the side is fixed at the start, since the manoeuvre crosses the axis on its way into the cone
 - [x] First version, every start mirrored and the true side given as an extra input: stuck at the first stage, 60–65 % and 15 % at 4 million steps. Next to the port the Coriolis term pushes the chaser out of the cone always towards the same side; there the problem is not symmetric
 - [x] Starts inside the sphere never mirrored, the side still an input: stuck at the first stage again, although the task there was unchanged. The constant extra input changed the network and its training
 - [x] No extra input: within 20 m the training is now the one of Step 21, bit for bit, a test pins it. Two seeds of 10 million steps: **seed 1 passed the wall**, the first agent from scratch to do it, and reached 85° at 60 m; from new starts at 45° it docks 89/99 from $`x \lt 0`$ and 97/101 from $`x \gt 0`$, at 75° 74/99 and 94/101. Seed 0 stayed at 45°, its two sides now even but weak, 33/99 and 48/101
 - [x] Three seeds of 32 million steps, as in Step 15: the curriculum reached 105°, 155° and 155° (Step 15: 55°, 145°, 155°); seed 1's training success fell to nearly zero at 26 million steps and partly came back
-- [x] On the 200 unseen starts of Step 15 (`scripts/corridor_eval.py`, which now flies the V-bar procedure without the mirror: it commands the true thrust, and through the mirror it docked 106 of 200): **152, 126 and 45 of 200** (best on validation: 143, 120, 58), against 153, 121 and 71 in Step 15. By direction, for the best seed: 97/97 within 90°, 44/56 between 90° and 135° (Step 15: 51), 11/47 from behind the station (Step 15: 5). The procedure docks 200 of 200
+- [x] On the 200 unseen starts of Step 15 (`studies/2_oriented_port/scripts/corridor_eval.py`, which now flies the V-bar procedure without the mirror: it commands the true thrust, and through the mirror it docked 106 of 200): **152, 126 and 45 of 200** (best on validation: 143, 120, 58), against 153, 121 and 71 in Step 15. By direction, for the best seed: 97/97 within 90°, 44/56 between 90° and 135° (Step 15: 51), 11/47 from behind the station (Step 15: 5). The procedure docks 200 of 200
 
 *Lesson.* The mirror removed the wall it was built for: the curriculum now
 passes 45° on every seed, and the two sides dock alike. On the whole task it
@@ -372,7 +381,7 @@ controller flown through the agent's mirror.
 
 ### Step 24 — The side chosen by the agent
 
-- [x] `side_choice` (off by default, needs the mirror; `configs/ppo_corridor_side.yaml`): the action gains a last component $`a_s`$, read once, on the first step of a start outside the keep-out sphere; $`a_s \lt 0`$ shows the world as in a mirror from the next step on. Choosing the mirror is choosing the side: one manoeuvre is learned, flown on either side. A Gaussian policy cannot say "left or right" where both are good; one sign drawn once and kept turns the average into one whole manoeuvre or the other. Policy and value keep separate networks, as before: one change at a time
+- [x] `side_choice` (off by default, needs the mirror; `studies/2_oriented_port/configs/ppo_corridor_side.yaml`): the action gains a last component $`a_s`$, read once, on the first step of a start outside the keep-out sphere; $`a_s \lt 0`$ shows the world as in a mirror from the next step on. Choosing the mirror is choosing the side: one manoeuvre is learned, flown on either side. A Gaussian policy cannot say "left or right" where both are good; one sign drawn once and kept turns the average into one whole manoeuvre or the other. Policy and value keep separate networks, as before: one change at a time
 - [x] Two seeds of 10 million steps: the curriculum reached 125° and 135° (Step 23 at 10 million: 45° and 85°)
 - [x] Three seeds of 32 million steps: the curriculum reached 145°, **180°** (the whole task, a first) and 135°. On the 200 unseen starts: **163**, 105 and 100 of 200 (best on validation: 160, 115, 109). For the best seed: 97/97 within 90°, 46/56 between 90° and 135°, **20/47** from behind the station (Step 15: 5, Step 23: 11). The best of Steps 15 and 23 docked 153 and 152
 - [x] What the agents chose: a fixed rule by the sign of $`x_0`$, 192 times in 200 for the best seed, the same rule as Step 23's mirror (one seed learned the opposite, equivalent convention). Behind the station the best seed docks 73 of 160 starts more than 20 m off the axis, and 1 of 40 within 20 m: there it crosses the axis behind the station and enters the sphere. The hard starts are where the natural drift, $`\Delta y = -12\pi\,x_0`$ per orbit, picks no side
@@ -389,7 +398,7 @@ the physics gives no preference; that is where to look next.
 ### Step 25 — Brakes on PPO
 
 - [x] The logs of Step 24: the updates never shrank. The median KL divergence between the new and the old policy stayed near 0.02 for the whole run, a twentieth of updates passed 0.06, a fifth of the samples were clipped, and the training success fell to zero and back
-- [x] `training.ppo_stability`, off by default: a learning rate falling linearly to `learning_rate_final`, and `target_kl`, which stops the epochs of an update once the KL passes 1.5 times it (`configs/ppo_corridor_stable.yaml`: $`3 \times 10^{-4} \to 3 \times 10^{-5}`$, 0.02)
+- [x] `training.ppo_stability`, off by default: a learning rate falling linearly to `learning_rate_final`, and `target_kl`, which stops the epochs of an update once the KL passes 1.5 times it (`studies/2_oriented_port/configs/ppo_corridor_stable.yaml`: $`3 \times 10^{-4} \to 3 \times 10^{-5}`$, 0.02)
 - [x] Three seeds, stopped at 11 million steps: two still at the first stage, narrowing the cone, and one at the fourth, where Step 24 had been at the ninth by 4 million. The KL had only fallen to 0.016, so the brakes rarely acted, and the cause of the slowdown is not proven; the six seeds of Step 24 without them all passed 45° within 6 million steps
 - [x] Not done: replaying the starts of earlier stages. The curriculum already draws them, since every stage covers its whole region from 2 m; at the last stage a quarter of the starts are within 45° of the axis
 
@@ -415,17 +424,17 @@ of the station and keeps the better, sees the keep-out sphere before entering
 it, and leaves the long horizon to $`V_\theta`$. No plan is written by hand and
 no teacher is used: the agent still learns from its own reward.
 
-- [x] `planning.py`: a cross-entropy planner on the closed-form propagation, scored with the environment's own outcomes and fuel, in the same order, plus $`\gamma^H V(\mathbf{s}_H)`$ if the horizon ends first; `scripts/plan_eval.py` flies it on the 200 starts in parallel
+- [x] `planning.py`: a cross-entropy planner on the closed-form propagation, scored with the environment's own outcomes and fuel, in the same order, plus $`\gamma^H V(\mathbf{s}_H)`$ if the horizon ends first; `studies/2_oriented_port/scripts/plan_eval.py` flies it on the 200 starts in parallel
 - [x] Check without the port: it docks, 0.71 m/s in 1120 s on the first test start, cheaper than the default agent
 - [x] With the port, a long horizon and no knowledge beyond it ($`V = 0`$, or the straight distance, horizon 50 steps): **0 of 200**. It reaches the rim of the keep-out sphere and stops: over 500 s nearly every sampled sequence leaves the narrow cone, so not entering scores best
 - [x] A short horizon and the straight distance (10 steps): 22 of 200, 120 violations
 - [x] A short horizon and the shaping potential as $`V`$, which measures the way around the sphere: 116 of 200 with 10 steps; **195 of 200 with 20 steps, no violation, 45 of 47 from behind the station**, 1.13 m/s in 1260 s, against 200 of 200 and 1.06–1.23 m/s for the V-bar procedure; about 0.1 s per decision
-- [x] `value.py` and `scripts/value_loop.py`: $`V = \text{prior} + \Delta V_\theta`$, the prior the straight distance, the correction a network fitted to the returns $`G_t = r_t + \gamma G_{t+1}`$ of the planner's own flights, with the environment's fuel and outcomes only; the starts from the port outwards, a stage further once 90 % of the outer starts dock
+- [x] `value.py` and `studies/2_oriented_port/scripts/value_loop.py`: $`V = \text{prior} + \Delta V_\theta`$, the prior the straight distance, the correction a network fitted to the returns $`G_t = r_t + \gamma G_{t+1}`$ of the planner's own flights, with the environment's fuel and outcomes only; the starts from the port outwards, a stage further once 90 % of the outer starts dock
 - [x] Without the prior the loop cannot start: with $`V = 0`$ the planner docked 4 of 30 even from 2–10 m. With it, 30 of 30
 - [x] The correction everywhere: 92 % at the first stage became 6–15 %, with or without five networks penalised by their spread. The value learned next to the port, +112 at 2 m, was above the +100 of docking: the planner hovered there, safe, rather than try the exact slow arrival its sampling rarely finds
 - [x] Off within 25 m: stuck at 40 m, 31 escapes in 64, since beyond its data the network invented high values. Off within 25 m and allowed only to lower the prior: through 30°, stuck at 45°, the chaser parked against the side of the sphere, 22 m out, where the network was off and the prior pushes into the sphere. Five networks and a zone of 8 m: collapse at the first stage
 - [x] Off only down the cone within 25 m, where the port is in sight, and penalty only: **through 45°**, then stuck at 60 m and 65° after 18 iterations, 69–88 %; failures went round the wrong side and stopped behind the station, or hovered 4 m from the port
-- [x] On the 200 unseen starts: **100 of 200, no violation**, 15 of 47 from behind the station. The same planner with the prior alone: **100 of 200**, 7 of 47 from behind and 36 of 56 at 90–135° against 26. The learned correction moved dockings between directions and added none (`assets/learned_value_evaluation.json`)
+- [x] On the 200 unseen starts: **100 of 200, no violation**, 15 of 47 from behind the station. The same planner with the prior alone: **100 of 200**, 7 of 47 from behind and 36 of 56 at 90–135° against 26. The learned correction moved dockings between directions and added none (`studies/2_oriented_port/assets/learned_value_evaluation.json`)
 
 *Lesson.* The search with a value written from the geometry docks 195 of 200;
 the value learned from the search's own flights, in five forms, did not
@@ -456,10 +465,10 @@ Go-Explore [Ecoffet et al., 2021] separates the two parts.
 - [x] Probe on 10 starts from behind the station (150–180°, 80–200 m). Cells of 5 m chosen by visit count alone: **0 dockings** after 100 000 rounds each; the archive reached the mouth of the cone, 21–28 m out, and no further
 - [x] The cell to return to weighted also by its distance to the port, $`w = e^{-r/30\ \text{m}} / \sqrt{n+1}`$, the generic prior of Step 26, and random thrusts of random magnitude: **8 of 10** in 200 000 rounds; the other two stopped 2.5 m from the port
 - [x] Cells that shrink next to the port, from 4 m to 0.5 m: on a 5 m grid the last metres were one cell, in which the archive could not get closer. **10 of 10**, the first docking after 21 000–44 000 rounds, about two minutes per start; each replayed from a fresh reset, it docks again with no violation, 1.15–2.52 m/s in 1410–2630 s
-- [x] Phase 1 on 400 starts in every direction (`scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): **393 of 400 dock on replay, no violation**; 92/93 within 45°, 101/102 at 45–90°, 106/110 at 90–135°, **94/95 from behind the station**. Median 1.66 m/s in 1780 s, against 1.06–1.23 m/s in 1400–1775 s for the V-bar procedure: the exploration finds a way, not the cheapest. About 1.5 minutes per start (`assets/go_explore_phase1.json`)
+- [x] Phase 1 on 400 starts in every direction (`studies/2_oriented_port/scripts/go_explore.py`, seeds from 100 000, far from the evaluation's): **393 of 400 dock on replay, no violation**; 92/93 within 45°, 101/102 at 45–90°, 106/110 at 90–135°, **94/95 from behind the station**. Median 1.66 m/s in 1780 s, against 1.06–1.23 m/s in 1400–1775 s for the V-bar procedure: the exploration finds a way, not the cheapest. About 1.5 minutes per start (`studies/2_oriented_port/assets/go_explore_phase1.json`)
 - [x] Phase 2 by imitation (behaviour cloning on the 393 dockings, 71 738 pairs): **2 of 200**, 197 violations. The thrusts found are half random, the network fits barely half of their variance, and the first error leaves it where no example goes. The distillation of Step 20 worked because its teacher could be asked again off its path; these trajectories cannot
 - [x] Phase 2 by the backward algorithm: PPO started from states of the dockings, $`k`$ steps before their end, the cone first opened as in Step 21, $`k`$ raised by 10 once the deterministic agent docks 80 % of 40 attempts. Two seeds of 15 million steps reached $`k`$ = 115 and 85 of a median 178; on the 200 unseen starts 48 and 73 of 200, 40 of 41 in front, 0 of 47 from behind, since the starts never reached the true ones. Not a final result
-- [x] Go-Explore as a planner instead (`GoExplorePlanner`): explore from the chaser's state on a copy of the simulator, fly the best docking found, explore again every 30 steps; a replan keeps searching 2000 rounds after its first docking. On the 200 unseen starts, with no thrust error: **198 of 200**, 41/41, 55/56, 56/56 and **46 of 47 from behind the station**, two violations; 1.88 m/s in 2035 s; about seven searches and 5.4 minutes of computing per flight (`assets/go_explore_planner.json`)
+- [x] Go-Explore as a planner instead (`GoExplorePlanner`): explore from the chaser's state on a copy of the simulator, fly the best docking found, explore again every 30 steps; a replan keeps searching 2000 rounds after its first docking. On the 200 unseen starts, with no thrust error: **198 of 200**, 41/41, 55/56, 56/56 and **46 of 47 from behind the station**, two violations; 1.88 m/s in 2035 s; about seven searches and 5.4 minutes of computing per flight (`studies/2_oriented_port/assets/go_explore_planner.json`)
 - [x] The plan found at the start flown open loop, with a thrust error of 10 % in magnitude and 3° in direction each step: **9 of 200**, 174 violations. A fixed sequence does not survive imperfect thrust; replanning is what would. The same errors with replanning were not measured: the run was stopped
 - [ ] Replanning with thrust errors, and a phase 2 that leaves a network: open
 
@@ -471,7 +480,23 @@ procedure. Turning what it finds into a network is the open half: copying its
 thrusts fails, and the backward algorithm learns, but slowly, the same
 reinforcement learning the exploration was meant to help.
 
-## Possible extensions
+# Part 3 — Graph planner
+
+## Step 28 — A graph of exact manoeuvres as the planner's value *(planned)*
+
+Design in the [README of Part 3](studies/3_graph_planner/README.md). Blocks 1–3
+follow Starek, Pavone and co-authors (J. Guid. Control Dyn., 2017); the graph's
+value as the terminal cost of a sampling MPC that replans was not found in the
+literature searched.
+
+- [x] The repository reorganised into a shared library (`core`, `rl`, `planning`, `viz`) and three studies, each with its README, configurations, scripts and results
+- [ ] Nodes round the station, denser near the port; edges by the exact CW transfer for times of flight of 200, 400 and 800 s, kept only if the arc is legal
+- [ ] The value by dynamic programming on the graph; for a moving state, the exact transfer to the best neighbouring node plus its value
+- [ ] Tests: an edge lands on its node to machine precision; an edge through the sphere is rejected; the value of the port is zero and grows away from it; from behind the station the shortest path goes round one side
+- [ ] The value at the end of the horizon of the sampling MPC of Step 26: first the 10 starts from behind the station, then the 200 unseen starts, against every method of Part 2
+- [ ] Optional: a network that compresses the value, for speed and generalisation
+
+# Possible extensions
 
 In order of priority. Each would be a step of its own, with the same rules:
 tests first, the README updated, a commit.
@@ -484,7 +509,7 @@ coupling. The target sits still at the centre of the view only because the view
 is the target's own. What the real ISS adds is below: an oriented docking port,
 perturbations, and, negligibly, a slightly eccentric orbit.
 
-### 1. Fuel, if taken further
+## 1. Fuel, if taken further
 
 Steps 11 to 13 took the agent from 0.98 to 0.74 m/s and removed, one by one,
 the discount, the stay-put trap and the tax on exploration noise. What is left
@@ -496,7 +521,7 @@ is finding a slow approach reliably.
 - [ ] Less exploration noise late in training (an annealed or state-dependent
   standard deviation), combined with the engine switch.
 
-### 2. The oriented target, if taken further
+## 2. The oriented target, if taken further
 
 Model-free reinforcement learning from scratch stopped at a median of 118 of
 200 (Steps 14–25), a planner with a learned value at 100 (Step 26); Step 27
@@ -525,19 +550,19 @@ tries Go-Explore. Other families of methods, if that is not enough, in order:
   searches without gradients, but without successes to reward it has no more
   direction than trial and error.
 
-### 3. Three dimensions
+## 3. Three dimensions
 
 - [ ] Add the out-of-plane axis, $`\ddot{z} + n^2 z = u_z/m`$. On its own it is a
   decoupled oscillator and adds little; together with an oriented docking port
   it couples the three axes, so it follows item 2.
 
-### 4. Robustness
+## 4. Robustness
 
 - [ ] Navigation noise on the observed state, and thrust errors in magnitude and
   direction.
 - [ ] Measure how the agent and the LQR degrade as the noise grows.
 
-### 5. Perturbations
+## 5. Perturbations
 
 - [ ] Differential atmospheric drag and the $`J_2`$ term of the Earth's
   oblateness, which make the relative motion depart from the Clohessy-Wiltshire
@@ -546,7 +571,7 @@ tries Go-Explore. Other families of methods, if that is not enough, in order:
 - [ ] An eccentric target orbit (Tschauner-Hempel equations). For the ISS,
   $`e \approx 0.0003`$, so this comes last.
 
-### 6. A sounder comparison
+## 6. A sounder comparison
 
 - [ ] More training seeds, to put error bars on every number in the README
   (three were run in Step 10, enough to catch a failed run but not for a
