@@ -8,7 +8,7 @@ parts, and the code refers to them by number.
 
 - [Part 1 — Free docking](#part-1--free-docking), Steps 0–13 ([README](studies/1_free_docking/README.md))
 - [Part 2 — Through a port](#part-2--through-a-port), Steps 14–27 ([README](studies/2_oriented_port/README.md))
-- [Part 3 — Graph planner](#part-3--graph-planner), Step 28 → ([README](studies/3_graph_planner/README.md))
+- [Part 3 — Graph planner](#part-3--graph-planner), Step 28 ([README](studies/3_graph_planner/README.md))
 
 # Part 1 — Free docking
 
@@ -482,19 +482,29 @@ reinforcement learning the exploration was meant to help.
 
 # Part 3 — Graph planner
 
-## Step 28 — A graph of exact manoeuvres as the planner's value *(planned)*
+## Step 28 — A graph of exact manoeuvres as a map
 
-Design in the [README of Part 3](studies/3_graph_planner/README.md). Blocks 1–3
-follow Starek, Pavone and co-authors (J. Guid. Control Dyn., 2017); the graph's
-value as the terminal cost of a sampling MPC that replans was not found in the
-literature searched.
+Design and results in the [README of Part 3](studies/3_graph_planner/README.md).
+Blocks 1–3 follow Starek, Pavone and co-authors (J. Guid. Control Dyn., 2017).
 
 - [x] The repository reorganised into a shared library (`core`, `rl`, `planning`, `viz`) and three studies, each with its README, configurations, scripts and results
-- [ ] Nodes round the station, denser near the port; edges by the exact CW transfer for times of flight of 200, 400 and 800 s, kept only if the arc is legal
-- [ ] The value by dynamic programming on the graph; for a moving state, the exact transfer to the best neighbouring node plus its value
-- [ ] Tests: an edge lands on its node to machine precision; an edge through the sphere is rejected; the value of the port is zero and grows away from it; from behind the station the shortest path goes round one side
-- [ ] The value at the end of the horizon of the sampling MPC of Step 26: first the 10 starts from behind the station, then the 200 unseen starts, against every method of Part 2
-- [ ] Optional: a network that compresses the value, for speed and generalisation
+- [x] `planning/graph.py`: 201 nodes round the station, only the cone inside the keep-out sphere; edges by the exact CW transfer for 200, 400 and 800 s, kept if the arc is legal and each impulse fits in a quarter of the flight at 2 mm/s²: 6732 edges, built in under a second
+- [x] The value by Dijkstra on $`\Delta v + 0.001\,T`$, then in reward units along each cheapest way: every node reaches the port, and from behind the station the shortest path goes round one side
+- [x] The graph as the MPC's value beyond its horizon: **0 dockings** in four forms. Impulsive transfers promised an easy docking later and the planner hovered 8–10 m from the port; with impulses limited by the thruster and nearly continuous times it hovered at 10 m, since the end of its horizon was the same from anywhere near; with a glide-slope value in the cone and a horizon of 100 s it docked 6 of 6 from near the port, but from behind it parked on a node 80 m out
+- [x] The graph as a map (`GraphPilot`): the cheapest way, node by node, flown by a sampling MPC with a horizon of 100 s and the distance to the current node as its value; inside the cone the glide-slope descent; a new way when progress stalls. 10 of 10 from behind the station
+- [x] On the 200 unseen starts: **198 of 200, 47 of 47 from behind the station**, 1.87 m/s in 1080 s, 8 ms per decision; the 200 flights in 22 s (`scripts/graph_eval.py`, `assets/graph_pilot.json`)
+- [x] With a thrust error of 10 % and 3° on every step: 130 of 200, 69 crashes at the port, which the pilot reached at 0.049–0.050 m/s. Planning with a docking speed of 80 % of the limit: **199 of 200**, and still 198 without errors
+- [ ] Distil the pilot into a network with DART (Step 20), the pilot asked again from every perturbed state: learning back in, with a teacher nobody programmed with the way
+- [ ] Tune the cost of time, which now favours speed over fuel (1.87 m/s against 1.06–1.23 for the procedure)
+
+*Lesson.* Used as a value, the graph promised what a weak thruster cannot do,
+and a planner that replans every step always found it better to wait. Used as
+a map it decides only where to go, and the planner only how to reach the next
+point. The same graph, the same MPC: what changed is the role each was given.
+Two smaller lessons: a margin on a hard limit is what makes a controller
+robust to the errors it does not model, 130 to 199 of 200; and planning on
+the right physics, the exact transfers, did in a second what trial and error,
+learned values and minutes of search did not.
 
 # Possible extensions
 

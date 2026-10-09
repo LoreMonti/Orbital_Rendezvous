@@ -1,0 +1,79 @@
+{
+ "results": {
+  "graph pilot": {
+   "docked": 198,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 198,
+    "keep-out violation": 2
+   },
+   "delta_v_median": 1.869664165190711,
+   "time_median": 1080.0,
+   "ms_per_decision": 8.275671814420459,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 41,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 54,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 56,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 47,
+     "starts": 47
+    }
+   ]
+  },
+  "graph pilot, thrust error 0.10, 3 deg": {
+   "docked": 199,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 199,
+    "keep-out violation": 1
+   },
+   "delta_v_median": 1.8578069082003372,
+   "time_median": 1090.0,
+   "ms_per_decision": 8.521791691274865,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 41,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 55,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 56,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 47,
+     "starts": 47
+    }
+   ]
+  }
+ },
+ "description": "The graph pilot of Step 28 on the 200 held-out starts of the oriented target; thrust errors as in graph_eval.py."
+}

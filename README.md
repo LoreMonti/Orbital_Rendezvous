@@ -25,9 +25,11 @@ crashes (right), from the same starting point never seen in training.*
   representing it. Go-Explore, searching from saved states and replanning in
   flight, docks **198 of 200** with no teacher and no plan written by hand,
   against 200 for the classical V-bar procedure.
-- **Part 3, planned:** the exact Clohessy-Wiltshire manoeuvres between points
-  round the station as a graph, whose shortest paths give the value a fast
-  planner needs.
+- **Part 3, a graph of exact manoeuvres:** the closed-form transfers between
+  points round the station, kept where legal, give every cheapest way in; flown
+  node by node by a short-horizon planner, they dock **198 of 200**, 47 of 47
+  from behind the station, in 8 ms per decision, and **199 of 200** with a
+  10 % error on every thrust.
 
 ## Contents
 
@@ -68,7 +70,7 @@ down the docking axis is pushed sideways. The derivations are in
 | --- | --- | --- |
 | [1. Free docking](studies/1_free_docking/README.md) | reach the target from any direction, slowly enough | PPO with a shaped reward; studies of fuel with curricula, a Lagrange multiplier and an engine switch |
 | [2. Through a port](studies/2_oriented_port/README.md) | reach the port through a keep-out sphere and a 15° approach cone | PPO and SAC with curricula, a mirror symmetry and a chosen side; imitation of a teacher; a sampling planner with written or learned values; Go-Explore |
-| [3. Graph planner](studies/3_graph_planner/README.md) | the same as Part 2 | a graph of exact manoeuvres, dynamic programming, the sampling planner (planned) |
+| [3. Graph planner](studies/3_graph_planner/README.md) | the same as Part 2 | a graph of exact manoeuvres, its shortest paths, flown node by node by a sampling MPC |
 
 The agents see the state and the clock, and command a continuous thrust of at
 most 1 N on a 500 kg chaser, one decision every 10 s.
@@ -91,7 +93,9 @@ the starts each method docks.
 | 1 | PPO agent | 199 / 200 | 0.98 m/s |
 | 1 | fastest LQR that never crashes | 200 / 200 | 1.05 m/s |
 | 2 | V-bar procedure | 200 / 200 | 1.06–1.23 m/s |
-| 2 | Go-Explore as a planner | 198 / 200 | 1.88 m/s |
+| 3 | graph pilot, 8 ms per decision | 198 / 200 | 1.87 m/s |
+| 3 | graph pilot, 10 % thrust error | 199 / 200 | 1.86 m/s |
+| 2 | Go-Explore as a planner, 5 min per flight | 198 / 200 | 1.88 m/s |
 | 2 | sampling planner, value written by hand | 195 / 200 | 1.13 m/s |
 | 2 | PPO from scratch, median of six seeds | 118 / 200 | — |
 | 2 | sampling planner, value learned | 100 / 200 | 1.21 m/s |
@@ -100,9 +104,10 @@ the starts each method docks.
 
 On the free task the agent wins where a quadratic cost cannot express the
 constraint, a speed limit at docking, and loses on fuel to the patient
-controllers. Through the port the classical procedure wins: model-free
-trial and error does not find the way round the station, and the methods that
-do are the ones that search. The model is planar, linear and deterministic, on
+controllers. Through the port model-free trial and error does not find the way
+round the station; the methods that do are the ones that search, and the
+fastest and most robust computes it, from the exact manoeuvres of the dynamics
+(Part 3), matching the classical procedure's reliability with more fuel. The model is planar, linear and deterministic, on
 a circular orbit, with no perturbations and no navigation errors. Running a
 reinforcement learning agent on Clohessy-Wiltshire dynamics, planning on them,
 and Go-Explore are all established; what this project adds is a careful
@@ -124,7 +129,7 @@ part lists its scripts and commands in its README; they run from the root.
 ```bash
 python studies/1_free_docking/scripts/train.py                 # train the agent, with the window
 python studies/1_free_docking/scripts/evaluate.py              # against LQR and two impulses
-python studies/2_oriented_port/scripts/go_explore_eval.py      # Go-Explore through the port
+python studies/3_graph_planner/scripts/graph_eval.py           # the graph pilot through the port
 ```
 
 As a library:
@@ -151,12 +156,12 @@ Orbital_Rendezvous/
 ├── src/orbital_rendezvous/       # the shared library
 │   ├── core/                     # dynamics, environment, reward, baselines, evaluation
 │   ├── rl/                       # PPO and SAC training, callbacks, the fuel study
-│   ├── planning/                 # the sampling MPC, learned values, Go-Explore
+│   ├── planning/                 # the sampling MPC, learned values, Go-Explore, the graph
 │   └── viz/                      # the game view and the training window
 ├── studies/
 │   ├── 1_free_docking/           # Part 1: README, configs, scripts, assets
 │   ├── 2_oriented_port/          # Part 2: the same, and the teacher-student side study
-│   └── 3_graph_planner/          # Part 3: README (planned)
+│   └── 3_graph_planner/          # Part 3: README, scripts, assets
 ├── tests/                        # core/, rl/, planning/
 ├── models/, runs/                # trained models and run directories, git-ignored
 ```
@@ -172,13 +177,14 @@ pytest
 ruff check .
 ```
 
-225 tests pin the invariants that would catch a silent error: the dynamics
+235 tests pin the invariants that would catch a silent error: the dynamics
 against the closed form (a sign flip in the Coriolis term or a missing factor
 of $`n`$ produces plausible trajectories), every outcome of the environment,
 the shaping reward's telescoping sum, the baselines against the Riccati
 equation and the exact transfer, the rule of the corridor, the curricula, the
-mirror, the planners' scores against what the environment pays, and Go-Explore's
-dockings replayed from a fresh reset. Each part lists the groups behind it.
+mirror, the planners' scores against what the environment pays, Go-Explore's
+dockings replayed from a fresh reset, and the graph's transfers landing on
+their nodes. Each part lists the groups behind it.
 
 ## Roadmap
 

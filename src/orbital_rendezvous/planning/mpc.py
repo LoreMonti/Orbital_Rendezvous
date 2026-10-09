@@ -36,7 +36,7 @@ import numpy as np
 from orbital_rendezvous.core.env import RendezvousEnv
 from orbital_rendezvous.core.rewards import potential
 
-VALUES = ("none", "distance", "potential", "learned")
+VALUES = ("none", "distance", "potential", "learned", "graph")
 
 
 @dataclass(frozen=True)
@@ -71,8 +71,8 @@ class SamplingPlanner:
         self.config = config or PlannerConfig()
         if self.config.value not in VALUES:
             raise ValueError(f"unknown value {self.config.value!r}; known: {VALUES}")
-        if (self.config.value == "learned") != (value_fn is not None):
-            raise ValueError("a learned value needs value_fn, and only it does")
+        if (self.config.value in ("learned", "graph")) != (value_fn is not None):
+            raise ValueError("a learned or graph value needs value_fn, and only they do")
         self.value_fn = value_fn
         if env.config.mirror_symmetry or env.config.engine_switch:
             raise ValueError("the planner commands the true thrust on two axes")
@@ -152,7 +152,7 @@ class SamplingPlanner:
     def value(self, states: np.ndarray, steps: int) -> np.ndarray:
         """``V`` beyond the horizon, for a batch of states reached after ``steps`` steps."""
         kind = self.config.value
-        if kind == "learned":
+        if kind in ("learned", "graph"):
             return self.value_fn(states, steps)
         if kind == "none":
             return np.zeros(len(states))
