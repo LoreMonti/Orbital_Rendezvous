@@ -17,16 +17,18 @@ path goes round the left side; nobody wrote that.*
 
 **Key results**, on the 200 starts of Part 2, never seen:
 
-- the graph pilot docks **198 of 200**, **47 of 47 from behind the station**,
+- the graph pilot docks **197 of 200**, **47 of 47 from behind the station**,
   with no teacher and no way written by hand, in **8 ms per decision**; the
   200 flights take 22 s on a laptop, where Go-Explore needed about 4 hours for
-  the same 198;
+  198;
 - with a thrust error of 10 % in magnitude and 3° in direction on every step,
   it docks **199 of 200**, where the plan found once by Go-Explore and flown
   without replanning docked 9;
-- it spends **1.87 m/s** in a median 1080 s, faster than the V-bar procedure
-  (1400–1775 s) but with more fuel (1.06–1.23 m/s): the cost of time in the
-  graph favours speed.
+- distilled into one network by imitation with DART, it gives a student that
+  docks **133 of 200** and **43 of 47 from behind the station**, where
+  model-free reinforcement learning from scratch docked 1 to 4: the way round
+  the station, which nobody wrote, learned by a network; still well short of
+  its teacher.
 
 ## Contents
 
@@ -94,6 +96,19 @@ $`t(r) = \tau\,\ln(1 + r/(v_d\,\tau))`$. If the chaser makes no progress for 60
 steps, or drifts away from its target, the way is planned again from where it
 is. The MPC plans with a docking speed of 80 % of the true limit.
 
+**5. A network that flies like the pilot** (`planning/distill.py`). The graph
+pilot flies 4000 training starts; every step records the observation and the
+pilot's command as a label, while the thrust actually applied carries noise
+(DART: 0.1 of full thrust beyond 40 m, 0.02 within), so that the chaser drifts
+off the way and the pilot, who replans, shows how to come back. A network with
+two heads, as in Step 20, learns from it: a mode, straight in or round either
+side, read from the side of the way's node furthest round and chosen once,
+and a thrust that sees the mode, with steps within 20 m weighted ten times.
+The student kept is the one that docks most often on 100 validation starts.
+For this the graph keeps its arcs 5° inside the cone: on the rim itself the
+student, a couple of degrees off, entered the sphere outside the cone 62 times
+in 200.
+
 **What did not work first: the graph as the planner's value.** The design
 began with the graph's value at the end of the MPC's horizon, as in Step 26.
 It did not dock once, in four forms, each failing for a measured reason:
@@ -122,21 +137,30 @@ On the 200 unseen starts:
 | method | how it knows the way | docked | from behind | $`\Delta v`$ | time | computing |
 | --- | --- | --- | --- | --- | --- | --- |
 | V-bar procedure | written by hand | 200 | 47 / 47 | 1.06–1.23 m/s | 1400–1775 s | — |
-| **graph pilot** | **graph of exact manoeuvres** | **198** | **47 / 47** | 1.87 m/s | 1080 s | **8 ms per decision** |
+| **graph pilot** | **graph of exact manoeuvres** | **197** | **47 / 47** | 1.84 m/s | 1080 s | **8 ms per decision** |
+| **its student, one network** | **imitation of the graph pilot** | **133** | **43 / 47** | 1.42 m/s | 1080 s | under 1 ms per decision |
 | Go-Explore as a planner | search from saved states | 198 | 46 / 47 | 1.88 m/s | 2035 s | 5.4 min per flight |
 | planner, value written by hand | search + geometry by hand | 195 | 45 / 47 | 1.13 m/s | 1260 s | 0.1 s per decision |
 | RL from scratch, median of six seeds | trial and error | 118 | 1–4 / 47 | — | — | — |
+
+The student by direction: 15 of 41 within 45°, 29 of 56 at 45–90°, 46 of 56
+at 90–135° and 43 of 47 from behind. Its failures are keep-out violations at
+the entry into the sphere: from the front the graph's way is one long arc down
+the axis, entered at up to 0.24 m/s, and an imitation a little off cannot
+hold it. Without the cone margin it docked 126, 28 of 47 from behind.
 
 With a thrust error of 10 % in magnitude and 3° in direction on every step:
 
 | method | docked |
 | --- | --- |
 | graph pilot, planning with a margin of 80 % on the docking speed | **199 / 200** |
+| its student | 137 / 200 |
 | graph pilot, planning at the docking speed itself | 130 / 200, 69 crashes at the port |
 | Go-Explore's plan flown open loop | 9 / 200 |
 
-The two failures without errors are keep-out violations, both from starts at
-45–90°.
+The three failures without errors are keep-out violations, from starts within
+45° of the axis. Before the cone margin of the distillation (below), the pilot
+docked 198, its two violations from 45–90°.
 
 ## Discussion and limitations
 
@@ -147,13 +171,15 @@ the side round the station comes out of a shortest path. Flown as a map by a
 short-horizon MPC that replans, it is reliable, robust to thrust errors and
 fast enough for a flight computer.
 
-**Where it is not learning.** Blocks 1 to 4 are planning and control: a graph,
-a shortest path, an MPC. There is no learned component yet. The next step,
-distilling the pilot into a network, would bring learning back in a role
-where it can work: the pilot can be asked what to do from any state, which is
-what made the distillation of Step 20 dock 596 of 600.
+**Where learning comes in.** Blocks 1 to 4 are planning and control: a graph,
+a shortest path, an MPC. Block 5 brings learning back where it can work: the
+pilot can be asked what to do from any state, as the teacher of Step 20 could,
+and its student learns the way round the station, 43 of 47 from behind. At
+133 of 200 it is still well short of its teacher, 197, and of Step 20's
+student, 596 of 600; the entries into the sphere from the front are where it
+fails.
 
-**Where it costs more.** 1.87 m/s against 1.06–1.23 for the procedure: the
+**Where it costs more.** 1.84 m/s against 1.06–1.23 for the procedure: the
 cost of time in the graph, $`\lambda = 0.001`$, and the approach to each node
 at speed favour a quick flight; the weight was not tuned.
 
@@ -178,11 +204,13 @@ the root of the repository.
 | --- | --- |
 | `graph_eval.py` | the graph pilot on the 200 unseen starts, with optional thrust errors; adds a row to `assets/graph_pilot.json` |
 | `graph_map.py` | the figure above: the nodes and the cheapest way in from two starts |
+| `distill.py` | block 5: collects the pilot's flights with DART noise, trains the student, evaluates it; resumable by phase |
 
 ```bash
 python studies/3_graph_planner/scripts/graph_eval.py                                  # about 20 s
 python studies/3_graph_planner/scripts/graph_eval.py --thrust-error 0.1 --angle-error 3
 python studies/3_graph_planner/scripts/graph_map.py
+caffeinate -ims python studies/3_graph_planner/scripts/distill.py --run runs/distill/margin_seed0   # about 25 min
 ```
 
 As a library:
@@ -205,17 +233,19 @@ studies/3_graph_planner/
 ├── README.md            # this write-up
 ├── scripts/
 │   ├── graph_eval.py    # the graph pilot on the 200 unseen starts
-│   └── graph_map.py     # the map figure
-└── assets/              # graph_map.png, graph_pilot.json
+│   ├── graph_map.py     # the map figure
+│   └── distill.py       # the pilot distilled into one network
+└── assets/              # graph_map.png, graph_pilot.json, student.json
 ```
 
-The graph and the pilot are in `src/orbital_rendezvous/planning/graph.py`; the
+The graph and the pilot are in `src/orbital_rendezvous/planning/graph.py`, the
+student in `planning/distill.py`; the
 sampling MPC they use is Part 2's `planning/mpc.py`.
 
 ## Tests
 
 ```bash
-pytest tests/planning/test_graph.py
+pytest tests/planning/test_graph.py tests/planning/test_distill.py
 ```
 
 - **Edges.** A transfer flown with the closed-form propagation lands on its
@@ -232,6 +262,11 @@ pytest tests/planning/test_graph.py
 - **Pilot.** From behind the station it docks round one side with no
   violation; it plans with the margin on the docking speed while the rule
   stays the true one; the descent starts only inside the cone.
+- **Student.** The mode names the side the way goes round, read from the node
+  furthest round and not from the mouth of the cone; the labels are the
+  teacher's commands, not the noisy thrust applied; the student keeps its
+  first mode; training fits the labels and keeps the best student on
+  validation, not the last.
 
 ## Roadmap
 

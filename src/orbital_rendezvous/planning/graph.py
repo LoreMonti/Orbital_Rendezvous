@@ -73,6 +73,15 @@ class GraphConfig:
     nearest: int = 12                                        # nodes tried from a state
     time_weight: float = 0.001                               # lambda, m/s per s
     samples: int = 30                                        # points checked along an arc
+    # Arcs inside the keep-out sphere must stay this far within the cone. On
+    # the rim itself, the way in suited the graph pilot, but its distilled
+    # student, off by a couple of degrees, entered the sphere outside the cone
+    # 62 times in 200, at a median of 17 degrees. The rule is unchanged.
+    cone_margin_deg: float = 5.0
+
+    def cone(self, cone_deg: float) -> float:
+        """The cone the graph's arcs keep to: the true one less the margin."""
+        return max(1.0, cone_deg - self.cone_margin_deg)
 
 
 def nodes(config: GraphConfig, keep_out: float, cone_deg: float) -> np.ndarray:
@@ -165,7 +174,7 @@ class CWGraph:
             limit = impulse_limit(cfg, self.env, t)
             good = (d1 <= limit) & (d2 <= limit) & legal(
                 self.env.n, t, p0, depart, cfg.samples, ec.keep_out_radius,
-                ec.approach_cone_deg, ec.docking_radius)
+                cfg.cone(ec.approach_cone_deg), ec.docking_radius)
             c = d1 + d2 + cfg.time_weight * t
             better = good & (c < cost[i, j])
             cost[i[better], j[better]] = c[better]
@@ -257,7 +266,7 @@ class GraphValue:
             limit = impulse_limit(cfg, g.env, t)
             ok = (d1 <= limit) & (d2 <= limit) & legal(
                 g.env.n, t, p0, depart, cfg.entry_samples, ec.keep_out_radius,
-                ec.approach_cone_deg, ec.docking_radius)
+                cfg.cone(ec.approach_cone_deg), ec.docking_radius)
             v = rc.gamma ** (t / ec.time_step) * g.value[nj] - rc.fuel_weight * (d1 + d2)
             values = np.maximum(values, np.where(ok, v, -np.inf))
         return si, nj, values

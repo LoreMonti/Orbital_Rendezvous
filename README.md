@@ -27,9 +27,10 @@ crashes (right), from the same starting point never seen in training.*
   against 200 for the classical V-bar procedure.
 - **Part 3, a graph of exact manoeuvres:** the closed-form transfers between
   points round the station, kept where legal, give every cheapest way in; flown
-  node by node by a short-horizon planner, they dock **198 of 200**, 47 of 47
+  node by node by a short-horizon planner, they dock **197 of 200**, 47 of 47
   from behind the station, in 8 ms per decision, and **199 of 200** with a
-  10 % error on every thrust.
+  10 % error on every thrust; a network distilled from that pilot docks 133,
+  43 of 47 from behind.
 
 ## Contents
 
@@ -93,8 +94,9 @@ the starts each method docks.
 | 1 | PPO agent | 199 / 200 | 0.98 m/s |
 | 1 | fastest LQR that never crashes | 200 / 200 | 1.05 m/s |
 | 2 | V-bar procedure | 200 / 200 | 1.06–1.23 m/s |
-| 3 | graph pilot, 8 ms per decision | 198 / 200 | 1.87 m/s |
-| 3 | graph pilot, 10 % thrust error | 199 / 200 | 1.86 m/s |
+| 3 | graph pilot, 8 ms per decision | 197 / 200 | 1.84 m/s |
+| 3 | graph pilot, 10 % thrust error | 199 / 200 | 1.81 m/s |
+| 3 | one network distilled from the graph pilot | 133 / 200 | 1.42 m/s |
 | 2 | Go-Explore as a planner, 5 min per flight | 198 / 200 | 1.88 m/s |
 | 2 | sampling planner, value written by hand | 195 / 200 | 1.13 m/s |
 | 2 | PPO from scratch, median of six seeds | 118 / 200 | — |

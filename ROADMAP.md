@@ -494,7 +494,10 @@ Blocks 1–3 follow Starek, Pavone and co-authors (J. Guid. Control Dyn., 2017).
 - [x] The graph as a map (`GraphPilot`): the cheapest way, node by node, flown by a sampling MPC with a horizon of 100 s and the distance to the current node as its value; inside the cone the glide-slope descent; a new way when progress stalls. 10 of 10 from behind the station
 - [x] On the 200 unseen starts: **198 of 200, 47 of 47 from behind the station**, 1.87 m/s in 1080 s, 8 ms per decision; the 200 flights in 22 s (`scripts/graph_eval.py`, `assets/graph_pilot.json`)
 - [x] With a thrust error of 10 % and 3° on every step: 130 of 200, 69 crashes at the port, which the pilot reached at 0.049–0.050 m/s. Planning with a docking speed of 80 % of the limit: **199 of 200**, and still 198 without errors
-- [ ] Distil the pilot into a network with DART (Step 20), the pilot asked again from every perturbed state: learning back in, with a teacher nobody programmed with the way
+- [x] Block 5, `planning/distill.py` and `scripts/distill.py`: the pilot flies 4000 training starts with DART noise (0.1 beyond 40 m, 0.02 within), and a two-headed student, as in Step 20, learns its commands; the mode is the side of the way's node furthest round (read from the node nearest the station, every way round had read as straight in: a test caught it, and the first run was restarted)
+- [x] First student: 126 of 200, 28 of 47 from behind; 62 of its 73 violations were entries into the sphere at a median 17°: the teacher's way passed on the rim of the cone
+- [x] The graph's arcs kept 5° inside the cone (`cone_margin_deg`): the teacher docks 197 of 200 (199 with thrust errors), its student **133 of 200, 43 of 47 from behind the station**, 137 with thrust errors. From the front it got worse, 15 of 41: the way in from the front is one long arc down the axis, entered at up to 0.24 m/s
+- [ ] The glide slope on the graph's arcs inside the sphere, so that the teacher enters slowly and its student can follow; then more flights (12 000, as in Step 20) if needed
 - [ ] Tune the cost of time, which now favours speed over fuel (1.87 m/s against 1.06–1.23 for the procedure)
 
 *Lesson.* Used as a value, the graph promised what a weak thruster cannot do,
