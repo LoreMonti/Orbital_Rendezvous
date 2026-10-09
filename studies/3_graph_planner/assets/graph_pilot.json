@@ -1,26 +1,26 @@
 {
  "results": {
   "graph pilot": {
-   "docked": 197,
+   "docked": 195,
    "episodes": 200,
    "outcomes": {
-    "docked": 197,
-    "keep-out violation": 3
+    "docked": 195,
+    "keep-out violation": 5
    },
-   "delta_v_median": 1.8380658265224827,
-   "time_median": 1080.0,
-   "ms_per_decision": 7.670276014019588,
+   "delta_v_median": 1.7452835007535406,
+   "time_median": 1050.0,
+   "ms_per_decision": 10.47140144643069,
    "by_sector": [
     {
      "from_deg": 0.0,
      "to_deg": 45.0,
-     "docked": 38,
+     "docked": 40,
      "starts": 41
     },
     {
      "from_deg": 45.0,
      "to_deg": 90.0,
-     "docked": 56,
+     "docked": 52,
      "starts": 56
     },
     {
@@ -38,15 +38,15 @@
    ]
   },
   "graph pilot, thrust error 0.10, 3 deg": {
-   "docked": 199,
+   "docked": 198,
    "episodes": 200,
    "outcomes": {
-    "keep-out violation": 1,
-    "docked": 199
+    "keep-out violation": 2,
+    "docked": 198
    },
-   "delta_v_median": 1.8148748001817785,
-   "time_median": 1100.0,
-   "ms_per_decision": 8.187448064228436,
+   "delta_v_median": 1.7404210197278607,
+   "time_median": 1050.0,
+   "ms_per_decision": 10.818092965335223,
    "by_sector": [
     {
      "from_deg": 0.0,
@@ -57,7 +57,7 @@
     {
      "from_deg": 45.0,
      "to_deg": 90.0,
-     "docked": 56,
+     "docked": 55,
      "starts": 56
     },
     {

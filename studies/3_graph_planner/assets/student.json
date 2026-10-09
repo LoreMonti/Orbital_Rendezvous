@@ -149,7 +149,230 @@
      "starts": 47
     }
    ]
+  },
+  "student glide_seed0": {
+   "docked": 136,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 136,
+    "keep-out violation": 64
+   },
+   "delta_v_median": 1.3530557032300208,
+   "time_median": 1020.0,
+   "flights": 4000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 31,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 42,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 29,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 34,
+     "starts": 47
+    }
+   ]
+  },
+  "student glide_seed0, thrust error 0.10, 3 deg": {
+   "docked": 129,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 129,
+    "crashed": 1,
+    "keep-out violation": 70
+   },
+   "delta_v_median": 1.3104818799788203,
+   "time_median": 1020.0,
+   "flights": 4000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 30,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 41,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 28,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 30,
+     "starts": 47
+    }
+   ]
+  },
+  "student big_seed0": {
+   "docked": 180,
+   "episodes": 200,
+   "outcomes": {
+    "keep-out violation": 20,
+    "docked": 180
+   },
+   "delta_v_median": 1.4308027579350477,
+   "time_median": 1025.0,
+   "flights": 12000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 37,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 53,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 51,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 39,
+     "starts": 47
+    }
+   ]
+  },
+  "student big_seed0, thrust error 0.10, 3 deg": {
+   "docked": 175,
+   "episodes": 200,
+   "outcomes": {
+    "keep-out violation": 25,
+    "docked": 175
+   },
+   "delta_v_median": 1.422683481513848,
+   "time_median": 1030.0,
+   "flights": 12000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 35,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 51,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 50,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 39,
+     "starts": 47
+    }
+   ]
+  },
+  "student big_seed1": {
+   "docked": 173,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 173,
+    "keep-out violation": 27
+   },
+   "delta_v_median": 1.4046314623900233,
+   "time_median": 1020.0,
+   "flights": 12000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 34,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 47,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 52,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 40,
+     "starts": 47
+    }
+   ]
+  },
+  "student big_seed1, thrust error 0.10, 3 deg": {
+   "docked": 178,
+   "episodes": 200,
+   "outcomes": {
+    "docked": 178,
+    "keep-out violation": 22
+   },
+   "delta_v_median": 1.407188253533877,
+   "time_median": 1020.0,
+   "flights": 12000,
+   "by_sector": [
+    {
+     "from_deg": 0.0,
+     "to_deg": 45.0,
+     "docked": 38,
+     "starts": 41
+    },
+    {
+     "from_deg": 45.0,
+     "to_deg": 90.0,
+     "docked": 48,
+     "starts": 56
+    },
+    {
+     "from_deg": 90.0,
+     "to_deg": 135.0,
+     "docked": 53,
+     "starts": 56
+    },
+    {
+     "from_deg": 135.0,
+     "to_deg": 180.0,
+     "docked": 39,
+     "starts": 47
+    }
+   ]
   }
  },
- "description": "The graph pilot distilled into one network with DART (scripts/distill.py), on the 200 held-out starts; 'seed0' from the teacher without a cone margin, 'margin_seed0' with the margin of 5 degrees."
+ "description": "The graph pilot distilled into one network with DART (scripts/distill.py), on the 200 held-out starts. 'seed0': 4000 flights, teacher without a cone margin; 'margin_seed0': with the margin of 5 degrees; 'glide_seed0': and the glide slope inside the sphere; 'big_seed0/1': the same teacher, 12000 flights, two training seeds."
 }

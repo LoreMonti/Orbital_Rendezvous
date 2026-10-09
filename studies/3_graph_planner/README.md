@@ -17,18 +17,19 @@ path goes round the left side; nobody wrote that.*
 
 **Key results**, on the 200 starts of Part 2, never seen:
 
-- the graph pilot docks **197 of 200**, **47 of 47 from behind the station**,
-  with no teacher and no way written by hand, in **8 ms per decision**; the
-  200 flights take 22 s on a laptop, where Go-Explore needed about 4 hours for
-  198;
+- the graph pilot docks **195 of 200**, **47 of 47 from behind the station**,
+  with no teacher and no way written by hand, in about 10 ms per decision; the
+  200 flights take under half a minute on a laptop, where Go-Explore needed
+  about 4 hours for 198;
 - with a thrust error of 10 % in magnitude and 3° in direction on every step,
-  it docks **199 of 200**, where the plan found once by Go-Explore and flown
+  it docks **198 of 200**, where the plan found once by Go-Explore and flown
   without replanning docked 9;
-- distilled into one network by imitation with DART, it gives a student that
-  docks **133 of 200** and **43 of 47 from behind the station**, where
-  model-free reinforcement learning from scratch docked 1 to 4: the way round
-  the station, which nobody wrote, learned by a network; still well short of
-  its teacher.
+- distilled into **one neural network** by imitation with DART, on 12 000 of
+  the pilot's flights, it gives a student that docks **173 and 180 of 200** on
+  two training seeds, **39–40 of 47 from behind the station** where model-free
+  reinforcement learning from scratch docked 1 to 4, and 175–178 with thrust
+  errors, on 1.40–1.43 m/s: the way round the station, which nobody wrote,
+  learned by a network that decides in under a millisecond.
 
 ## Contents
 
@@ -97,7 +98,7 @@ steps, or drifts away from its target, the way is planned again from where it
 is. The MPC plans with a docking speed of 80 % of the true limit.
 
 **5. A network that flies like the pilot** (`planning/distill.py`). The graph
-pilot flies 4000 training starts; every step records the observation and the
+pilot flies 12 000 training starts; every step records the observation and the
 pilot's command as a label, while the thrust actually applied carries noise
 (DART: 0.1 of full thrust beyond 40 m, 0.02 within), so that the chaser drifts
 off the way and the pilot, who replans, shows how to come back. A network with
@@ -105,9 +106,12 @@ two heads, as in Step 20, learns from it: a mode, straight in or round either
 side, read from the side of the way's node furthest round and chosen once,
 and a thrust that sees the mode, with steps within 20 m weighted ten times.
 The student kept is the one that docks most often on 100 validation starts.
-For this the graph keeps its arcs 5° inside the cone: on the rim itself the
-student, a couple of degrees off, entered the sphere outside the cone 62 times
-in 200.
+For this the graph keeps its arcs 5° inside the cone and, inside the keep-out
+sphere, under the glide slope $`|\mathbf{v}| \le v_d + r/\tau`$ with
+$`\tau = 400`$ s, so that the way in is slow where the corridor is narrow. On
+the rim itself the student, a couple of degrees off, entered the sphere outside
+the cone 62 times in 200; along one fast arc down the axis it could not hold
+the cone from the front.
 
 **What did not work first: the graph as the planner's value.** The design
 began with the graph's value at the end of the MPC's horizon, as in Step 26.
@@ -137,30 +141,40 @@ On the 200 unseen starts:
 | method | how it knows the way | docked | from behind | $`\Delta v`$ | time | computing |
 | --- | --- | --- | --- | --- | --- | --- |
 | V-bar procedure | written by hand | 200 | 47 / 47 | 1.06–1.23 m/s | 1400–1775 s | — |
-| **graph pilot** | **graph of exact manoeuvres** | **197** | **47 / 47** | 1.84 m/s | 1080 s | **8 ms per decision** |
-| **its student, one network** | **imitation of the graph pilot** | **133** | **43 / 47** | 1.42 m/s | 1080 s | under 1 ms per decision |
+| **graph pilot** | **graph of exact manoeuvres** | **195** | **47 / 47** | 1.75 m/s | 1050 s | **10 ms per decision** |
+| **its student, one network** (two seeds) | **imitation of the graph pilot** | **173–180** | **39–40 / 47** | 1.40–1.43 m/s | 1020 s | under 1 ms per decision |
 | Go-Explore as a planner | search from saved states | 198 | 46 / 47 | 1.88 m/s | 2035 s | 5.4 min per flight |
 | planner, value written by hand | search + geometry by hand | 195 | 45 / 47 | 1.13 m/s | 1260 s | 0.1 s per decision |
 | RL from scratch, median of six seeds | trial and error | 118 | 1–4 / 47 | — | — | — |
 
-The student by direction: 15 of 41 within 45°, 29 of 56 at 45–90°, 46 of 56
-at 90–135° and 43 of 47 from behind. Its failures are keep-out violations at
-the entry into the sphere: from the front the graph's way is one long arc down
-the axis, entered at up to 0.24 m/s, and an imitation a little off cannot
-hold it. Without the cone margin it docked 126, 28 of 47 from behind.
+How the student got there, one change at a time:
+
+| student | flights | docked | 0–45° | 45–90° | 90–135° | 135–180° |
+| --- | --- | --- | --- | --- | --- | --- |
+| teacher on the rim of the cone | 4000 | 126 | 31 / 41 | 27 / 56 | 40 / 56 | 28 / 47 |
+| arcs 5° inside the cone | 4000 | 133 | 15 / 41 | 29 / 56 | 46 / 56 | 43 / 47 |
+| and under the glide slope inside the sphere | 4000 | 136 | 31 / 41 | 42 / 56 | 29 / 56 | 34 / 47 |
+| the same teacher, three times the flights, seed 0 | 12 000 | **180** | 37 / 41 | 53 / 56 | 51 / 56 | 39 / 47 |
+| the same, seed 1 | 12 000 | **173** | 34 / 41 | 47 / 56 | 52 / 56 | 40 / 47 |
+
+Changes to the teacher moved the failures between directions and left the
+total near 130; three times the flights moved the total to 173–180, on two
+seeds that agree within seven dockings. Its failures are keep-out violations.
+It spends less than its teacher, 1.4 against 1.75 m/s.
 
 With a thrust error of 10 % in magnitude and 3° in direction on every step:
 
 | method | docked |
 | --- | --- |
-| graph pilot, planning with a margin of 80 % on the docking speed | **199 / 200** |
-| its student | 137 / 200 |
+| graph pilot, planning with a margin of 80 % on the docking speed | **198 / 200** |
+| its student, two seeds | **175 and 178 / 200** |
 | graph pilot, planning at the docking speed itself | 130 / 200, 69 crashes at the port |
 | Go-Explore's plan flown open loop | 9 / 200 |
 
-The three failures without errors are keep-out violations, from starts within
-45° of the axis. Before the cone margin of the distillation (below), the pilot
-docked 198, its two violations from 45–90°.
+The five failures without errors are keep-out violations. Before the cone
+margin and the glide slope of the distillation (above), the pilot docked 198,
+and 199 with errors; slowing its way in cost it three dockings and made it
+something a network could learn.
 
 ## Discussion and limitations
 
@@ -174,12 +188,12 @@ fast enough for a flight computer.
 **Where learning comes in.** Blocks 1 to 4 are planning and control: a graph,
 a shortest path, an MPC. Block 5 brings learning back where it can work: the
 pilot can be asked what to do from any state, as the teacher of Step 20 could,
-and its student learns the way round the station, 43 of 47 from behind. At
-133 of 200 it is still well short of its teacher, 197, and of Step 20's
-student, 596 of 600; the entries into the sphere from the front are where it
-fails.
+and its student learns the way round the station, 39–40 of 47 from behind.
+At 173–180 of 200 it is short of its teacher, 195, and of Step 20's student,
+596 of 600, which learned from a hand-written plan; the amount of data
+mattered more than any change to the teacher.
 
-**Where it costs more.** 1.84 m/s against 1.06–1.23 for the procedure: the
+**Where it costs more.** 1.75 m/s against 1.06–1.23 for the procedure: the
 cost of time in the graph, $`\lambda = 0.001`$, and the approach to each node
 at speed favour a quick flight; the weight was not tuned.
 
@@ -210,7 +224,7 @@ the root of the repository.
 python studies/3_graph_planner/scripts/graph_eval.py                                  # about 20 s
 python studies/3_graph_planner/scripts/graph_eval.py --thrust-error 0.1 --angle-error 3
 python studies/3_graph_planner/scripts/graph_map.py
-caffeinate -ims python studies/3_graph_planner/scripts/distill.py --run runs/distill/margin_seed0   # about 25 min
+caffeinate -ims python studies/3_graph_planner/scripts/distill.py --run runs/distill/seed0   # about 1 h 15 min
 ```
 
 As a library:

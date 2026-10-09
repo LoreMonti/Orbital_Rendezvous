@@ -79,6 +79,18 @@ class GraphConfig:
     # 62 times in 200, at a median of 17 degrees. The rule is unchanged.
     cone_margin_deg: float = 5.0
 
+    # Inside the sphere arcs keep under the glide slope v_dock + r / glide_time;
+    # None turns it off. Without it the way in from the front was one long arc
+    # down the axis, entered at up to 0.24 m/s: the pilot held it, its
+    # distilled student, a little off, did not (15 of 41 from the front).
+    glide_time: float | None = 400.0                         # s
+
+    def glide(self, env_config) -> tuple[float, float] | None:
+        """``(v_dock, tau)`` for `legal`, or None."""
+        if self.glide_time is None:
+            return None
+        return env_config.docking_speed, self.glide_time
+
     def cone(self, cone_deg: float) -> float:
         """The cone the graph's arcs keep to: the true one less the margin."""
         return max(1.0, cone_deg - self.cone_margin_deg)
@@ -136,17 +148,27 @@ def impulse_limit(config: GraphConfig, env: RendezvousEnv, t: float) -> float:
 
 
 def legal(n: float, t: float, p0: np.ndarray, depart: np.ndarray, samples: int,
-          keep_out: float, cone_deg: float, docking: float) -> np.ndarray:
-    """Whether each arc stays out of the keep-out sphere, or within the cone inside it."""
+          keep_out: float, cone_deg: float, docking: float,
+          glide: tuple[float, float] | None = None) -> np.ndarray:
+    """Whether each arc stays out of the keep-out sphere, or within the cone inside it.
+
+    With ``glide = (v_dock, tau)``, inside the sphere the arc must also keep under
+    the glide slope, ``|v| <= v_dock + r / tau``, as a real final approach does.
+    """
     ok = np.ones(len(p0), dtype=bool)
     cos_cone = np.cos(np.radians(cone_deg))
     for s in np.linspace(0.0, t, samples)[1:]:
-        rr, rv, _, _ = blocks(n, s)
+        rr, rv, vr, vv = blocks(n, s)
         with np.errstate(all="ignore"):
             point = p0 @ rr.T + depart @ rv.T
         r = np.hypot(point[:, 0], point[:, 1])
         inside = (r >= docking) & (r < keep_out)
         ok &= ~(inside & (point[:, 1] < r * cos_cone))
+        if glide is not None:
+            with np.errstate(all="ignore"):
+                velocity = p0 @ vr.T + depart @ vv.T
+            speed = np.hypot(velocity[:, 0], velocity[:, 1])
+            ok &= ~(inside & (speed > glide[0] + r / glide[1]))
     return ok
 
 
@@ -174,7 +196,7 @@ class CWGraph:
             limit = impulse_limit(cfg, self.env, t)
             good = (d1 <= limit) & (d2 <= limit) & legal(
                 self.env.n, t, p0, depart, cfg.samples, ec.keep_out_radius,
-                cfg.cone(ec.approach_cone_deg), ec.docking_radius)
+                cfg.cone(ec.approach_cone_deg), ec.docking_radius, cfg.glide(ec))
             c = d1 + d2 + cfg.time_weight * t
             better = good & (c < cost[i, j])
             cost[i[better], j[better]] = c[better]
@@ -266,7 +288,7 @@ class GraphValue:
             limit = impulse_limit(cfg, g.env, t)
             ok = (d1 <= limit) & (d2 <= limit) & legal(
                 g.env.n, t, p0, depart, cfg.entry_samples, ec.keep_out_radius,
-                cfg.cone(ec.approach_cone_deg), ec.docking_radius)
+                cfg.cone(ec.approach_cone_deg), ec.docking_radius, cfg.glide(ec))
             v = rc.gamma ** (t / ec.time_step) * g.value[nj] - rc.fuel_weight * (d1 + d2)
             values = np.maximum(values, np.where(ok, v, -np.inf))
         return si, nj, values

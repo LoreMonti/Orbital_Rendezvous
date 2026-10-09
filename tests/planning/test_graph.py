@@ -88,7 +88,10 @@ def test_from_behind_the_station_the_cheapest_way_goes_round_one_side(graph):
     assert graph.path(k)[-1] == 0
     sides = np.sign(way[1:-1, 0])
     assert np.all(sides[sides != 0] == sides[sides != 0][0])     # one side, kept
-    assert np.all(np.hypot(*way[1:-1].T) >= 20.0)               # outside the sphere till the cone
+    # Every node on the way is outside the sphere, or inside it within the cone.
+    r = np.hypot(*way[1:-1].T)
+    in_cone = way[1:-1, 1] >= r * np.cos(np.radians(15.0))
+    assert np.all((r >= 20.0) | in_cone)
 
 
 def test_the_value_grows_down_the_cone_towards_the_port(graph):

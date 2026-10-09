@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="studies/2_oriented_port/configs/ppo_corridor.yaml")
     parser.add_argument("--run", default="runs/distill/seed0")
     parser.add_argument("--seed", type=int, default=0, help="of the student's training")
-    parser.add_argument("--flights", type=int, default=4000)
+    parser.add_argument("--flights", type=int, default=12_000)
     parser.add_argument("--noise", type=float, default=0.1, help="beyond 40 m")
     parser.add_argument("--noise-near", type=float, default=0.02, help="within 40 m")
     parser.add_argument("--epochs", type=int, default=40)

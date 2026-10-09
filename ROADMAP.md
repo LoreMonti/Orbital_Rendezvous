@@ -497,8 +497,16 @@ Blocks 1–3 follow Starek, Pavone and co-authors (J. Guid. Control Dyn., 2017).
 - [x] Block 5, `planning/distill.py` and `scripts/distill.py`: the pilot flies 4000 training starts with DART noise (0.1 beyond 40 m, 0.02 within), and a two-headed student, as in Step 20, learns its commands; the mode is the side of the way's node furthest round (read from the node nearest the station, every way round had read as straight in: a test caught it, and the first run was restarted)
 - [x] First student: 126 of 200, 28 of 47 from behind; 62 of its 73 violations were entries into the sphere at a median 17°: the teacher's way passed on the rim of the cone
 - [x] The graph's arcs kept 5° inside the cone (`cone_margin_deg`): the teacher docks 197 of 200 (199 with thrust errors), its student **133 of 200, 43 of 47 from behind the station**, 137 with thrust errors. From the front it got worse, 15 of 41: the way in from the front is one long arc down the axis, entered at up to 0.24 m/s
-- [ ] The glide slope on the graph's arcs inside the sphere, so that the teacher enters slowly and its student can follow; then more flights (12 000, as in Step 20) if needed
+- [x] The glide slope on the graph's arcs inside the sphere, $`|\mathbf{v}| \le v_d + r/\tau`$ with $`\tau = 400`$ s (`glide_time`): the teacher docks 195 of 200 (198 with thrust errors); its student, 4000 flights, 136 of 200: from the front 31 of 41, but fewer from behind. Each change to the teacher moved the failures between directions and left the total near 130
+- [x] 12 000 flights, as in Step 20, the same teacher, two training seeds on the same flights: **180 and 173 of 200**, 39 and 40 of 47 from behind the station, 175 and 178 with thrust errors, 1.40–1.43 m/s, less than its teacher (1.75). Validation peaked at 92 and 83 of 100
 - [ ] Tune the cost of time, which now favours speed over fuel (1.87 m/s against 1.06–1.23 for the procedure)
+
+*Lesson of block 5.* The way round the station, which nobody wrote, ended in a
+network: 173–180 of 200, where model-free reinforcement learning on the same
+task reached a median of 118. Three changes to the teacher, each aimed at a
+measured failure, moved failures between directions; three times the data
+moved the total. Two seeds on the same flights agreed within seven dockings,
+enough to tell an effect of the data from the noise of one run.
 
 *Lesson.* Used as a value, the graph promised what a weak thruster cannot do,
 and a planner that replans every step always found it better to wait. Used as
